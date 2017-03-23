@@ -362,6 +362,13 @@ config BATTERY_GOLDFISH
 	  Say Y to enable support for the battery and AC power in the
 	  Goldfish emulator.
 
+#add for charging current bcct ,aw806,gyg
+	config CUSTOM_DISABLE_CURRENT_BCCT
+ 	bool CUSTOM_DISABLE_CURRENT_BCCT
+	default n
+        help
+          CUSTOM_DISABLE_CURRENT_BCCT.
+
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY

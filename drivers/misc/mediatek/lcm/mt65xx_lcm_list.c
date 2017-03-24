@@ -18,6 +18,7 @@
 #define LCD_DEBUG(fmt)  printk(fmt)
 #endif
 
+extern LCM_DRIVER nt35521_dsi_vdo_yushun_cmi_hd720_lcm_drv;
 extern LCM_DRIVER otm1282a_hd720_dsi_vdo_60hz_lcm_drv;
 extern LCM_DRIVER otm1282a_hd720_dsi_vdo_lcm_drv;
 extern LCM_DRIVER vvx10f008b00_wuxga_dsi_vdo_lcm_drv;
@@ -255,6 +256,10 @@ extern LCM_DRIVER zaw806_ili9881c_hd720_dsi_vdo_dijing_lcm_drv;   //add by dhj
 
 LCM_DRIVER* lcm_driver_list[] = 
 {
+#if defined(NT35521_DSI_VDO_YUSHUN_CMI_HD720)
+	&nt35521_dsi_vdo_yushun_cmi_hd720_lcm_drv,
+#endif
+
 #if defined(ZAW700_HX8379C_FWVGA_DSI_VDO_TXD_TXDT450SKP)              //add by txd
 	&zaw700_hx8379c_fwvga_dsi_vdo_txd_TXDT450SKP_lcm_drv,
 #endif

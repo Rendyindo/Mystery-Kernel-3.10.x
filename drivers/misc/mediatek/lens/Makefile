@@ -5,9 +5,6 @@ include $(srctree)/drivers/misc/mediatek/Makefile.custom
 
 #obj-y += sensordriver/sensordrive_lens.o
  
-ifeq ($(CONFIG_ARCH_MT8127),y)
-		obj-$(CONFIG_MTK_LENS_FM50AF_SUPPORT)      += mt8127/fm50af/
-else
 	ifeq ($(CONFIG_ARCH_MT6580),y)
 	obj-$(CONFIG_MTK_LENS_DUMMYLENS_SUPPORT)     += mt6580/dummy_lens/
 	obj-$(CONFIG_MTK_LENS_DW9814AF_SUPPORT)      += mt6580/dw9814af/
@@ -18,6 +15,7 @@ else
 	obj-$(CONFIG_MTK_LENS_DW9714A_OV8858R2A_SUPPORT)      += mt6580/dw9714af_ov8858r2a/
 	obj-$(CONFIG_MTK_LENS_DW9714A_S5K4H5_SUPPORT)      += mt6580/dw9714af_s5k4h5/
 	obj-$(CONFIG_MTK_LENS_DW9814AF_SUPPORT)      += mt6580/dw9814af/
+	obj-$(CONFIG_MTK_LENS_FM50AF_SUPPORT)      += mt6580/fm50af/
 	
 	else
 		ifeq ($(CONFIG_ARCH_MT6592),y)
@@ -111,8 +109,6 @@ else
 						obj-$(CONFIG_MTK_LENS_LC898122AF_SUPPORT) += common/lc898122af/
 						obj-$(CONFIG_MTK_LENS_LC898212AF_SUPPORT)    += common/lc898212af/
 						obj-$(CONFIG_MTK_LENS_AK7345AF_SUPPORT)    += common/ak7345af/	                			
-						obj-$(CONFIG_MTK_LENS_WV511AAF_SUPPORT)    += mt8163/wv511aaf/              			
-						endif
 					endif
 				endif
 			endif

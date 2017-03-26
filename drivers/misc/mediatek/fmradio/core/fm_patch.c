@@ -50,15 +50,13 @@ fm_s32 fm_file_exist(const fm_s8 *filename)
 		WCN_DBG(FM_NTC | CHIP, "open \"%s\" ok\n", filename);
 	}
 
-	if (fp) {
+	if (fp)
 		filp_close(fp, NULL);
-	}
 
 	set_fs(old_fs);
 
 	return ret;
 }
-
 
 /*
  * fm_file_read - read FM DSP patch/coeff/hwcoeff/rom binary file
@@ -89,23 +87,20 @@ fm_s32 fm_file_read(const fm_s8 *filename, fm_u8 *dst, fm_s32 len, fm_s32 positi
 
 	ret = vfs_read(fp, (char __user *)dst, len, &pos);
 
-	if (ret < 0) {
+	if (ret < 0)
 		WCN_DBG(FM_ERR | CHIP, "read \"%s\" failed\n", filename);
-	} else if (ret < len) {
+	else if (ret < len)
 		WCN_DBG(FM_NTC | CHIP, "read \"%s\" part data\n", filename);
-	} else {
+	else
 		WCN_DBG(FM_NTC | CHIP, "read \"%s\" full data\n", filename);
-	}
 
-	if (fp) {
+	if (fp)
 		filp_close(fp, NULL);
-	}
 
 	set_fs(old_fs);
 
 	return ret;
 }
-
 
 fm_s32 fm_file_write(const fm_s8 *filename, fm_u8 *dst, fm_s32 len, fm_s32 *ppos)
 {
@@ -130,15 +125,13 @@ fm_s32 fm_file_write(const fm_s8 *filename, fm_u8 *dst, fm_s32 len, fm_s32 *ppos
 	ret = vfs_write(fp, (char __user *)dst, len, &pos);
 	WCN_DBG(FM_NTC | CHIP, "\"%s\" new pos %d\n", filename, (int)pos);
 	*ppos = pos;
-	if (ret < 0) {
+	if (ret < 0)
 		WCN_DBG(FM_ERR | CHIP, "write \"%s\" failed\n", filename);
-	} else if (ret < len) {
+	else if (ret < len)
 		WCN_DBG(FM_NTC | CHIP, "write \"%s\" data\n", filename);
-	}
 
-	if (fp) {
+	if (fp)
 		filp_close(fp, NULL);
-	}
 
 	set_fs(old_fs);
 

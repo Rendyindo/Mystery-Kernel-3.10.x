@@ -28,7 +28,6 @@
 #include "fm_rds.h"
 #include "mt6627_fm_reg.h"
 
-
 static fm_bool bRDS_FirstIn = fm_false;
 static fm_u32 gBLER_CHK_INTERVAL = 5000;
 static fm_u16 GOOD_BLK_CNT = 0, BAD_BLK_CNT;
@@ -36,7 +35,6 @@ static fm_u8 BAD_BLK_RATIO;
 
 static struct fm_callback *fm_cb;
 static struct fm_basic_interface *fm_bi;
-
 
 static fm_bool mt6627_RDS_support(void);
 static fm_s32 mt6627_RDS_enable(void);
@@ -48,8 +46,6 @@ static fm_u32 mt6627_RDS_Get_BlerCheck_Interval(void);
 /* static void mt6627_RDS_GetData(fm_u16 *data, fm_u16 datalen); */
 static void mt6627_RDS_Init_Data(rds_t *pstRDSData);
 
-
-
 static fm_bool mt6627_RDS_support(void)
 {
 	return fm_true;
@@ -58,13 +54,29 @@ static fm_bool mt6627_RDS_support(void)
 static fm_s32 mt6627_RDS_enable(void)
 {
 	fm_s32 ret = 0;
-	fm_u16 dataRead;
+	fm_u16 dataRead = 0;
 
 	WCN_DBG(FM_DBG | RDSC, "rds enable\n");
 	ret = fm_bi->read(FM_RDS_CFG0, &dataRead);
+	if (ret) {
+		WCN_DBG(FM_NTC | RDSC, "rds enable read 0x80 fail\n");
+		return ret;
+	}
 	ret = fm_bi->write(FM_RDS_CFG0, 6);	/* set buf_start_th */
+	if (ret) {
+		WCN_DBG(FM_NTC | RDSC, "rds enable write 0x80 fail\n");
+		return ret;
+	}
 	ret = fm_bi->read(FM_MAIN_CTRL, &dataRead);
+	if (ret) {
+		WCN_DBG(FM_NTC | RDSC, "rds enable read 0x63 fail\n");
+		return ret;
+	}
 	ret = fm_bi->write(FM_MAIN_CTRL, dataRead | (RDS_MASK));
+	if (ret) {
+		WCN_DBG(FM_NTC | RDSC, "rds enable write 0x63 fail\n");
+		return ret;
+	}
 
 	return ret;
 }
@@ -72,11 +84,19 @@ static fm_s32 mt6627_RDS_enable(void)
 static fm_s32 mt6627_RDS_disable(void)
 {
 	fm_s32 ret = 0;
-	fm_u16 dataRead;
+	fm_u16 dataRead = 0;
 
 	WCN_DBG(FM_DBG | RDSC, "rds disable\n");
 	ret = fm_bi->read(FM_MAIN_CTRL, &dataRead);
+	if (ret) {
+		WCN_DBG(FM_NTC | RDSC, "rds disable read 0x63 fail\n");
+		return ret;
+	}
 	ret = fm_bi->write(FM_MAIN_CTRL, dataRead & (~RDS_MASK));
+	if (ret) {
+		WCN_DBG(FM_NTC | RDSC, "rds disable write 0x63 fail\n");
+		return ret;
+	}
 
 	return ret;
 }
@@ -112,11 +132,10 @@ static fm_u8 mt6627_RDS_Get_BadBlock_Ratio(void)
 	gbc = mt6627_RDS_Get_GoodBlock_Counter();
 	bbc = mt6627_RDS_Get_BadBlock_Counter();
 
-	if ((gbc + bbc) > 0) {
+	if ((gbc + bbc) > 0)
 		tmp_reg = (fm_u8) (bbc * 100 / (gbc + bbc));
-	} else {
+	else
 		tmp_reg = 0;
-	}
 
 	BAD_BLK_RATIO = tmp_reg;
 	WCN_DBG(FM_DBG | RDSC, "get badblock ratio:%d\n", (fm_s32) tmp_reg);
@@ -208,9 +227,8 @@ static void mt6627_RDS_GetData(fm_u16 *data, fm_u16 datalen)
 		fm_bi->read(FM_RDS_POINTER, &OutputPofm_s32);
 
 		/* Go fm_s32o RDS recovery handler while RDS output pofm_s32 doesn't align to 4 in numeric */
-		if (OutputPofm_s32 & 0x3) {
+		if (OutputPofm_s32 & 0x3)
 			RDS_Recovery_Handler();
-		}
 
 	} else {
 		for (; i < 8; i++)
@@ -232,6 +250,8 @@ static void mt6627_RDS_Init_Data(rds_t *pstRDSData)
 
 fm_bool mt6627_RDS_OnOff(rds_t *dst, fm_bool bFlag)
 {
+	fm_s32 ret = 0;
+
 	if (mt6627_RDS_support() == fm_false) {
 		WCN_DBG(FM_ALT | RDSC, "mt6627_RDS_OnOff failed, RDS not support\n");
 		return fm_false;
@@ -239,10 +259,18 @@ fm_bool mt6627_RDS_OnOff(rds_t *dst, fm_bool bFlag)
 
 	if (bFlag) {
 		mt6627_RDS_Init_Data(dst);
-		mt6627_RDS_enable();
+		ret = mt6627_RDS_enable();
+		if (ret) {
+			WCN_DBG(FM_NTC | RDSC, "mt6630_RDS_OnOff enable failed\n");
+			return fm_false;
+		}
 	} else {
 		mt6627_RDS_Init_Data(dst);
-		mt6627_RDS_disable();
+		ret = mt6627_RDS_disable();
+		if (ret) {
+			WCN_DBG(FM_NTC | RDSC, "mt6630_RDS_OnOff disable failed\n");
+			return fm_false;
+		}
 	}
 
 	return fm_true;
@@ -254,8 +282,7 @@ DEFINE_RDSLOG(mt6627_rds_log);
  * @fm - main data structure of FM driver
  * This function first get RDS raw data, then call RDS spec parser
  */
-static fm_s32 mt6627_rds_parser(rds_t *rds_dst, struct rds_rx_t *rds_raw, fm_s32 rds_size,
-				fm_u16(*getfreq) (void))
+static fm_s32 mt6627_rds_parser(rds_t *rds_dst, struct rds_rx_t *rds_raw, fm_s32 rds_size, fm_u16(*getfreq) (void))
 {
 	mt6627_rds_log.log_in(&mt6627_rds_log, rds_raw, rds_size);
 	return rds_parser(rds_dst, rds_raw, rds_size, getfreq);

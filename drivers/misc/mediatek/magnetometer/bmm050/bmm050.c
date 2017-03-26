@@ -2166,7 +2166,7 @@ static long bmm050_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned 
 	short sensor_status;		/* for Orientation and Msensor status */
 	int vec[3] = {0};	
 	struct bmm050_i2c_data *clientdata = i2c_get_clientdata(this_client);
-	hwm_sensor_data* osensor_data;
+	hwm_sensor_data osensor_data;
 	uint32_t enable;
 
 	switch (cmd)
@@ -2338,20 +2338,16 @@ static long bmm050_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned 
 				break;    
 			}
 			
-			osensor_data = (hwm_sensor_data *)buff;
 			mutex_lock(&sensor_data_mutex);
 				
-			osensor_data->values[0] = sensor_data[8];
-			osensor_data->values[1] = sensor_data[9];
-			osensor_data->values[2] = sensor_data[10];
-			osensor_data->status = sensor_data[11];
-			osensor_data->value_divide = CONVERT_O_DIV;
+			osensor_data.values[0] = sensor_data[8];
+			osensor_data.values[1] = sensor_data[9];
+			osensor_data.values[2] = sensor_data[10];
+			osensor_data.status = sensor_data[11];
+			osensor_data.value_divide = CONVERT_O_DIV;
 					
 			mutex_unlock(&sensor_data_mutex);
-
-			sprintf(buff, "%x %x %x %x %x", osensor_data->values[0], osensor_data->values[1],
-				osensor_data->values[2],osensor_data->status,osensor_data->value_divide);
-			if(copy_to_user(argp, buff, strlen(buff)+1))
+			if(copy_to_user(argp, &osensor_data, sizeof(hwm_sensor_data)))
 			{
 				return -EFAULT;
 			} 
@@ -2828,12 +2824,34 @@ static int bmm050_init_client(struct i2c_client *client)
 //}
 
 /*----------------------------------------------------------------------------*/
+#if 0
 static struct platform_driver bmm050_sensor_driver = {
 	.probe      = bmm050_probe,
 	.remove     = bmm050_remove,    
 	.driver     = {
 		.name  = "msensor",
 		//.owner = THIS_MODULE,
+	}
+};
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id bmm050_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
+
+static struct platform_driver bmm050_sensor_driver =
+{
+	.probe      = bmm050_probe,
+	.remove     = bmm050_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = bmm050_of_match,
+		#endif
 	}
 };
 

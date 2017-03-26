@@ -186,12 +186,34 @@ static struct i2c_driver qmc5983_i2c_driver = {
 };
 
 /*----------------------------------------------------------------------------*/
+#if 0
 static struct platform_driver qmc_sensor_driver = {
 	.probe      = qmc_probe,
 	.remove     = qmc_remove,    
 	.driver     = {
 		.name  = "msensor",
 //		.owner = THIS_MODULE,
+	}
+};
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id qmc_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
+
+static struct platform_driver qmc_sensor_driver =
+{
+	.probe      = qmc_probe,
+	.remove     = qmc_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = qmc_of_match,
+		#endif
 	}
 };
 

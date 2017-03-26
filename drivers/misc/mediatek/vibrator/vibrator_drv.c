@@ -191,9 +191,11 @@ static void vib_shutdown(struct platform_device *pdev)
 	if (vibe_state) {
 		printk("[vibrator]vib_shutdown: vibrator will disable\n");
 		vibe_state = 0;
+		spin_unlock_irqrestore(&vibe_lock, flags);
 		vibr_Disable();
+	} else {
+		spin_unlock_irqrestore(&vibe_lock, flags);
 	}
-	spin_unlock_irqrestore(&vibe_lock, flags);
 }
 
 /******************************************************************************
@@ -218,7 +220,7 @@ static ssize_t store_vibr_on(struct device *dev, struct device_attribute *attr, 
 			     size_t size)
 {
 	if (buf != NULL && size != 0) {
-		printk("[vibrator]buf is %s and size is %d\n", buf, size);
+		//printk("[vibrator]buf is %s and size is %d\n", buf, size);
 		if (buf[0] == '0') {
 			vibr_Disable();
 		} else {

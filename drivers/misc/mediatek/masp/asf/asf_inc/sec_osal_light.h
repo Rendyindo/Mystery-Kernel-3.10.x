@@ -13,4 +13,4 @@
 #include <asm/io.h>
 #include <linux/err.h>
 
-#endif				/* SEC_OSAL_LIGHT_H */
+#endif /* SEC_OSAL_LIGHT_H */

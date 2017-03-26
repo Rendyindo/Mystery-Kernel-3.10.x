@@ -1,6 +1,5 @@
 
-obj-y += gpu.o
-gpu-y := mtk_gpu_utility.o
-
+obj-y += ged/
+obj-y += hal/
 obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 

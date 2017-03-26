@@ -20,7 +20,7 @@
 
 #define MT_DEBUG_ENTRY(name) \
 static int mt_##name##_show(struct seq_file *m, void *v);\
-static int mt_##name##_write(struct file *filp, const char *ubuf, size_t cnt, loff_t *data);\
+static ssize_t mt_##name##_write(struct file *filp, const char *ubuf, size_t cnt, loff_t *data);\
 static int mt_##name##_open(struct inode *inode, struct file *file) \
 { \
     return single_open(file, mt_##name##_show, inode->i_private); \
@@ -72,7 +72,8 @@ static DEFINE_MUTEX(mtx_c);
 MT_DEBUG_ENTRY(pvlk);
 static int mt_pvlk_show(struct seq_file *m, void *v)
 {
-	pr_err(" debug_locks = %d\n", debug_locks);
+	//pr_err(" debug_locks = %d\n", debug_locks);
+    SEQ_printf(m,"debug_locks = %d\n", debug_locks);
 	return 0;
 }
 

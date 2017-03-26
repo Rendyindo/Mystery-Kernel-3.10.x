@@ -1623,12 +1623,34 @@ static int alps_remove(struct platform_device *pdev)
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+#if 0
 static struct platform_driver alps_sensor_driver = {
 	.probe      = alps_probe,
 	.remove     = alps_remove,    
 	.driver     = {
 		.name  = "msensor",
 //		.owner = THIS_MODULE,
+	}
+};
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id hs_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
+
+static struct platform_driver alps_sensor_driver =
+{
+	.probe      = alps_probe,
+	.remove     = alps_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = hs_of_match,
+		#endif
 	}
 };
 

@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #ifndef __SSW_H__
 #define __SSW_H__
 #include <linux/kernel.h>
@@ -31,7 +17,7 @@
 #include <asm/io.h>
 
 #include <mach/mt_typedefs.h>
-// #include <mach/mtk_ccci_helper.h>
+//#include <mach/mtk_ccci_helper.h>
 #include <mach/mt_reg_base.h>
 #include <mach/mt_gpio.h>
 
@@ -66,6 +52,9 @@ enum {
 	SSW_INTERN = 0,
 	SSW_EXT_FXLA2203 = 1,
 	SSW_EXT_SINGLE_COMMON = 2,
+	SSW_EXT_DUAL_1X2 = 3,
+	SSW_EXT_SINGLE_2X2 = 4,
+	
 	SSW_RESTORE = 0x5AA5,
 };
 

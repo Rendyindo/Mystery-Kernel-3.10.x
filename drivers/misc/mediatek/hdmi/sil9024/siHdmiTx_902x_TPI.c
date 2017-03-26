@@ -21,7 +21,7 @@ GLOBAL_HDCP g_hdcp;
 GLOBAL_EDID g_edid;
 byte tpivmode[3];		/* saved TPI Reg0x08/Reg0x09/Reg0x0A values. */
 
-bool Sii9024A_HDCP_supported = false;	/* if the chip is 9024A, you can support HDCP by set this variable to 1.If the chip is 9022A, it means noting. */
+bool Sii9024A_HDCP_supported = true;	/* if the chip is 9024A, you can support HDCP by set this variable to 1.If the chip is 9022A, it means noting. */
 extern HDMI_UTIL_FUNCS hdmi_util;
 
 
@@ -253,6 +253,7 @@ void InitializeStateVariables(void)
 
 #ifdef DEV_SUPPORT_EDID
 	g_edid.edidDataValid = FALSE;
+	g_edid.HDMI_compatible_VSDB = FALSE;
 #endif
 }
 
@@ -772,7 +773,7 @@ byte Parse861ShortDescriptors(byte *Data)
 {
 	byte LongDescriptorOffset;
 	byte DataBlockLength;
-	byte DataIndex;
+    byte DataIndex,DataIndexbk;
 	byte ExtendedTagCode;
 	byte VSDB_BaseOffset = 0;
 
@@ -805,10 +806,15 @@ byte Parse861ShortDescriptors(byte *Data)
 
 	DataIndex = EDID_DATA_START;	/* 4 */
 
-	while (DataIndex < LongDescriptorOffset) {
+    while (DataIndex < LongDescriptorOffset)
+    {
+    	DataIndexbk = DataIndex;
+		TPI_EDID_PRINT(("Data[0x%x]: 0x%x\n", (int)DataIndex,(int)Data[DataIndex]));
 		TagCode = (Data[DataIndex] >> 5) & THREE_LSBITS;
 		DataBlockLength = Data[DataIndex++] & FIVE_LSBITS;
-		if ((DataIndex + DataBlockLength) > LongDescriptorOffset) {
+		TPI_EDID_PRINT(("Data[0x%x]: 0x%x. TagCode=0x%x,DataBlockLengt=0x%x\n", (int)DataIndex-1,(int)Data[DataIndex-1],TagCode,DataBlockLength));
+        if ((DataIndex + DataBlockLength) > LongDescriptorOffset)
+        {
 			TPI_EDID_PRINT(("EDID -> V Descriptor Overflow\n"));
 			return EDID_V_DESCR_OVERFLOW;
 		}
@@ -868,17 +874,22 @@ byte Parse861ShortDescriptors(byte *Data)
 				TPI_EDID_PRINT(("EDID -> Short Descriptor Colorimetry Block\n"));
 				break;
 			}
+				DataIndex = DataIndexbk + DataBlockLength+1;
 			break;
 
 		case VENDOR_SPEC_D_BLOCK:
 			VSDB_BaseOffset = DataIndex - 1;
 
-			if ((Data[DataIndex++] == 0x03) &&	/* check if sink is HDMI compatible */
-			    (Data[DataIndex++] == 0x0C) && (Data[DataIndex++] == 0x00))
+                if ((Data[DataIndex++] == 0x03) &&    // check if sink is HDMI compatible
+                    (Data[DataIndex++] == 0x0C) &&
+                    (Data[DataIndex++] == 0x00)){
+					g_edid.HDMI_compatible_VSDB = true;
+                    //g_edid.HDMI_Sink = TRUE;
+                	}
+               // else
+                    //g_edid.HDMI_Sink = FALSE;
 
-				g_edid.HDMI_Sink = TRUE;
-			else
-				g_edid.HDMI_Sink = FALSE;
+
 
 			g_edid.CEC_A_B = Data[DataIndex++];	/* CEC Physical address */
 			g_edid.CEC_C_D = Data[DataIndex++];
@@ -904,8 +915,13 @@ byte Parse861ShortDescriptors(byte *Data)
 				g_edid._3D_Supported = TRUE;
 			else
 				g_edid._3D_Supported = FALSE;
+				TPI_EDID_PRINT(("DataIndexbk=0x%x,DataBlockLength=0x%x\n",DataIndexbk,DataBlockLength));
 
-			DataIndex += DataBlockLength - HDMI_SIGNATURE_LEN - CEC_PHYS_ADDR_LEN;	/* Point to start of next block */
+                //DataIndex += DataBlockLength - HDMI_SIGNATURE_LEN - CEC_PHYS_ADDR_LEN; // Point to start of next block
+               
+				DataIndex = DataIndexbk + DataBlockLength+1;
+				
+                TPI_EDID_PRINT(("DataIndex=0x%x!!!!!!!!!\n",DataIndex));
 			TPI_EDID_PRINT(("EDID -> Short Descriptor Vendor Block\n"));
 			TPI_EDID_PRINT(("\n"));
 			break;
@@ -983,8 +999,9 @@ byte Parse861Extensions(byte NumOfExtensions)
 	byte Offset = 0;
 
 	g_edid.HDMI_Sink = FALSE;
-
-	do {
+    g_edid.HDMI_compatible_VSDB = FALSE;	         
+    do
+    {
 		Block++;
 
 		Offset = 0;
@@ -1075,12 +1092,14 @@ byte DoEdidRead(void)
 				Result = Parse861Extensions(NumOfExtensions);	/* Parse 861 Extensions (short and long descriptors); */
 				if (Result != EDID_OK) {
 					TPI_DEBUG_PRINT(("EDID -> Extension Parse FAILED\n"));
-					g_edid.HDMI_Sink = TRUE;
+					g_edid.HDMI_Sink = false;/* g_edid.HDMI_Sink = TRUE; */
 					g_edid.YCbCr_4_4_4 = FALSE;
 					g_edid.YCbCr_4_2_2 = FALSE;
 					g_edid.CEC_A_B = 0x00;
 					g_edid.CEC_C_D = 0x00;
 				}
+				if(g_edid.HDMI_compatible_VSDB)
+					g_edid.HDMI_Sink = TRUE;//g_edid.HDMI_Sink = TRUE;
 			}
 
 			if (!ReleaseDDC(SysCtrlReg))	/* Host must release DDC bus once it is done reading EDID */
@@ -2641,10 +2660,13 @@ byte siHdmiTx_VideoSet(void)
 {
 	TPI_TRACE_PRINT((">>siHdmiTx_VideoSet()\n"));
 
-	/* Note: this's necessary for fixing 480i_13.5MHz to 1080p_148.5MHz no display issue. */
-	siHdmiTx_TPI_Init();
-	g_sys.hdmiCableConnected = TRUE;
-	g_sys.dsRxPoweredUp = TRUE;
+	ReadModifyWriteTPI(0x1A, TMDS_OUTPUT_CONTROL_MASK | AV_MUTE_MASK,
+	TMDS_OUTPUT_CONTROL_POWER_DOWN | AV_MUTE_MUTED);
+	
+	// Note: this's necessary for fixing 480i_13.5MHz to 1080p_148.5MHz no display issue.
+	//siHdmiTx_TPI_Init();
+	//g_sys.hdmiCableConnected = TRUE;
+	//g_sys.dsRxPoweredUp = TRUE;
 
 /*
 #ifdef DEV_SUPPORT_HDCP
@@ -2656,10 +2678,10 @@ byte siHdmiTx_VideoSet(void)
 */
 	siHdmiTx_Init();
 
-
-	if (Sii9024A_HDCP_supported)
+	if (Sii9024A_HDCP_supported){
+		DelayMS(200);
 		HDCP_CheckStatus(ReadByteTPI(0x3D));
-
+		}
 
 	return VIDEO_MODE_SET_OK;
 }
@@ -2998,7 +3020,7 @@ byte StartTPI(void)
 
 	TPI_TRACE_PRINT(("0x%04X\n", (int)wID));
 	TPI_TRACE_PRINT(("%s:%d:devID=0x%04x\n", __func__, __LINE__, devID));
-	Sii9024A_HDCP_supported = false;
+	Sii9024A_HDCP_supported = true;
 
 	if (wID == 0x9022)
 		Sii9024A_HDCP_supported = false;
@@ -3257,6 +3279,7 @@ void HotPlugService(void)
 /* Returns: none */
 /* Globals: none */
 /* ------------------------------------------------------------------------------ */
+static unsigned char hdmi_9024_hpd_bak = 0;
 
 void siHdmiTx_TPI_Poll(void)
 {
@@ -3265,8 +3288,14 @@ void siHdmiTx_TPI_Poll(void)
 	if (g_sys.txPowerState == TX_POWER_STATE_D0) {
 		InterruptStatus = ReadByteTPI(0x3D);
 
-		if (InterruptStatus & HOT_PLUG_EVENT)	/* judge if HPD is connected */
+/*
+                printk("[hdmi]hdmiCableConnected=%x,%x,%x,%x\n",
+g_sys.hdmiCableConnected,InterruptStatus,g_sys.dsRxPoweredUp,hdmi_9024_hpd_bak);
+*/
+                            
+		if ((InterruptStatus & HOT_PLUG_EVENT) ||((InterruptStatus & HOT_PLUG_STATE) != (hdmi_9024_hpd_bak & HOT_PLUG_STATE)))	/* judge if HPD is connected */
 		{
+		              hdmi_9024_hpd_bak = InterruptStatus;
 			TPI_DEBUG_PRINT(("HPD	-> "));
 			ReadSetWriteTPI(0x3C, HOT_PLUG_EVENT);	/* Enable HPD interrupt bit */
 
@@ -3290,6 +3319,21 @@ void siHdmiTx_TPI_Poll(void)
 				if (g_sys.hdmiCableConnected == FALSE) {
 					return;
 				}
+
+				/*if (g_sys.hdmiCableConnected == FALSE)
+				{
+					return;
+				}*/
+			}
+			else if((g_sys.hdmiCableConnected)&&(Sii9024A_HDCP_supported))
+			{
+				TPI_DEBUG_PRINT (("HPD	-> deglitched"));
+				ReadModifyWriteTPI(0x1A, TMDS_OUTPUT_CONTROL_MASK | AV_MUTE_MASK,
+				TMDS_OUTPUT_CONTROL_POWER_DOWN | AV_MUTE_MUTED);
+				HDCP_Off();
+				DelayMS(100); 
+				ReadModifyWriteTPI(0x1A, TMDS_OUTPUT_CONTROL_MASK, TMDS_OUTPUT_CONTROL_ACTIVE);
+				WriteByteTPI(0x08, tpivmode[0]);   
 			}
 		}
 		/* Check rx power */
@@ -3303,7 +3347,8 @@ void siHdmiTx_TPI_Poll(void)
 					hdmi_util.state_callback(1);
 				}
 			}
-			DelayMS(100);	/* Delay for metastability protection and to help filter out connection bouncing */
+			DelayMS(100); // Delay for metastability protection and to help filter out connection bouncing
+			ClearInterrupt(RX_SENSE_EVENT);
 		}
 		/* Check if RX_SENSE_EVENT has occurred: */
 		if (InterruptStatus & RX_SENSE_EVENT) {

@@ -1731,6 +1731,7 @@ static int    mcmag_remove(struct platform_device *pPlatformDevice)
 /*****************************************
  *** PLATFORM DRIVER:: s_tMcmag_SensorDriver
  *****************************************/
+ #if 0
 static struct platform_driver s_tMcmag_SensorDriver = {
                                                           .probe     = mcmag_probe,
                                                           .remove    = mcmag_remove,    
@@ -1738,6 +1739,28 @@ static struct platform_driver s_tMcmag_SensorDriver = {
                                                                            .name  = "msensor",
                                                                            .owner = THIS_MODULE,
                                                                        }
+                                                      };
+
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id mcmag_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
+
+static struct platform_driver s_tMcmag_SensorDriver =
+{
+	.probe      = mcmag_probe,
+	.remove     = mcmag_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = mcmag_of_match,
+		#endif
+	}
                                                       };
 
 /*****************************************

@@ -9,8 +9,8 @@ modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation version 2.
 This program is distributed AS-IS WITHOUT ANY WARRANTY of any
 kind, whether express or implied; INCLUDING without the implied warranty
-of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See
-the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.
+of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See 
+the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.             
 
 */
 
@@ -67,7 +67,7 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #define T_CHAR					'T'
 #define NOTICE_DEV_PLUG			'R'
 #define NOTICE_DEV_UNPLUG		'U'
-#define RESPONSE_ACK			'A'
+#define RESPONSE_ACK			'A'	
 #define RESPONSE_NACK			'N'
 
 /* MDT Touch screen resources and parameters */
@@ -82,8 +82,8 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #define MDT_TOUCH_Y_HIGH		BYTE_HIGH
 
 /* support 11 bit absolute addressing        */
-#define X_CORNER_RIGHT_LOWER		1870
-#define Y_CORNER_RIGHT_LOWER		1870
+#define X_CORNER_RIGHT_LOWER		1870	
+#define Y_CORNER_RIGHT_LOWER		1870	
 #define ICS_BeagleboardxM			1
 #define X_MAX						1920
 #define Y_MAX						1920
@@ -100,8 +100,8 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #define CORNER_BUTTON				1
 #define ICS_BAR						0
 #define RIGHT_MOUSE_BUTTON_IS_ESC	1
-/* requires installation of IDC file */
-/* #define KERNEL_2_6_38_AND_LATER */
+/* requires installation of IDC file */	    
+//#define KERNEL_2_6_38_AND_LATER
 /* as of JB the IDC file is needed but, doesn't
 	guarantee acess to virtual buttons. */
 #define JB_421						0
@@ -117,105 +117,110 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 
 
 enum mdt_dev_state_e {
-	INPUT_DISABLED, INPUT_WAITING_FOR_REGISTRATION, INPUT_ACTIVE
+	  INPUT_DISABLED
+	, INPUT_WAITING_FOR_REGISTRATION
+	, INPUT_ACTIVE
 };
 
 enum mdt_dev_types_e {
-	MDT_TYPE_MOUSE, MDT_TYPE_KEYBOARD, MDT_TYPE_TOUCHSCREEN
-#if 0
-	    , MDT_TYPE_GAME
-#endif
+	  MDT_TYPE_MOUSE
+	, MDT_TYPE_KEYBOARD
+	, MDT_TYPE_TOUCHSCREEN
+#if 0 
+	, MDT_TYPE_GAME
+#endif	
 	, MDT_TYPE_COUNT
 };
 
-struct mdt_touch_history_t {
-	uint32_t abs_x;
-	uint32_t abs_y;
-	uint8_t isTouched;
-	uint8_t state;
+struct mdt_touch_history_t{
+	uint32_t				abs_x;
+	uint32_t				abs_y;
+	uint8_t					isTouched;
+	uint8_t					state;
 };
 
 struct mdt_inputdevs {
-	uint8_t keycodes_old[HID_INPUT_REPORT];	/* Prior HID input report */
-	uint8_t keycodes_new[HID_INPUT_REPORT];	/* Current HID input report */
-	struct input_dev *dev_keyboard;
-	struct input_dev *dev_mouse;
-	struct input_dev *dev_touchscreen;
-	uint8_t is_dev_registered[MDT_TYPE_COUNT];	/*Instance tracking variable */
-	struct mdt_touch_history_t prior_touch_events[MAX_TOUCH_CONTACTS];
-	unsigned char prior_touch_button;
-
-#if (RIGHT_MOUSE_BUTTON_IS_ESC == 1)
-	unsigned char prior_right_button;
-#endif
-
-	/* ser overrides to allow runtime calibration */
-	uint32_t x_max, y_max;
-	uint32_t x_screen, x_raw, x_shift;
-	uint32_t y_screen, y_raw, y_shift;
-	uint32_t swap_xy, swap_updown, swap_leftright;
+	uint8_t						keycodes_old[HID_INPUT_REPORT];		/* Prior HID input report */
+	uint8_t						keycodes_new[HID_INPUT_REPORT]; 	/* Current HID input report */
+	struct input_dev			*dev_keyboard;
+	struct input_dev			*dev_mouse;	
+	struct input_dev			*dev_touchscreen;	
+	uint8_t 					is_dev_registered[MDT_TYPE_COUNT]; /*Instance tracking variable*/
+	struct mdt_touch_history_t	prior_touch_events[MAX_TOUCH_CONTACTS];
+	unsigned char				prior_touch_button;
+	
+	#if (RIGHT_MOUSE_BUTTON_IS_ESC == 1)
+	unsigned char				prior_right_button;
+	#endif
+	
+	/* ser overrides to allow runtime calibration*/		
+	uint32_t					x_max, y_max;
+	uint32_t					x_screen, x_raw, x_shift;
+	uint32_t					y_screen, y_raw, y_shift;
+	uint32_t					swap_xy, swap_updown, swap_leftright;	
 };
 
 
 struct keyboard_event_data {
-	uint8_t first_key[3];
-	uint8_t second_key[3];
+	uint8_t	first_key[3];
+	uint8_t	second_key[3];
 };
 
 struct mouse_event_data {
-	int8_t x_displacement;
-	int8_t y_displacement;
-	int8_t z_displacement;
-	uint8_t vendor_specific[2];
-	uint8_t vendor_specific_game_flag;
+	int8_t	x_displacement;
+	int8_t	y_displacement;
+	int8_t	z_displacement;
+	uint8_t	vendor_specific[2];
+	uint8_t	vendor_specific_game_flag;
 };
 
 struct touch_pad_event_data {
-	uint8_t x_abs_coordinate[2];
-	uint8_t y_abs_coordinate[2];
-	uint8_t vendor_specific;
-	uint8_t vendor_specific_game_flag;
+	uint8_t	x_abs_coordinate[2];
+	uint8_t	y_abs_coordinate[2];
+	uint8_t	vendor_specific;
+	uint8_t	vendor_specific_game_flag;
 };
 
 struct gaming_controller {
-	int8_t x_rel_displacement;
-	int8_t y_rel_displacement;
-	int8_t z_rel_displacement;
-	int8_t y2_rel_displacement;
-	uint8_t buttons_ext;
-	uint8_t id_dpad;
+	int8_t	x_rel_displacement;
+	int8_t	y_rel_displacement;
+	int8_t	z_rel_displacement;
+	int8_t	y2_rel_displacement;
+	uint8_t	buttons_ext;
+	uint8_t	id_dpad;
 };
 
 struct mdt_hotplug_data {
-	uint8_t sub_header_d;
-	uint8_t sub_header_t;
-	uint8_t event_code;
-	uint8_t device_type;
-	uint8_t mdt_version;
-	uint8_t reserved;
+	uint8_t	sub_header_d;
+	uint8_t	sub_header_t;
+	uint8_t	event_code;
+	uint8_t	device_type;	
+	uint8_t	mdt_version;
+	uint8_t reserved;	
 };
 
 struct mdt_packet {
-	uint8_t adopter_id_h;
-	uint8_t adopter_id_l;
-	uint8_t header;
+	uint8_t	adopter_id_h;
+	uint8_t	adopter_id_l;
+	uint8_t	header;
 	union {
-		struct keyboard_event_data keyboard;
-		struct mouse_event_data mouse;
-		struct touch_pad_event_data touch_pad;
-		struct gaming_controller game_controller;
-		struct mdt_hotplug_data hotplug;
-		uint8_t bytes[6];
+		struct keyboard_event_data	keyboard;
+		struct mouse_event_data		mouse;
+		struct touch_pad_event_data	touch_pad;
+		struct gaming_controller	game_controller;
+		struct mdt_hotplug_data		hotplug;			
+		uint8_t						bytes[6];
 	} event;
 };
 
 struct mhl_dev_context;
 extern struct attribute_group mdt_attr_group;
-void mdt_toggle_keyboard_keycode(struct mhl_dev_context *dev_context, unsigned char keycode);
-bool si_mhl_tx_mdt_process_packet(struct mhl_dev_context *dev_context, void *packet);
-#if 0
-int mdt_init(struct mhl_dev_context *dev_context);
-#endif
+void mdt_toggle_keyboard_keycode(struct mhl_dev_context *dev_context
+								,unsigned char keycode);
+bool si_mhl_tx_mdt_process_packet(struct mhl_dev_context *dev_context,void *packet);
+
+//int mdt_init(struct mhl_dev_context *dev_context);
+
 void mdt_destroy(struct mhl_dev_context *dev_context);
 
-#endif				/* #ifndef _SI_MDT_INPUTDEV_H_ */
+#endif /* #ifndef _SI_MDT_INPUTDEV_H_ */

@@ -9,12 +9,20 @@
 #include <linux/sched.h>
 #include <mach/emi_mpu.h>
 
-#define CONFIG_MTKPASR_MINDIESIZE_PFN		(0x10000)	/* 256MB */
-#define MTKPASR_LESSRESTRICT_PFNS		(0x40000)	/* 1GB */
+#ifdef CONFIG_ARM_LPAE
+#include <mach/mt_lpae.h>
+#endif
+
+#define CONFIG_MTKPASR_MINDIESIZE_PFN		(0x20000)	/* 512MB */
+#define MTKPASR_1GB_PFNS			(0x40000)	/* 1GB */
+#define MTKPASR_2GB_PFNS			(0x80000)	/* 2GB */
+#define MTKPASR_3GB_PFNS			(0xC0000)	/* 3GB */
+#define MTKPASR_4GB_PFNS			(0x100000)	/* 4GB */
+#define MTKPASR_DRAM_MINSIZE			MTKPASR_2GB_PFNS
 
 /* #define NO_UART_CONSOLE */
 #ifndef NO_UART_CONSOLE
-#define PRINT(len, string, args...)	pr_warn(string, ##args)
+#define PRINT(len, string, args...)	printk(KERN_ALERT string, ##args)
 #else
 unsigned char mtkpasr_log_buf[4096];
 static int log_stored;
@@ -24,7 +32,7 @@ static int log_stored;
 /* Struct for parsing rank information (SW view) */
 struct view_rank {
 	unsigned long start_pfn;	/* The 1st pfn */
-	unsigned long end_pfn;	/* The pfn after the last valid one */
+	unsigned long end_pfn;		/* The pfn after the last valid one */
 	unsigned long bank_pfn_size;	/* Bank size in PFN */
 	unsigned long valid_channel;	/* Channels: 0x00000101 means there are 2 valid channels - 1st & 2nd (MAX: 4 channels) */
 };
@@ -36,9 +44,13 @@ static struct basic_dram_setting pasrdpd;
 static int mtkpasr_start_rank;
 /* MAX Banksize in pfns (from SW view) */
 unsigned long pasrbank_pfns = 0;
-/* We can't guarantee HIGHMEM zone is bank alignment, so we need another variable to represent it. */
+/*
+ * We can't guarantee HIGHMEM zone is bank alignment, so we need another variable to represent it.
+ * (mtkpasr_pfn_start, mtkpasr_pfn_end) is bank-alignment!
+ */
 static unsigned long mtkpasr_pfn_start;
 static unsigned long mtkpasr_pfn_end;
+
 /* Segment mask */
 static unsigned long valid_segment = 0x0;
 
@@ -46,31 +58,95 @@ static unsigned long valid_segment = 0x0;
 extern void set_pageblock_mobility(struct page *page, int mobility);
 
 /* From dram_overclock.c */
-extern bool pasr_is_valid(void) __attribute__ ((weak));
+extern bool pasr_is_valid(void)__attribute__((weak));
 /* To confirm PASR is valid */
 static inline bool could_do_mtkpasr(void)
 {
+	return false;
+#if 0
 	if (pasr_is_valid) {
 		return pasr_is_valid();
 	}
 
-	return true;
+	return false;
+#endif
 }
 
-extern void acquire_dram_setting(struct basic_dram_setting *pasrdpd) __attribute__ ((weak));
+#ifdef CONFIG_ARM_LPAE
+#define MAX_RANK_PFN	(0x1FFFFF)
+#define MAX_KERNEL_PFN	(0x13FFFF)
+#define MAX_KPFN_MASK	(0x0FFFFF)
+#define KPFN_TO_VIRT	(0x100000)
+static unsigned long __init virt_to_kernel_pfn(unsigned long virt)
+{
+	unsigned long ret = virt;
+
+	if (enable_4G()) {
+		if (virt > MAX_RANK_PFN) {
+			ret = virt - KPFN_TO_VIRT;
+		} else if (virt > MAX_KERNEL_PFN) {
+			ret = virt & MAX_KPFN_MASK;
+		}
+	}
+
+	return ret;
+}
+static unsigned long __init kernel_pfn_to_virt(unsigned long kpfn, bool is_end)
+{
+	unsigned long ret = kpfn;
+
+	if (enable_4G()) {
+		if (is_end) {
+			ret = kpfn + KPFN_TO_VIRT;
+		} else {
+			ret = kpfn | KPFN_TO_VIRT;
+		}
+	}
+
+	return ret;
+}
+static unsigned long __init rank_pfn_offset(void)
+{
+	unsigned long ret = ARCH_PFN_OFFSET;
+
+	if (enable_4G()) {
+		ret = KPFN_TO_VIRT;
+	}
+
+	return ret;
+}
+#else
+#define virt_to_kernel_pfn(x)		(x)
+#define kernel_pfn_to_virt(x, y)	(x)
+#define rank_pfn_offset()		((unsigned long)ARCH_PFN_OFFSET)
+#endif
+
+/* Round up by "base" from "offset" */
+static unsigned long __init round_up_base_offset(unsigned long input, unsigned long base, unsigned long offset)
+{
+	return ((input - offset + base - 1) / base) * base + offset;
+}
+
+/* Round down by "base" from "offset" */
+static unsigned long __init round_down_base_offset(unsigned long input, unsigned long base, unsigned long offset)
+{
+	return ((input - offset) / base) * base + offset;
+}
 
 /*
  * Parse DRAM setting - transform DRAM setting to temporary bank structure.
  */
-static void __meminit parse_dram_setting(unsigned long hint)
+extern void acquire_dram_setting(struct basic_dram_setting *pasrdpd)__attribute__((weak));
+static bool __init parse_dram_setting(unsigned long hint)
 {
 	int channel_num, chan, rank, check_segment_num;
 	unsigned long valid_channel;
-	unsigned long check_rank_size, rank_pfn, start_pfn = ARCH_PFN_OFFSET;
+	unsigned long check_rank_size, rank_pfn, start_pfn = rank_pfn_offset();
 
-	PRINT(29, "ARCH_PFN_OFFSET [0x%8x]\n", ARCH_PFN_OFFSET);
+	PRINT(29, "rank_pfn_offset() [0x%8lx]\n", rank_pfn_offset());
 
 	if (acquire_dram_setting) {
+		hint = 0;
 		acquire_dram_setting(&pasrdpd);
 		channel_num = pasrdpd.channel_nr;
 		/* By ranks */
@@ -82,30 +158,24 @@ static void __meminit parse_dram_setting(unsigned long hint)
 			check_segment_num = 0x0;
 			for (chan = 0; chan < channel_num; ++chan) {
 				if (pasrdpd.channel[chan].rank[rank].valid_rank) {
-					rank_pfn +=
-					    (pasrdpd.channel[chan].rank[rank].
-					     rank_size << (27 - PAGE_SHIFT));
+					rank_pfn += (pasrdpd.channel[chan].rank[rank].rank_size << (27 - PAGE_SHIFT));
 					rank_info[rank].valid_channel |= valid_channel;
 					/* Sanity check for rank size */
 					if (!check_rank_size) {
-						check_rank_size =
-						    pasrdpd.channel[chan].rank[rank].rank_size;
+						check_rank_size = pasrdpd.channel[chan].rank[rank].rank_size;
 					} else {
 						/* We only support ranks with equal size */
-						if (check_rank_size !=
-						    pasrdpd.channel[chan].rank[rank].rank_size) {
-							BUG();
+						if (check_rank_size != pasrdpd.channel[chan].rank[rank].rank_size) {
+							return false;
 						}
 					}
 					/* Sanity check for segment number */
 					if (!check_segment_num) {
-						check_segment_num =
-						    pasrdpd.channel[chan].rank[rank].segment_nr;
+						check_segment_num = pasrdpd.channel[chan].rank[rank].segment_nr;
 					} else {
 						/* We only support ranks with equal segment number */
-						if (check_segment_num !=
-						    pasrdpd.channel[chan].rank[rank].segment_nr) {
-							BUG();
+						if (check_segment_num != pasrdpd.channel[chan].rank[rank].segment_nr) {
+							return false;
 						}
 					}
 				}
@@ -113,46 +183,52 @@ static void __meminit parse_dram_setting(unsigned long hint)
 			}
 			/* Have we found a valid rank */
 			if (check_rank_size != 0 && check_segment_num != 0) {
-				rank_info[rank].start_pfn = start_pfn;
-				rank_info[rank].end_pfn = start_pfn + rank_pfn;
-				rank_info[rank].bank_pfn_size = rank_pfn / check_segment_num;
-				start_pfn = rank_info[rank].end_pfn;
-				PRINT(96,
-				      "Rank[%d] start_pfn[%8lu] end_pfn[%8lu] bank_pfn_size[%8lu] valid_channel[0x%-8lx]\n",
-				      rank, rank_info[rank].start_pfn, rank_info[rank].end_pfn,
-				      rank_info[rank].bank_pfn_size, rank_info[rank].valid_channel);
+				rank_info[rank].start_pfn = virt_to_kernel_pfn(start_pfn);
+				rank_info[rank].end_pfn = virt_to_kernel_pfn(start_pfn + rank_pfn);
+				rank_info[rank].bank_pfn_size = rank_pfn/check_segment_num;
+				start_pfn = kernel_pfn_to_virt(rank_info[rank].end_pfn, true);
+				PRINT(96, "Rank[%d] start_pfn[%8lu] end_pfn[%8lu] bank_pfn_size[%8lu] valid_channel[0x%-8lx]\n",
+						rank, rank_info[rank].start_pfn, rank_info[rank].end_pfn,
+						rank_info[rank].bank_pfn_size, rank_info[rank].valid_channel);
 			} else {
-				rank_info[rank].start_pfn = ARCH_PFN_OFFSET;
-				rank_info[rank].end_pfn = ARCH_PFN_OFFSET;
+				rank_info[rank].start_pfn = virt_to_kernel_pfn(rank_pfn_offset());
+				rank_info[rank].end_pfn = virt_to_kernel_pfn(rank_pfn_offset());
 				rank_info[rank].bank_pfn_size = 0;
 				rank_info[rank].valid_channel = 0x0;
 			}
+			/* Calculate total pfns */
+			hint += rank_pfn;
 		}
 	} else {
 		/* Single channel, dual ranks, 8 segments per rank - Get a hint from system */
-		rank_pfn =
-		    (hint + CONFIG_MTKPASR_MINDIESIZE_PFN - 1) & ~(CONFIG_MTKPASR_MINDIESIZE_PFN -
-								   1);
+		rank_pfn = (hint + CONFIG_MTKPASR_MINDIESIZE_PFN - 1) & ~(CONFIG_MTKPASR_MINDIESIZE_PFN - 1);
 		rank_pfn >>= 1;
 		for (rank = 0; rank < 2; ++rank) {
-			rank_info[rank].start_pfn = start_pfn;
-			rank_info[rank].end_pfn = start_pfn + rank_pfn;
+			rank_info[rank].start_pfn = virt_to_kernel_pfn(start_pfn);
+			rank_info[rank].end_pfn = virt_to_kernel_pfn(start_pfn + rank_pfn);
 			rank_info[rank].bank_pfn_size = rank_pfn >> 3;
 			rank_info[rank].valid_channel = 0x1;
-			start_pfn = rank_info[rank].end_pfn;
-			PRINT(96,
-			      "Rank[%d] start_pfn[%8lu] end_pfn[%8lu] bank_pfn_size[%8lu] valid_channel[0x%-8lx]\n",
-			      rank, rank_info[rank].start_pfn, rank_info[rank].end_pfn,
-			      rank_info[rank].bank_pfn_size, rank_info[rank].valid_channel);
+			start_pfn = kernel_pfn_to_virt(rank_info[rank].end_pfn, true);
+			PRINT(96, "Rank[%d] start_pfn[%8lu] end_pfn[%8lu] bank_pfn_size[%8lu] valid_channel[0x%-8lx]\n",
+					rank, rank_info[rank].start_pfn, rank_info[rank].end_pfn,
+					rank_info[rank].bank_pfn_size, rank_info[rank].valid_channel);
 		}
 		/* Reset remaining ranks */
 		for (; rank < MAX_RANKS; ++rank) {
-			rank_info[rank].start_pfn = ARCH_PFN_OFFSET;
-			rank_info[rank].end_pfn = ARCH_PFN_OFFSET;
+			rank_info[rank].start_pfn = virt_to_kernel_pfn(rank_pfn_offset());
+			rank_info[rank].end_pfn = virt_to_kernel_pfn(rank_pfn_offset());
 			rank_info[rank].bank_pfn_size = 0;
 			rank_info[rank].valid_channel = 0x0;
 		}
 	}
+
+	/* Check whether it is suitable to enable PASR */
+	if (hint < MTKPASR_DRAM_MINSIZE) {
+		printk(KERN_ALERT "[MTKPASR] Total memory: %lu < 1GB\n", (hint << PAGE_SHIFT));
+		return false;
+	}
+
+	return true;
 }
 
 /* Check whether it is a valid rank */
@@ -182,86 +258,91 @@ void show_memblock(void)
 	for_each_memblock(memory, reg) {
 		start = reg->base;
 		end = start + reg->size;
-		pr_notice("[PHY layout]kernel   :   0x%08llx - 0x%08llx (0x%08llx)\n",
-			  (unsigned long long)start,
-			  (unsigned long long)end - 1, (unsigned long long)reg->size);
+		printk(KERN_EMERG"[PHY layout]kernel   :   0x%08llx - 0x%08llx (0x%08llx)\n",
+				(unsigned long long)start,
+				(unsigned long long)end - 1,
+				(unsigned long long)reg->size);
 	}
 
 	for_each_memblock(reserved, reg) {
 		start = reg->base;
 		end = start + reg->size;
-		pr_notice("[PHY layout]reserved   :   0x%08llx - 0x%08llx (0x%08llx)\n",
-			  (unsigned long long)start,
-			  (unsigned long long)end - 1, (unsigned long long)reg->size);
+		printk(KERN_EMERG"[PHY layout]reserved   :   0x%08llx - 0x%08llx (0x%08llx)\n",
+				(unsigned long long)start,
+				(unsigned long long)end - 1,
+				(unsigned long long)reg->size);
 
 	}
 }
 #endif
 
-#define PFN_TO_PADDR(x)	(phys_addr_t)(x << PAGE_SHIFT)
-
+#define PHYS_TO_PFN(x)	__phys_to_pfn(x)
 /* Fill valid_segment */
-static void __init mark_valid_segment(phys_addr_t start, phys_addr_t end)
+static void __init mark_valid_segment(unsigned long start, unsigned long end, bool last)
 {
 	int num_segment, rank;
 	unsigned long spfn, epfn;
+	unsigned long rspfn, repfn;
 
 	num_segment = 0;
 	for (rank = 0; rank < MAX_RANKS; ++rank) {
-		spfn = ((start + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) >> PAGE_SHIFT;	/* Round-up */
-		epfn = (end & ~(PAGE_SIZE - 1)) >> PAGE_SHIFT;	/* Round-down */
+		spfn = kernel_pfn_to_virt(start, false);
+		epfn = kernel_pfn_to_virt(end, true);
+		rspfn = kernel_pfn_to_virt(rank_info[rank].start_pfn, false);
+		repfn = kernel_pfn_to_virt(rank_info[rank].end_pfn, true);
 		if (is_valid_rank(rank)) {
-			spfn = max(spfn, rank_info[rank].start_pfn);
-			if (rank_info[rank].end_pfn > spfn) {
-				spfn =
-				    (spfn + rank_info[rank].bank_pfn_size -
-				     1) & ~(rank_info[rank].bank_pfn_size - 1);
-				epfn = min(epfn, rank_info[rank].end_pfn);
+			spfn = max(spfn, rspfn);
+			if (repfn > spfn) {
+				if (last) {
+					spfn = round_down_base_offset(spfn, rank_info[rank].bank_pfn_size, rank_pfn_offset());		/* Round-down */
+				} else {
+					spfn = round_up_base_offset(spfn, rank_info[rank].bank_pfn_size, rank_pfn_offset());		/* Round-up */
+				}
+				epfn = min(epfn, repfn);
 				while (epfn >= (spfn + rank_info[rank].bank_pfn_size)) {
-					valid_segment |=
-					    (1 <<
-					     ((spfn -
-					       rank_info[rank].start_pfn) /
-					      rank_info[rank].bank_pfn_size + num_segment));
+					valid_segment |= (1 << ((spfn - rspfn) / rank_info[rank].bank_pfn_size + num_segment));
 					spfn += rank_info[rank].bank_pfn_size;
 				}
 			}
-			num_segment +=
-			    (rank_info[rank].end_pfn -
-			     rank_info[rank].start_pfn) / rank_info[rank].bank_pfn_size;
+			num_segment += (repfn - rspfn) / rank_info[rank].bank_pfn_size;
 		}
 	}
 }
 
 /* Set page mobility to MIGRATE_MTKPASR */
-static void __init set_page_mobility_mtkpasr(phys_addr_t start, phys_addr_t end)
+static void __init set_page_mobility_mtkpasr(unsigned long start, unsigned long end, bool last)
 {
 	int rank;
-	unsigned long spfn, epfn, espfn, pfn;
+	unsigned long spfn, epfn, espfn, vpfn, pfn;
+	unsigned long rspfn, repfn;
 	struct page *page;
 
 	for (rank = 0; rank < MAX_RANKS; ++rank) {
-		spfn = ((start + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) >> PAGE_SHIFT;	/* Round-up */
-		epfn = (end & ~(PAGE_SIZE - 1)) >> PAGE_SHIFT;	/* Round-down */
+		spfn = kernel_pfn_to_virt(start, false);
+		epfn = kernel_pfn_to_virt(end, true);
+		rspfn = kernel_pfn_to_virt(rank_info[rank].start_pfn, false);
+		repfn = kernel_pfn_to_virt(rank_info[rank].end_pfn, true);
 		if (is_valid_rank(rank)) {
-			spfn = max(spfn, rank_info[rank].start_pfn);
-			if (rank_info[rank].end_pfn > spfn) {
-				spfn =
-				    (spfn + rank_info[rank].bank_pfn_size -
-				     1) & ~(rank_info[rank].bank_pfn_size - 1);
-				epfn = min(epfn, rank_info[rank].end_pfn);
+			spfn = max(spfn, rspfn);
+			if (repfn > spfn) {
+				if (last) {
+					spfn = round_down_base_offset(spfn, rank_info[rank].bank_pfn_size, rank_pfn_offset());		/* Round-down */
+				} else {
+					spfn = round_up_base_offset(spfn, rank_info[rank].bank_pfn_size, rank_pfn_offset());		/* Round-up */
+				}
+				epfn = min(epfn, repfn);
 				espfn = spfn + rank_info[rank].bank_pfn_size;
 				while (epfn >= espfn) {
 					/* Set page mobility to MIGRATE_MTKPASR */
-					for (pfn = spfn; pfn < espfn; pfn++) {
-						/* If invalid */
-						if (!early_pfn_valid(pfn))
+					for (vpfn = spfn; vpfn < espfn; vpfn++) {
+						pfn = virt_to_kernel_pfn(vpfn);
+						/* If invalid - Use pfn_valid instead of early_pfn_valid which depends on CONFIG_SPARSEMEM! */
+						if (!pfn_valid(pfn))
 							continue;
 						/* Set it as MIGRATE_MTKPASR */
 						page = pfn_to_page(pfn);
 						if (!(pfn & (pageblock_nr_pages - 1)))
-							set_pageblock_mobility(page,
-									       MIGRATE_MTKPASR);
+							set_pageblock_mobility(page, MIGRATE_MTKPASR);
 					}
 					spfn += rank_info[rank].bank_pfn_size;
 					espfn = spfn + rank_info[rank].bank_pfn_size;
@@ -271,32 +352,85 @@ static void __init set_page_mobility_mtkpasr(phys_addr_t start, phys_addr_t end)
 	}
 }
 
+/* Fix to accommodate some feature-reserved memblocks */
+static void __init fix_memblock_region(unsigned long *start, unsigned long *end)
+{
+	int rank;
+	unsigned long total_pfn_size = 0;
+	unsigned long rspfn, repfn, spfn, epfn;
+
+	spfn = *start;
+	epfn = *end;
+
+	/* DVFS reserved */
+	for (rank = 0; rank < MAX_RANKS; ++rank) {
+		if (is_valid_rank(rank)) {
+			rspfn = kernel_pfn_to_virt(rank_info[rank].start_pfn, false);
+			repfn = kernel_pfn_to_virt(rank_info[rank].end_pfn, true);
+			total_pfn_size += (repfn - rspfn);
+		}
+	}
+	repfn = kernel_pfn_to_virt(rank_info[0].start_pfn, false) + (total_pfn_size >> 1);
+	repfn = virt_to_kernel_pfn(repfn);
+	if (spfn == (repfn + 1)) {
+		spfn = repfn;
+	}
+	if (epfn == (repfn - 1)) {
+		epfn = repfn;
+	}
+
+	/* Update Result */
+	*start = spfn;
+	*end = epfn;
+}
+
 /* Fill valid_segment & set page mobility */
 static void __init construct_mtkpasr_range(void)
 {
-	phys_addr_t vstart, vend;
+	unsigned long vstart, vend;
 	struct memblock_region *reg;
-	phys_addr_t start;
-	phys_addr_t end;
+	unsigned long start = 0;
+	unsigned long end = ~(unsigned long)0;
 
 	/* memblock should be sorted! */
 	for_each_memblock(memory, reg) {
-		vstart = PFN_TO_PADDR(mtkpasr_pfn_start);
-		vend = PFN_TO_PADDR(mtkpasr_pfn_end);
-		start = reg->base;
-		end = start + reg->size;
+		vstart = mtkpasr_pfn_start;
+		vend = mtkpasr_pfn_end;
+		start = PHYS_TO_PFN(reg->base);
+		end = PHYS_TO_PFN(reg->base + reg->size);
+		/* Fix memblock region */
+		fix_memblock_region(&start, &end);
 		/* Intersect */
 		if (end > vstart && start < vend) {
 			vstart = max(start, vstart);
 			vend = min(end, vend);
 			/* Mark valid segment */
-			mark_valid_segment(vstart, vend);
+			mark_valid_segment(vstart, vend, false);
 			/* Set page mobility */
-			set_page_mobility_mtkpasr(vstart, vend);
+			set_page_mobility_mtkpasr(vstart, vend, false);
 		}
 	}
 
 	/* Last bank - TODO */
+
+	/*    ,-------------
+	 *    |             |
+	 *    .-------------, -> Last valid kernel memblock	   (CONFIG_MTKPASR_NO_LASTBANK=y)
+	 *    |          ---| -> mtkpasr_pfn_end (HERE)
+	 *    .-------------, (AFTER ROUND-UP) new mtkpasr_pfn_end (CONFIG_MTKPASR_NO_LASTBANK=n)
+	 */
+
+#ifndef CONFIG_MTKPASR_NO_LASTBANK
+	vend = mtkpasr_pfn_end;
+	/* There still exists some region not initialized */
+	if (end < vend) {
+		vstart = max(end, mtkpasr_pfn_start);
+		/* Mark valid segment */
+		mark_valid_segment(vstart, vend, true);
+		/* Set page mobility */
+		set_page_mobility_mtkpasr(vstart, vend, true);
+	}
+#endif
 }
 
 /*
@@ -304,16 +438,18 @@ static void __init construct_mtkpasr_range(void)
  * This is done by setting those pages as MIGRATE_MTKPASR type.
  * It only takes effect on HIGHMEM zone now!
  */
-void __meminit init_mtkpasr_range(struct zone *zone)
+void __init init_mtkpasr_range(struct zone *zone)
 {
 	struct pglist_data *pgdat;
 	int rank;
 	unsigned long start_pfn;
 	unsigned long end_pfn;
 	unsigned long pfn_bank_alignment = 0;
+	unsigned long shift_size = 0;
 
 	/* Check whether our platform supports PASR */
 	if (!could_do_mtkpasr()) {
+		/* Can't support PASR */
 		return;
 	}
 
@@ -321,7 +457,10 @@ void __meminit init_mtkpasr_range(struct zone *zone)
 	pgdat = zone->zone_pgdat;
 
 	/* Parsing DRAM setting */
-	parse_dram_setting(pgdat->node_spanned_pages);
+	if (parse_dram_setting(pgdat->node_spanned_pages) == false) {
+		/* Can't support PASR */
+		return;
+	}
 
 #ifdef CONFIG_HIGHMEM
 	/* Start from HIGHMEM zone if we have CONFIG_HIGHMEM defined. */
@@ -332,23 +471,51 @@ void __meminit init_mtkpasr_range(struct zone *zone)
 
 	/* Sanity check - Is this zone empty? */
 	if (!populated_zone(zone)) {
+		/* Can't support PASR */
 		return;
 	}
 
-	/* Mark the start pfn */
-	start_pfn = zone->zone_start_pfn;
-	end_pfn = start_pfn + zone->spanned_pages;
+	/* Mark the end pfn */
+	end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+
+	/* Don't let end_pfn cross last rank to the beginning */
+	for (rank = MAX_RANKS - 1; rank >= 0; --rank) {
+		if (is_valid_rank(rank)) {
+			end_pfn = min(end_pfn, rank_info[rank].end_pfn);
+			break;
+		}
+	}
 
 	/* Indicate the beginning pfn of PASR/DPD */
-#ifdef CONFIG_HIGHMEM
-	start_pfn += (pgdat->node_spanned_pages >> 4);
-#else
-	start_pfn += (pgdat->node_spanned_pages >> 2);
-#endif
+	for (rank = 0; rank < MAX_RANKS; ++rank) {
+		if (is_valid_rank(rank)) {
+			shift_size += (kernel_pfn_to_virt(rank_info[rank].end_pfn, true) - kernel_pfn_to_virt(rank_info[rank].start_pfn, false));
+		}
+	}
+
+	/* Start from the half total DRAM size */
+	start_pfn = rank_pfn_offset() + (shift_size >> 1);
+	if (shift_size <= MTKPASR_1GB_PFNS) {
+		start_pfn += (shift_size >> 4);
+	}
+	if (shift_size >= MTKPASR_2GB_PFNS) {
+		start_pfn -= (shift_size >> 4);
+	}
+	if (shift_size >= MTKPASR_3GB_PFNS) {
+		start_pfn -= (shift_size >> 4);
+	}
+	if (shift_size >= MTKPASR_4GB_PFNS) {
+		start_pfn -= (shift_size >> 4);
+	}
+
+	/* Max start_pfn */
+	start_pfn = max(start_pfn, kernel_pfn_to_virt(zone->zone_start_pfn, false));
+	start_pfn = virt_to_kernel_pfn(start_pfn);
 
 	/* Find out which rank "start_pfn" belongs to */
 	for (rank = 0; rank < MAX_RANKS; ++rank) {
-		if (start_pfn < rank_info[rank].end_pfn && start_pfn >= rank_info[rank].start_pfn) {
+		if (kernel_pfn_to_virt(start_pfn, false) < kernel_pfn_to_virt(rank_info[rank].end_pfn, true) &&
+				kernel_pfn_to_virt(start_pfn, false) >= kernel_pfn_to_virt(rank_info[rank].start_pfn, false)) {
 			mtkpasr_start_rank = rank;
 			pfn_bank_alignment = rank_info[rank].bank_pfn_size;
 			break;
@@ -357,6 +524,7 @@ void __meminit init_mtkpasr_range(struct zone *zone)
 
 	/* Sanity check */
 	if (!pfn_bank_alignment) {
+		/* Can't support PASR */
 		return;
 	}
 
@@ -364,11 +532,12 @@ void __meminit init_mtkpasr_range(struct zone *zone)
 	pasrbank_pfns = pfn_bank_alignment;
 
 	/* Round up to bank alignment */
-	start_pfn = (start_pfn + pfn_bank_alignment - 1) & ~(pfn_bank_alignment - 1);
+	start_pfn = round_up_base_offset(start_pfn, pfn_bank_alignment, ARCH_PFN_OFFSET);
 
 	/* Find out which rank "end_pfn" belongs to */
-	for (; rank < MAX_RANKS; ++rank) {
-		if (end_pfn <= rank_info[rank].end_pfn && end_pfn > rank_info[rank].start_pfn) {
+	for (rank = 0; rank < MAX_RANKS; ++rank) {
+		if (kernel_pfn_to_virt(end_pfn, true) <= kernel_pfn_to_virt(rank_info[rank].end_pfn, true) &&
+				kernel_pfn_to_virt(end_pfn, true) > kernel_pfn_to_virt(rank_info[rank].start_pfn, false)) {
 			pfn_bank_alignment = rank_info[rank].bank_pfn_size;
 			break;
 		}
@@ -378,24 +547,49 @@ void __meminit init_mtkpasr_range(struct zone *zone)
 	if (pasrbank_pfns < pfn_bank_alignment) {
 		pasrbank_pfns = pfn_bank_alignment;
 	}
-#ifdef CONFIG_MTKPASR_NO_LASTBANK
-	/* Align MTKPASR end pfn to bank alignment! (Round Down) */
-	end_pfn = end_pfn & ~(pfn_bank_alignment - 1);
-#endif
 
 	/* Find out MTKPASR Start/End PFN */
 	mtkpasr_pfn_start = start_pfn;
-	mtkpasr_pfn_end = end_pfn;
+	mtkpasr_pfn_end	= end_pfn;
 
 	/* Round up mtkpasr_pfn_end (a little tricky, affected by CONFIG_MTKPASR_NO_LASTBANK) */
-	mtkpasr_pfn_end = (mtkpasr_pfn_end + pfn_bank_alignment - 1) & ~(pfn_bank_alignment - 1);
+	mtkpasr_pfn_end = round_up_base_offset(mtkpasr_pfn_end, pfn_bank_alignment, ARCH_PFN_OFFSET);
 
 	/* Fix up - allow holes existing in the PASR range */
 	construct_mtkpasr_range();
 
-	PRINT(138,
-	      "[MTKPASR] @@@@@@ Start_pfn[%8lu] End_pfn[%8lu] (MTKPASR) start_pfn[%8lu] end_pfn[%8lu] Valid_segment[0x%8lx] @@@@@@\n",
-	      start_pfn, end_pfn, mtkpasr_pfn_start, mtkpasr_pfn_end, valid_segment);
+	PRINT(138, "[MTKPASR] @@@@@@ Start_pfn[%8lu] End_pfn[%8lu] (MTKPASR) start_pfn[%8lu] end_pfn[%8lu] Valid_segment[0x%8lx] @@@@@@\n",
+			start_pfn, end_pfn, mtkpasr_pfn_start, mtkpasr_pfn_end, valid_segment);
+}
+
+/* Reserve NOT-MIGRATE_MTKPASR pages in PASR range */
+static void mtkpasr_reserve_reserved(void)
+{
+	int order = MAX_ORDER - 1, t;
+	struct list_head *curr, *tmp;
+	struct page *spage;
+	unsigned long flags;
+	unsigned long pfn;
+
+	/* Move pages */
+	for_each_migratetype_order(order, t) {
+		if (t != MIGRATE_MTKPASR) {
+			list_for_each_safe(curr, tmp, &MTKPASR_ZONE->free_area[order].free_list[t]) {
+				spage = list_entry(curr, struct page, lru);
+				pfn = page_to_pfn(spage);
+				/* NON-MTKPASR in PASR range */
+				if (pfn >= mtkpasr_pfn_start && pfn < mtkpasr_pfn_end) {
+					printk(KERN_ALERT "\norder[%d] t[%d] pfn[%lu]\n", order, t, pfn);
+					spin_lock_irqsave(&MTKPASR_ZONE->lock, flags);
+					/* Move it from original mobility to MIGRATE_MTKPASR */
+					list_move(&spage->lru, &MTKPASR_ZONE->free_area[order].free_list[MIGRATE_MTKPASR]);
+					/* Set it to MIGRATE_MTKPASR */
+					set_pageblock_mobility(spage, MIGRATE_MTKPASR);
+					spin_unlock_irqrestore(&MTKPASR_ZONE->lock, flags);
+				}
+			}
+		}
+	}
 }
 
 /*
@@ -408,8 +602,7 @@ void __meminit init_mtkpasr_range(struct zone *zone)
  *
  * Return    - The number of memory (virtual) banks, -1 means no valid range for PASR
  */
-int __init compute_valid_pasr_range(unsigned long *start_pfn, unsigned long *end_pfn,
-				    int *num_ranks)
+int __init compute_valid_pasr_range(unsigned long *start_pfn, unsigned long *end_pfn, int *num_ranks)
 {
 	int num_banks, rank, seg_num;
 	unsigned long vseg = valid_segment;
@@ -417,6 +610,13 @@ int __init compute_valid_pasr_range(unsigned long *start_pfn, unsigned long *end
 
 	/* Check whether our platform supports PASR */
 	if (!could_do_mtkpasr()) {
+		/* Can't support PASR */
+		return -1;
+	}
+
+	/* Check whether we have a valid PASR range */
+	if (mtkpasr_pfn_start == mtkpasr_pfn_end) {
+		/* Can't support PASR */
 		return -1;
 	}
 
@@ -424,15 +624,14 @@ int __init compute_valid_pasr_range(unsigned long *start_pfn, unsigned long *end
 	*start_pfn = mtkpasr_pfn_start;
 	*end_pfn = mtkpasr_pfn_end;
 
-	/* Compute number of banks & ranks */
+	/* Compute number of banks & ranks*/
 	num_banks = 0;
 	*num_ranks = 0;
 	for (rank = 0; rank < MAX_RANKS; ++rank) {
 		if (is_valid_rank(rank)) {
 			contain_rank = true;
-			seg_num =
-			    (rank_info[rank].end_pfn -
-			     rank_info[rank].start_pfn) / rank_info[rank].bank_pfn_size;
+			seg_num = (kernel_pfn_to_virt(rank_info[rank].end_pfn, true) - kernel_pfn_to_virt(rank_info[rank].start_pfn, false)) /
+				rank_info[rank].bank_pfn_size;
 			while (seg_num--) {
 				if (vseg & 0x1) {
 					num_banks++;
@@ -451,6 +650,9 @@ int __init compute_valid_pasr_range(unsigned long *start_pfn, unsigned long *end
 	if (num_banks == 0) {
 		return -1;
 	}
+
+	/* Reserve NOT-MIGRATE_MTKPASR pages in PASR range */
+	mtkpasr_reserve_reserved();
 
 	return num_banks;
 }
@@ -490,14 +692,15 @@ int __init query_bank_information(int bank, unsigned long *spfn, unsigned long *
 	vseg = valid_segment;
 	for (rank = 0; rank < MAX_RANKS; ++rank) {
 		if (is_valid_rank(rank)) {
-			num_segment =
-			    (rank_info[rank].end_pfn -
-			     rank_info[rank].start_pfn) / rank_info[rank].bank_pfn_size;
+			num_segment = (kernel_pfn_to_virt(rank_info[rank].end_pfn, true) - kernel_pfn_to_virt(rank_info[rank].start_pfn, false)) /
+				rank_info[rank].bank_pfn_size;
 			if (seg_num < num_segment) {
-				*spfn =
-				    rank_info[rank].start_pfn +
-				    seg_num * rank_info[rank].bank_pfn_size;
-				*epfn = *spfn + rank_info[rank].bank_pfn_size;
+				*spfn = virt_to_kernel_pfn(kernel_pfn_to_virt(rank_info[rank].start_pfn, false) + seg_num * rank_info[rank].bank_pfn_size);
+				*epfn = virt_to_kernel_pfn(kernel_pfn_to_virt(*spfn, false) + rank_info[rank].bank_pfn_size);
+				/* Fixup to meet bank range definition */
+				if (*epfn <= *spfn) {
+					*epfn = kernel_pfn_to_virt(*epfn, true);
+				}
 				break;
 			}
 			seg_num -= num_segment;
@@ -531,22 +734,31 @@ int __init query_bank_information(int bank, unsigned long *spfn, unsigned long *
 u32 __init pasr_bank_to_segment(unsigned long start_pfn, unsigned long end_pfn)
 {
 	int num_segment, rank;
+	unsigned long spfn, epfn;
+	unsigned long rspfn, repfn;
+
+	spfn = kernel_pfn_to_virt(start_pfn, false);
+	epfn = kernel_pfn_to_virt(end_pfn, true);
+	rspfn = kernel_pfn_to_virt(rank_info[0].start_pfn, false);
 
 	num_segment = 0;
 	for (rank = 0; rank < MAX_RANKS; ++rank) {
 		if (is_valid_rank(rank)) {
-			if (rank_info[rank].start_pfn <= start_pfn
-			    && rank_info[rank].end_pfn >= end_pfn) {
+			rspfn = kernel_pfn_to_virt(rank_info[rank].start_pfn, false);
+			repfn = kernel_pfn_to_virt(rank_info[rank].end_pfn, true);
+			if (rspfn <= spfn && repfn >= epfn) {
 				break;
 			}
-			num_segment +=
-			    (rank_info[rank].end_pfn -
-			     rank_info[rank].start_pfn) / rank_info[rank].bank_pfn_size;
+			num_segment += (repfn - rspfn) / rank_info[rank].bank_pfn_size;
 		}
 	}
 
-	return ((start_pfn - rank_info[rank].start_pfn) / rank_info[rank].bank_pfn_size +
-		num_segment);
+	/* Sanity check */
+	if (rank == MAX_RANKS) {
+		return (0x1F);
+	}
+
+	return ((spfn - rspfn) / rank_info[rank].bank_pfn_size + num_segment);
 
 	/*
 	 *  Symmetric Interleaving

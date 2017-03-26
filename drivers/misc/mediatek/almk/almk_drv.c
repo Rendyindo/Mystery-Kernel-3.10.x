@@ -28,9 +28,6 @@
 #include "almk_drv.h"
 
 //#define USE_SYSRAM
-//#define ALMK_MSG(...)   xlog_printk(ANDROID_LOG_DEBUG, "xlog/almk", __VA_ARGS__)
-//#define ALMK_WRN(...)   xlog_printk(ANDROID_LOG_WARN,  "xlog/almk", __VA_ARGS__)
-//#define ALMK_ERR(...)   xlog_printk(ANDROID_LOG_ERROR, "xlog/almk", __VA_ARGS__)
 #define ALMK_MSG printk
 #define ALMK_WRN printk
 #define ALMK_ERR printk

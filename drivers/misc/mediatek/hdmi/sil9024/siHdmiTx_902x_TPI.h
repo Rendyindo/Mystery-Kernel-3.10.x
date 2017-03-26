@@ -198,7 +198,7 @@ typedef struct {		/* for storing EDID parsed data */
 	byte ColorimetrySupportFlags;	/* IEC 61966-2-4 colorimetry support: 1 - xvYCC601; 2 - xvYCC709 */
 	byte MetadataProfile;
 	byte _3D_Supported;
-
+	byte HDMI_compatible_VSDB;
 } GLOBAL_EDID;
 
 enum EDID_ErrorCodes {

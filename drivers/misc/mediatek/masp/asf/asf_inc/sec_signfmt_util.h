@@ -18,3 +18,4 @@ unsigned char is_signfmt_v3(SEC_IMG_HEADER *hdr);
 unsigned char is_signfmt_v4(SEC_IMG_HEADER *hdr);
 
 #endif
+

@@ -17,7 +17,7 @@ int __xlog_output(int level, const char *tag, const char *fmt, va_list args)
 	if (!tag)
 		return -1;
 
-#ifdef CONFIG_HAVE_XLOG_FEATURE
+#ifdef CONFIG_HAVE_XLOG_PRINTK
 	if (!xLog_isOn(tag, level))
 		return -1;
 #endif

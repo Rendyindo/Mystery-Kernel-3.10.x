@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #include "cmdq_mdp_common.h"
 #include "cmdq_core.h"
 #include "cmdq_reg.h"
@@ -19,26 +5,22 @@
 #include "cmdq_mdp.h"
 #include <linux/met_drv.h>
 
-
-void cmdq_mdp_enable(uint64_t engineFlag,
-		     enum cg_clk_id gateId, CMDQ_ENG_ENUM engine, const char *name)
+void cmdq_mdp_enable(uint64_t engineFlag, CMDQ_ENG_ENUM engine)
 {
 #ifdef CMDQ_PWR_AWARE
 	CMDQ_VERBOSE("Test for ENG %d\n", engine);
 	if (engineFlag & (1LL << engine)) {
-		CMDQ_MSG("Enable %s clock\n", name);
-		enable_clock(gateId, (char *)name);
+		cmdq_dev_enable_mdp_clock(true, engine);
 	}
 #endif
 }
 
 int cmdq_mdp_loop_reset_impl(
-		       const uint32_t resetReg,
+		       const unsigned long resetReg,
 		       const uint32_t resetWriteValue,
-		       const uint32_t resetStateReg,
+		       const unsigned long resetStateReg,
 		       const uint32_t resetMask,
 		       const uint32_t resetPollingValue,
-		       const char *name,
 		       const int32_t maxLoopCount)
 {
 	int loop = 0;
@@ -54,7 +36,7 @@ int cmdq_mdp_loop_reset_impl(
 
 	/* return polling result*/
 	if (loop >= maxLoopCount) {
-		CMDQ_ERR("%s failed, Reg:0x%08x, writeValue:0x%08x, stateReg:0x%08x, mask:0x%08x, pollingValue:0x%08x\n",
+		CMDQ_ERR("%s failed, Reg:0x%lx, writeValue:0x%08x, stateReg:0x%lx, mask:0x%08x, pollingValue:0x%08x\n",
 			__func__, resetReg, resetWriteValue, resetStateReg, resetMask, resetPollingValue);
 		return -EFAULT;
 	}
@@ -62,17 +44,17 @@ int cmdq_mdp_loop_reset_impl(
 	return 0;
 }
 
-int cmdq_mdp_loop_reset(enum cg_clk_id clkId,
-			const uint32_t resetReg,
-			const uint32_t resetStateReg,
+int cmdq_mdp_loop_reset(CMDQ_ENG_ENUM engine,
+			const unsigned long resetReg,
+			const unsigned long resetStateReg,
 			const uint32_t resetMask,
-			const uint32_t resetValue, const char *name, const bool pollInitResult)
+			const uint32_t resetValue, const bool pollInitResult)
 {
 #ifdef CMDQ_PWR_AWARE
 	int resetStatus = 0;
 	int initStatus = 0;
 
-	if (clock_is_on(clkId)) {
+	if (cmdq_dev_mdp_clock_is_on(engine)) {
 		CMDQ_PROF_START(current->pid, __func__);
 		CMDQ_PROF_MMP(cmdq_mmp_get_event()->MDP_reset,
 			      MMProfileFlagStart, resetReg, resetStateReg);
@@ -82,7 +64,7 @@ int cmdq_mdp_loop_reset(enum cg_clk_id clkId,
 		resetStatus = cmdq_mdp_loop_reset_impl(
 				resetReg, 0x1,
 				resetStateReg, resetMask, resetValue,
-				name, CMDQ_MAX_LOOP_COUNT);
+				CMDQ_MAX_LOOP_COUNT);
 
 		if(pollInitResult)
 		{
@@ -90,7 +72,7 @@ int cmdq_mdp_loop_reset(enum cg_clk_id clkId,
 			initStatus = cmdq_mdp_loop_reset_impl(
 							resetReg, 0x0,
 							resetStateReg, resetMask, 0x0,
-							name, CMDQ_MAX_LOOP_COUNT);
+							CMDQ_MAX_LOOP_COUNT);
 		}
 		else
 		{
@@ -104,8 +86,8 @@ int cmdq_mdp_loop_reset(enum cg_clk_id clkId,
 
 		/* retrun failed if loop failed */
 		if ((0 > resetStatus) || (0 > initStatus)) {
-			CMDQ_ERR("Reset MDP %s failed, resetStatus:%d, initStatus:%d\n",
-				name, resetStatus, initStatus);
+			CMDQ_ERR("Reset MDP %ld failed, resetStatus:%d, initStatus:%d\n",
+				resetReg, resetStatus, initStatus);
 			return -EFAULT;
 		}
 	}
@@ -114,23 +96,23 @@ int cmdq_mdp_loop_reset(enum cg_clk_id clkId,
 	return 0;
 };
 
-void cmdq_mdp_loop_off(enum cg_clk_id clkId,
-		       const uint32_t resetReg,
-		       const uint32_t resetStateReg,
+void cmdq_mdp_loop_off(CMDQ_ENG_ENUM engine,
+		       const unsigned long resetReg,
+		       const unsigned long resetStateReg,
 		       const uint32_t resetMask,
-		       const uint32_t resetValue, const char *name, const bool pollInitResult)
+		       const uint32_t resetValue, const bool pollInitResult)
 {
 #ifdef CMDQ_PWR_AWARE
 	int resetStatus = 0;
 	int initStatus = 0;
 
-	if (clock_is_on(clkId)) {
+	if (cmdq_dev_mdp_clock_is_on(engine)) {
 
 		/* loop reset*/
 		resetStatus = cmdq_mdp_loop_reset_impl(
 				resetReg, 0x1,
 				resetStateReg, resetMask, resetValue,
-				name, CMDQ_MAX_LOOP_COUNT);
+				CMDQ_MAX_LOOP_COUNT);
 
 		if(pollInitResult)
 		{
@@ -138,7 +120,7 @@ void cmdq_mdp_loop_off(enum cg_clk_id clkId,
 			initStatus = cmdq_mdp_loop_reset_impl(
 							resetReg, 0x0,
 							resetStateReg, resetMask, 0x0,
-							name, CMDQ_MAX_LOOP_COUNT);
+							CMDQ_MAX_LOOP_COUNT);
 		}
 		else
 		{
@@ -148,14 +130,12 @@ void cmdq_mdp_loop_off(enum cg_clk_id clkId,
 
 		/* retrun failed if loop failed */
 		if ((0 > resetStatus) || (0 > initStatus))  {
-			CMDQ_AEE("MDP", "Disable %s engine failed, resetStatus:%d, initStatus:%d\n",
-				name, resetStatus, initStatus);
+			CMDQ_AEE("MDP", "Disable %ld engine failed, resetStatus:%d, initStatus:%d\n",
+				resetReg, resetStatus, initStatus);
 			return;
 		}
 
-		CMDQ_MSG("Disable %s clock\n", name);
-
-		disable_clock(clkId, (char *)name);
+		cmdq_dev_enable_mdp_clock(false, engine);
 	}
 #endif
 

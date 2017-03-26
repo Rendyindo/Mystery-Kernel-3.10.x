@@ -4,8 +4,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
-
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/printk.h>
@@ -26,9 +24,7 @@
 #include <linux/bug.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
-
 #include <mach/mtk_thermal_monitor.h>
-#include <mach/mt_typedefs.h>
 #include <mach/mt_storage_logger.h>
 #include <mach/mtk_thermal_platform.h>
 
@@ -95,18 +91,21 @@ struct mtk_thermal_tz_data {
 	struct mutex ma_lock;	/* protect moving avg. vars... */
 };
 
+struct proc_dir_entry * mtk_thermal_get_proc_drv_therm_dir_entry(void);
+
 static DEFINE_MUTEX(MTM_GET_TEMP_LOCK);
 static int *tz_last_values[MTK_THERMAL_SENSOR_COUNT] = { NULL };
 
 /* ************************************ */
 /* Global Variable */
 /* ************************************ */
-static int g_SysinfoAttachOps;
+struct thermal_zone_device_ops * g_SysinfoAttachOps;
 static bool enable_ThermalMonitor;
 static bool enable_ThermalMonitorXlog;
 static int g_nStartRealTime;
 static struct proc_dir_entry *proc_cooler_dir_entry;	/* lock by MTM_COOLER_PROC_DIR_LOCK */
 static struct proc_dir_entry *proc_tz_dir_entry;	/* lock by MTK_TZ_PROC_DIR_LOCK */
+static struct proc_dir_entry *proc_drv_therm_dir_entry = NULL;
 /**
  *  write to nBattCurrentCnsmpt, nCPU0_usage, and nCPU1_usage are locked by MTM_SYSINFO_LOCK
  */
@@ -127,19 +126,23 @@ static DEFINE_MUTEX(MTM_COOLER_LOCK);
 static DEFINE_MUTEX(MTM_SYSINFO_LOCK);
 static DEFINE_MUTEX(MTM_COOLER_PROC_DIR_LOCK);
 static DEFINE_MUTEX(MTM_TZ_PROC_DIR_LOCK);
+static DEFINE_MUTEX(MTM_DRV_THERM_PROC_DIR_LOCK);
 
 static struct delayed_work _mtm_sysinfo_poll_queue;
 
 /* ************************************ */
 /* Macro */
 /* ************************************ */
+#ifdef CONFIG_MTK_MT_LOGGER
 #define THRML_STORAGE_LOG(msg_id, func_name, ...) \
     do { \
 	if (unlikely(is_dump_mthermal()) && enable_ThermalMonitor) { \
 	    AddThrmlTrace(msg_id, func_name, __VA_ARGS__); \
 	} \
     } while (0)
-
+#else
+#define THRML_STORAGE_LOG(msg_id, func_name, ...)
+#endif
 
 #define THRML_LOG(fmt, args...) \
     do { \
@@ -153,7 +156,6 @@ static struct delayed_work _mtm_sysinfo_poll_queue;
     do { \
 	pr_debug("THERMAL/MONITOR " fmt, ##args); \
     } while (0)
-
 
 /* ************************************ */
 /* Define */
@@ -1584,30 +1586,43 @@ static const struct file_operations _mtm_scen_call_fops = {
 /* Init */
 static int __init mtkthermal_init(void)
 {
-	int err = 0;
-	struct proc_dir_entry *entry;
+    int err = 0;
+    struct proc_dir_entry *entry;
+    struct proc_dir_entry *dir_entry = mtk_thermal_get_proc_drv_therm_dir_entry();
 
-	THRML_LOG("%s\n", __func__);
+    THRML_LOG("%s\n", __func__);
+
+    entry =
+        proc_create("mtm_monitor", S_IRUGO | S_IWUSR | S_IWGRP, dir_entry, &mtkthermal_fops);
+    if (!entry) {
+        THRML_ERROR_LOG("%s Can not create mtm_monitor\n", __func__);
+    } else {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
+        proc_set_user(entry, 0, 1000);
+#else
+        entry->gid = 1000;
+#endif
+    }
 
 	entry =
-	    proc_create("driver/mtk_thermal_monitor", S_IRUGO | S_IWUSR, NULL, &mtkthermal_fops);
-	if (!entry) {
-		THRML_ERROR_LOG("%s Can not create /proc/driver/mtk_thermal_monitor\n", __func__);
-	}
-
-	entry =
-	    proc_create("driver/mtk_thermal_indicator", S_IRUGO | S_IWUSR, NULL,
+	    proc_create("mtm_indicator", S_IRUGO | S_IWUSR, dir_entry,
 			&_mtkthermal_indicator_fops);
 	if (!entry) {
-		THRML_ERROR_LOG("%s Can not create /proc/driver/mtk_thermal_indicator\n", __func__);
+		THRML_ERROR_LOG("%s Can not create mtm_indicator\n", __func__);
 	}
 
 	entry =
-	    proc_create("driver/mtm_scen_call", S_IRUGO | S_IWUSR | S_IWGRP, NULL,
+	    proc_create("mtm_scen_call", S_IRUGO | S_IWUSR | S_IWGRP, dir_entry,
 			&_mtm_scen_call_fops);
 	if (!entry) {
-		THRML_ERROR_LOG("%s Can not create /proc/driver/mtm_scen_call\n", __func__);
-	}
+		THRML_ERROR_LOG("%s Can not create mtm_scen_call\n", __func__);
+	} else {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
+        proc_set_user(entry, 0, 1000);
+#else
+        entry->gid = 1000;
+#endif
+    }
 
 	/* create /proc/cooler folder */
 	/* WARNING! This is not gauranteed to be invoked before mtk_ts_cpu's functions... */
@@ -1634,10 +1649,10 @@ static int __init mtkthermal_init(void)
 	       sizeof(struct mtk_thermal_ext_tz_data) * MTK_THERMAL_EXT_SENSOR_COUNT);
 
 	entry =
-	    proc_create("driver/mtk_thermal_extctrl", S_IRUGO | S_IWUSR, NULL,
+	    proc_create("mtm_extctrl", S_IRUGO | S_IWUSR, dir_entry,
 			&mtk_thermal_ext_proc_fops);
 	if (!entry) {
-		THRML_ERROR_LOG("%s Can not create /proc/driver/md32_thermal\n", __func__);
+		THRML_ERROR_LOG("%s Can not create mtm_extctrl\n", __func__);
 	}
 
 	/* Register AP side IPI handler */
@@ -2051,7 +2066,7 @@ struct thermal_zone_device *mtk_thermal_zone_device_register_wrapper
 		  trips, passive_delay, polling_delay);
 
 	if (strcmp(SYSINFO_ATTACH_DEV_NAME, type) == 0) {
-		g_SysinfoAttachOps = (int)ops;
+		g_SysinfoAttachOps = (struct thermal_zone_device_ops *)ops;
 	}
 
 	tzdata = kzalloc(sizeof(struct mtk_thermal_tz_data), GFP_KERNEL);
@@ -2536,6 +2551,21 @@ int mtk_thermal_get_temp(MTK_THERMAL_SENSOR_ID id)
 	}
 }
 
+struct proc_dir_entry * mtk_thermal_get_proc_drv_therm_dir_entry(void)
+{
+    mutex_lock(&MTM_DRV_THERM_PROC_DIR_LOCK);
+    if (NULL == proc_drv_therm_dir_entry)
+    {
+        proc_drv_therm_dir_entry = proc_mkdir("driver/thermal", NULL);
+        if (NULL == proc_drv_therm_dir_entry)
+        {
+            THRML_ERROR_LOG("[%s]: mkdir /proc/driver/thermal failed\n", __func__);
+        }
+    }
+    mutex_unlock(&MTM_DRV_THERM_PROC_DIR_LOCK);
+    return proc_drv_therm_dir_entry;
+}
+
 /* ********************************************* */
 /* Export Interface */
 /* ********************************************* */
@@ -2547,6 +2577,7 @@ EXPORT_SYMBOL(mtk_thermal_cooling_device_register_wrapper);
 EXPORT_SYMBOL(mtk_thermal_zone_bind_cooling_device_wrapper);
 EXPORT_SYMBOL(mtk_thermal_zone_bind_trigger_trip);
 EXPORT_SYMBOL(mtk_thermal_get_temp);
+EXPORT_SYMBOL(mtk_thermal_get_proc_drv_therm_dir_entry);
 module_init(mtkthermal_init);
 module_exit(mtkthermal_exit);
 

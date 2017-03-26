@@ -47,4 +47,4 @@
 
 #define SEC_DEV             "/dev/sec"
 
-#endif				/* end of SEC_IOCTL_H */
+#endif /* end of SEC_IOCTL_H */

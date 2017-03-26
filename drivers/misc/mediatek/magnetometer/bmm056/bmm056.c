@@ -3663,12 +3663,34 @@ static int bmm050_init_client(struct i2c_client *client)
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+#if 0
 static struct platform_driver bmm050_sensor_driver = {
 	.probe      = bmm050_probe,
 	.remove     = bmm050_remove,    
 	.driver     = {
 		.name  = "msensor",
 		//.owner = THIS_MODULE,
+	}
+};
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id bmm056_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
+
+static struct platform_driver bmm050_sensor_driver =
+{
+	.probe      = bmm050_probe,
+	.remove     = bmm050_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = bmm056_of_match,
+		#endif
 	}
 };
 

@@ -1,3 +1,4 @@
+
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
@@ -9,50 +10,63 @@
 #include <linux/slab.h>
 #include <linux/kdebug.h>
 #include <asm/uaccess.h>
+#if defined(CONFIG_ARM_PSCI) || (CONFIG_ARM64)
+#include <mach/mt_secure_api.h>
+#endif
+#include <mach/smp.h>
 #include "aed.h"
 
 #ifndef PARTIAL_BUILD
 
 #define BUFSIZE 128
-static spinlock_t fiq_debugger_test_lock0;
-static spinlock_t fiq_debugger_test_lock1;
 static int test_case;
 static int test_cpu;
 static struct task_struct *wk_tsk[NR_CPUS];
 extern struct atomic_notifier_head panic_notifier_list;
 
-static int force_spinlock(struct notifier_block *this, unsigned long event, void *ptr)
+#ifdef __aarch64__
+#undef BUG
+#define BUG() *((unsigned *)0xaed) = 0xDEAD
+#endif
+
+static int force_panic_hang(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	unsigned long flags;
-	LOGW("\n ==> panic flow spinlock deadlock test\n");
-	spin_lock_irqsave(&fiq_debugger_test_lock0, flags);
+	LOGW("\n ==> force panic flow hang\n");
 	while (1);
 	LOGW("\n You should not see this\n");
 	return 0;
 }
 
 static struct notifier_block panic_test = {
-	.notifier_call = force_spinlock,
+	.notifier_call = force_panic_hang,
 	.priority = INT_MAX,
 };
 
+void notrace wdt_atf_hang(void)
+{
+	int cpu = get_HW_cpuid();
+	LOGE(" CPU %d : wdt_atf_hang\n", cpu);
+	local_fiq_disable();
+	preempt_disable();
+	local_irq_disable();
+	while (1);
+}
 
 static int kwdt_thread_test(void *arg)
 {
 	struct sched_param param = {.sched_priority = RTPM_PRIO_WDT };
-	int cpu;
-	unsigned long flags;
+	int cpu = get_HW_cpuid();
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	set_current_state(TASK_INTERRUPTIBLE);
-	cpu = smp_processor_id();
 	LOGW("\n ==> kwdt_thread_test on CPU %d, test_case = %d\n", cpu, test_case);
 	msleep(1000);
 
 	if (test_case == 1) {
 		if (cpu == test_cpu) {
 			LOGW("\n CPU %d : disable preemption and local IRQ forever", cpu);
-			spin_lock_irqsave(&fiq_debugger_test_lock0, flags);
+			preempt_disable();
+			local_irq_disable();
 			while (1);
 			LOGW("\n Error : You should not see this !\n");
 		} else {
@@ -62,7 +76,8 @@ static int kwdt_thread_test(void *arg)
 		if (cpu == test_cpu) {
 			msleep(1000);
 			LOGW("\n CPU %d : disable preemption and local IRQ forever", cpu);
-			spin_lock_irqsave(&fiq_debugger_test_lock0, flags);
+			preempt_disable();
+			local_irq_disable();
 			while (1);
 			LOGE("\n Error : You should not see this !\n");
 		} else {
@@ -73,10 +88,11 @@ static int kwdt_thread_test(void *arg)
 		}
 	} else if (test_case == 3) {
 		if (cpu == test_cpu) {
-			LOGW("\n CPU %d : register panic notifier and force spinlock deadlock\n",
+			LOGW("\n CPU %d : register panic notifier and force hang \n",
 			     cpu);
 			atomic_notifier_chain_register(&panic_notifier_list, &panic_test);
-			spin_lock_irqsave(&fiq_debugger_test_lock0, flags);
+			preempt_disable();
+			local_irq_disable();
 			while (1);
 			LOGE("\n Error : You should not see this !\n");
 		} else {
@@ -84,13 +100,22 @@ static int kwdt_thread_test(void *arg)
 		}
 	} else if (test_case == 4) {
 		LOGW("\n CPU %d : disable preemption and local IRQ forever\n ", cpu);
-		spin_lock_irqsave(&fiq_debugger_test_lock1, flags);
+		preempt_disable();
+		local_irq_disable();
 		while (1);
 		LOGW("\n Error : You should not see this !\n");
 	} else if (test_case == 5) {
 		LOGW("\n CPU %d : disable preemption and local IRQ/FIQ forever\n ", cpu);
 		local_fiq_disable();
-		spin_lock_irqsave(&fiq_debugger_test_lock1, flags);
+		preempt_disable();
+		local_irq_disable();
+		while (1);
+		LOGW("\n Error : You should not see this !\n");
+	} else if (test_case == 6) {
+		LOGW("\n CPU %d : disable preemption and local IRQ/FIQ forever\n ", cpu);
+		local_fiq_disable();
+		preempt_disable();
+		local_irq_disable();
 		while (1);
 		LOGW("\n Error : You should not see this !\n");
 	}
@@ -105,7 +130,7 @@ static ssize_t proc_generate_wdt_write(struct file *file,
 	unsigned char name[20] = { 0 };
 
 	if ((size < 2) || (size > sizeof(msg))) {
-		LOGW("\n size = %d\n", size);
+		LOGW("\n size = %zx\n", size);
 		return -EINVAL;
 	}
 	if (copy_from_user(msg, buf, size)) {
@@ -115,9 +140,9 @@ static ssize_t proc_generate_wdt_write(struct file *file,
 	test_case = (unsigned int)msg[0] - '0';
 	test_cpu = (unsigned int)msg[2] - '0';
 	LOGW("test_case = %d, test_cpu = %d", test_case, test_cpu);
-	if ((msg[1] != ':') || (test_case < 1) || (test_case > 5)
+	if ((msg[1] != ':') || (test_case < 1) || (test_case > 6)
 	    || (test_cpu < 0) || (test_cpu > nr_cpu_ids)) {
-		LOGW("WDT test - Usage: [test case number(1~4):test cpu(0~%d)]\n", nr_cpu_ids);
+		LOGW("WDT test - Usage: [test case number(1~6):test cpu(0~%d)]\n", nr_cpu_ids);
 		return -EINVAL;
 	}
 
@@ -126,11 +151,19 @@ static ssize_t proc_generate_wdt_write(struct file *file,
 	} else if (test_case == 2) {
 		LOGW("Test 2 : One CPU WDT timeout, other CPU disable irq (smp_send_stop fail in old design)\n");
 	} else if (test_case == 3) {
-		LOGW("Test 3 : WDT timeout but deadlock in panic flow\n");
+		LOGW("Test 3 : WDT timeout and loop in panic flow\n");
 	} else if (test_case == 4) {
 		LOGW("Test 4 : All CPU WDT timeout (other CPU stop in the loop)\n");
 	} else if (test_case == 5) {
-		LOGW("Test 5 : HW_reboot\n");
+		LOGW("Test 5 : Disable ALL CPU IRQ/FIQ (FIQ : HW_reboot, ATF : HWT \n");
+	} else if (test_case == 6) {
+		LOGW("Test 6 : (For ATF) HW_REBOOT : change SMC call back function and while loop \n");
+#ifdef CONFIG_ARM64
+		mt_secure_call(MTK_SIP_KERNEL_WDT, (u64)&wdt_atf_hang, 0, 0);
+#endif
+#ifdef CONFIG_ARM_PSCI
+		mt_secure_call(MTK_SIP_KERNEL_WDT, (u32)&wdt_atf_hang, 0, 0);
+#endif
 	} else {
 		LOGE("\n Unknown test_case %d\n", test_case);
 		return -EINVAL;
@@ -230,8 +263,9 @@ static int noinline stack_overflow_routine(int x, int y, int z)
 	char a[4];
 	char *p = a;
 	int i;
-	for (i = 0; i < (x + y + z) * 2; i++)
+	for (i = 0; i < (x + y + z) * 2; i++) {
 		*(p + i) = i;
+	}
 	/* stack overflow */
 	return a[0] + a[3];
 }
@@ -289,14 +323,14 @@ static ssize_t proc_generate_oops_read(struct file *file,
 	return len;
 }
 
-static int proc_generate_oops_write(struct file *file,
+static ssize_t proc_generate_oops_write(struct file *file,
 				    const char __user *buf, size_t size, loff_t *ppos)
 {
 	char msg[6];
 	int test_case, test_subcase, test_cpu;
 
 	if ((size < 2) || (size > sizeof(msg))) {
-		LOGW("%s: count = %d\n", __func__, size);
+		LOGW("%s: count = %zx\n", __func__, size);
 		return -EINVAL;
 	}
 	if (copy_from_user(msg, buf, size)) {
@@ -342,6 +376,7 @@ static int nested_panic(struct notifier_block *this, unsigned long event, void *
 {
 	LOGE("\n => force nested panic\n");
 	BUG();
+	return 0;
 }
 
 static struct notifier_block panic_blk = {
@@ -368,7 +403,7 @@ static ssize_t proc_generate_nested_ke_write(struct file *file,
 	int test_case, test_subcase, test_cpu;
 
 	if ((size < 2) || (size > sizeof(msg))) {
-		LOGW("%s: count = %d\n", __func__, size);
+		LOGW("%s: count = %zx\n", __func__, size);
 		return -EINVAL;
 	}
 	if (copy_from_user(msg, buf, size)) {
@@ -407,10 +442,12 @@ static ssize_t proc_generate_ee_read(struct file *file,
 		LOGE("proc_generate_ee_read kmalloc fail\n");
 		return sprintf(buffer, "kmalloc fail\n");
 	}
-	for (i = 0; i < TEST_EE_PHY_SIZE; i++)
+	for (i = 0; i < TEST_EE_PHY_SIZE; i++) {
 		ptr[i] = (i % 26) + 'A';
-	for (i = 0; i < TEST_EE_LOG_SIZE; i++)
+	}
+	for (i = 0; i < TEST_EE_LOG_SIZE; i++) {
 		log[i] = i % 255;
+	}
 	aed_md_exception_api((int *)log, TEST_EE_LOG_SIZE, (int *)ptr, TEST_EE_PHY_SIZE, __FILE__, DB_OPT_FTRACE);
 	kfree(ptr);
 	kfree(log);
@@ -438,9 +475,9 @@ static ssize_t proc_generate_combo_read(struct file *file,
 		LOGE("proc_generate_combo_read kmalloc fail\n");
 		return sprintf(buffer, "kmalloc fail\n");
 	}
-	for (i = 0; i < TEST_COMBO_PHY_SIZE; i++)
+	for (i = 0; i < TEST_COMBO_PHY_SIZE; i++) {
 		ptr[i] = (i % 26) + 'A';
-
+	}
 
 	aee_kernel_dal_show("Oops, MT662X is generating core dump, please wait up to 5 min\n");
 	aed_combo_exception(NULL, 0, (int *)ptr, TEST_COMBO_PHY_SIZE, __FILE__);
@@ -469,8 +506,9 @@ static ssize_t proc_generate_md32_read(struct file *file,
 		LOGE("proc_generate_md32_read kmalloc fail\n");
 		return sprintf(buffer, "kmalloc fail\n");
 	}
-	for (i = 0; i < TEST_MD32_PHY_SIZE; i++)
+	for (i = 0; i < TEST_MD32_PHY_SIZE; i++) {
 		ptr[i] = (i % 26) + 'a';
+	}
 
 	sprintf(buffer, "MD32 EE log here\n");
 	aed_md32_exception((int *)buffer, (int)sizeof(buffer), (int *)ptr, TEST_MD32_PHY_SIZE, __FILE__);
@@ -503,7 +541,7 @@ static ssize_t proc_generate_kernel_notify_read(struct file *file,
 }
 
 
-static int proc_generate_kernel_notify_write(struct file *file,
+static ssize_t proc_generate_kernel_notify_write(struct file *file,
 					     const char __user *buf, size_t size, loff_t *ppos)
 {
 	char msg[164], *colon_ptr;
@@ -513,7 +551,7 @@ static int proc_generate_kernel_notify_write(struct file *file,
 	}
 
 	if ((size < 5) || (size >= sizeof(msg))) {
-		LOGW("aed: %s size sould be >= 5 and <= %d bytes.\n", __func__, sizeof(msg));
+		LOGW("aed: %s size sould be >= 5 and <= %zx bytes.\n", __func__, sizeof(msg));
 		return -EINVAL;
 	}
 
@@ -584,9 +622,6 @@ AED_FILE_OPS(generate_dal);
 
 int aed_proc_debug_init(struct proc_dir_entry *aed_proc_dir)
 {
-	spin_lock_init(&fiq_debugger_test_lock0);
-	spin_lock_init(&fiq_debugger_test_lock1);
-
 	AED_PROC_ENTRY(generate-oops, generate_oops, S_IRUSR | S_IWUSR);
 	AED_PROC_ENTRY(generate-nested-ke, generate_nested_ke, S_IRUSR);
 	AED_PROC_ENTRY(generate-kernel-notify, generate_kernel_notify, S_IRUSR | S_IWUSR);

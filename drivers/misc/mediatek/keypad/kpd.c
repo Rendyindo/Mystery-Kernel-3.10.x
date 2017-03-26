@@ -17,7 +17,11 @@
 
 /*kpd.h file path: ALPS/mediatek/kernel/include/linux */
 #include <linux/kpd.h>
-#include <mach/hal_priv_kpd.h>
+
+//#ifdef CONFIG_MTK_TC1_FM_AT_SUSPEND  //modify by taoxiaodong
+//#include <linux/wakelock.h>
+//#endif
+
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -36,7 +40,9 @@ static bool kpd_suspend = false;
 static int kpd_show_hw_keycode = 1;
 static int kpd_show_register = 1;
 static volatile int call_status = 0;
-
+//#ifdef CONFIG_MTK_TC1_FM_AT_SUSPEND
+//struct wake_lock kpd_suspend_lock; /* For suspend usage */
+//#endif
 /*for kpd_memory_setting() function*/
 static u16 kpd_keymap[KPD_NUM_KEYS];
 static u16 kpd_keymap_state[KPD_NUM_MEMS];
@@ -48,7 +54,9 @@ static void kpd_slide_handler(unsigned long data);
 static DECLARE_TASKLET(kpd_slide_tasklet, kpd_slide_handler, 0);
 static u8 kpd_slide_state = !KPD_SLIDE_POLARITY;
 #endif
-
+#if !defined(CONFIG_MTK_LEGACY)
+struct keypad_dts_data kpd_dts_data;
+#endif
 /* for Power key using EINT */
 #if KPD_PWRKEY_USE_EINT
 static void kpd_pwrkey_handler(unsigned long data);
@@ -104,8 +112,7 @@ static void kpd_memory_setting(void)
 
 /*****************for kpd auto set wake up source*************************/
 
-static ssize_t kpd_store_call_state(struct device* dev, struct device_attribute *attr, const char *buf, size_t
-count)
+static ssize_t kpd_store_call_state(struct device_driver *ddri, const char *buf, size_t count)
 {
 	if (sscanf(buf, "%u", &call_status) != 1) {
 		kpd_print("kpd call state: Invalid values\n");
@@ -130,49 +137,11 @@ count)
 	return count;
 }
 
-static ssize_t kpd_show_call_state(struct device* dev, struct device_attribute *attr, char *buf)
+static ssize_t kpd_show_call_state(struct device_driver *ddri, char *buf)
 {
-    int len = 0;
-    u16 reg_kpstaus;
-    u16 reg_kpstate1;
-    u16 reg_kpstate2;
-    u16 reg_kpstate3;
-    u16 reg_kpstate4;
-    u16 reg_kpstate5;
-    u16 reg_kpdebounce;
-    u16 reg_kpscantime;
-    u16 reg_kpsel;
-    u16 reg_kpen;
-    u32 reg_kpd_irq;
-
-    reg_kpstaus = *(volatile u16 *)KP_STA;
-    reg_kpstate1 = *(volatile u16 *)KP_MEM1;
-    reg_kpstate2 = *(volatile u16 *)KP_MEM2;
-    reg_kpstate3 = *(volatile u16 *)KP_MEM3;
-    reg_kpstate4 = *(volatile u16 *)KP_MEM4;
-    reg_kpstate5 = *(volatile u16 *)KP_MEM5;
-    reg_kpdebounce = *(volatile u16 *)KP_DEBOUNCE;
-    reg_kpscantime = *(volatile u16 *)KP_SCAN_TIMING;
-    reg_kpsel = *(volatile u16 *)KP_SEL;
-    reg_kpen = *(volatile u16 *)KP_EN;
-
-    reg_kpd_irq = *(volatile u32 *)(0xF0211196);
-
-    len += snprintf(buf+len, PAGE_SIZE-len, "kp_status: 0x%x\n", reg_kpstaus);
-    len += snprintf(buf+len, PAGE_SIZE-len, "reg_kpmem1: 0x%x\n", reg_kpstate1);
-    len += snprintf(buf+len, PAGE_SIZE-len, "reg_kpmem2: 0x%x\n", reg_kpstate2);
-    len += snprintf(buf+len, PAGE_SIZE-len, "reg_kpmem3: 0x%x\n", reg_kpstate3);
-    len += snprintf(buf+len, PAGE_SIZE-len, "reg_kpmem4: 0x%x\n", reg_kpstate4);
-    len += snprintf(buf+len, PAGE_SIZE-len, "reg_kpmem5: 0x%x\n", reg_kpstate5);
-    len += snprintf(buf+len, PAGE_SIZE-len, "kp_debounce: 0x%x\n", reg_kpdebounce);
-    len += snprintf(buf+len, PAGE_SIZE-len, "kp_scantime: 0x%x\n", reg_kpscantime);
-    len += snprintf(buf+len, PAGE_SIZE-len, "kp_sel: 0x%x\n", reg_kpsel);
-    len += snprintf(buf+len, PAGE_SIZE-len, "kp_en: 0x%x\n", reg_kpen);
-    len += snprintf(buf+len, PAGE_SIZE-len, "kp_irq_status: 0x%x\n", ((reg_kpd_irq&0x80000) >> 20));
-
-    len += snprintf(buf+len, PAGE_SIZE-len, "call status: %d\n", call_status);
-    printk("debug: %s \n", buf);
-    return len;
+	ssize_t res;
+	res = snprintf(buf, PAGE_SIZE, "%d\n", call_status);
+	return res;
 }
 
 static DRIVER_ATTR(kpd_call_state, S_IWUSR | S_IRUGO, kpd_show_call_state, kpd_store_call_state);
@@ -364,11 +333,13 @@ static void kpd_slide_handler(unsigned long data)
 		mt_set_gpio_pull_select(GPIO_QWERTYSLIDE_EINT_PIN, 1);
 	}
 	/* for detecting the return to old_state */
-	mt65xx_eint_set_polarity(KPD_SLIDE_EINT, old_state);
-	mt65xx_eint_unmask(KPD_SLIDE_EINT);
+	//mt65xx_eint_set_polarity(KPD_SLIDE_EINT, old_state);
+	//mt65xx_eint_unmask(KPD_SLIDE_EINT);
+        mt_eint_set_polarity(KPD_SLIDE_EINT, old_state);
+        mt_eint_unmask(KPD_SLIDE_EINT);
 }
 
-static void kpd_slide_eint_handler(void)
+void kpd_slide_eint_handler(void)
 {
 	tasklet_schedule(&kpd_slide_tasklet);
 }
@@ -424,6 +395,12 @@ static void kpd_keymap_handler(unsigned long data)
 	u16 new_state[KPD_NUM_MEMS], change, mask;
 	u16 hw_keycode, linux_keycode;
 	kpd_get_keymap_state(new_state);
+
+
+ //#ifdef CONFIG_MTK_TC1_FM_AT_SUSPEND              //add by taoxiaodong 
+ //       wake_lock_timeout(&kpd_suspend_lock, HZ / 2);
+ //#endif
+
 
 	for (i = 0; i < KPD_NUM_MEMS; i++) {
 		change = new_state[i] ^ kpd_keymap_state[i];
@@ -794,11 +771,38 @@ static struct miscdevice kpd_dev = {
 
 static int kpd_open(struct input_dev *dev)
 {
-	kpd_slide_qwerty_init();	/* API 1 for kpd slide qwerty init settings */
+	kpd_slide_qwerty_init(dev);	/* API 1 for kpd slide qwerty init settings */
 	return 0;
 }
+#if !defined(CONFIG_MTK_LEGACY)
+void kpd_get_dts_info(void)
+{
+	struct device_node *node;
+	node = of_find_compatible_node(NULL,NULL,"mediatek, kpd");
+	if(node) {
+		of_property_read_u32(node,"kpd-key-debounce",&kpd_dts_data.kpd_key_debounce);
+		of_property_read_u32(node,"kpd-sw-pwrkey",&kpd_dts_data.kpd_sw_pwrkey);
+		of_property_read_u32(node,"kpd-hw-pwrkey",&kpd_dts_data.kpd_hw_pwrkey);
+		of_property_read_u32(node,"kpd-sw-rstkey",&kpd_dts_data.kpd_sw_rstkey);
+		of_property_read_u32(node,"kpd-hw-rstkey",&kpd_dts_data.kpd_hw_rstkey);
+		of_property_read_u32(node,"kpd-use-extend-type",&kpd_dts_data.kpd_use_extend_type);
+		of_property_read_u32(node,"kpd-pwrkey-eint-gpio",&kpd_dts_data.kpd_pwrkey_eint_gpio);
+		of_property_read_u32(node,"kpd-pwrkey-gpio-din",&kpd_dts_data.kpd_pwrkey_gpio_din);
+		of_property_read_u32(node,"kpd-hw-dl-key1",&kpd_dts_data.kpd_hw_dl_key1);
+		of_property_read_u32(node,"kpd-hw-dl-key2",&kpd_dts_data.kpd_hw_dl_key2);
+		of_property_read_u32(node,"kpd-hw-dl-key3",&kpd_dts_data.kpd_hw_dl_key3);	
+		of_property_read_u32(node,"kpd-hw-recovery-key",&kpd_dts_data.kpd_hw_recovery_key);
+		of_property_read_u32(node,"kpd-hw-factory-key",&kpd_dts_data.kpd_hw_factory_key);
+		of_property_read_u32_array(node,"kpd-hw-init-map",kpd_dts_data.kpd_hw_init_map,ARRAY_SIZE(kpd_dts_data.kpd_hw_init_map));
 
-
+		kpd_print("[kpd]kpd-key-debounce = %d, kpd-sw-pwrkey = %d, kpd-hw-pwrkey = %d, kpd-hw-rstkey = %d, kpd-sw-rstkey = %d\n", 
+			kpd_dts_data.kpd_key_debounce, kpd_dts_data.kpd_sw_pwrkey, kpd_dts_data.kpd_hw_pwrkey, kpd_dts_data.kpd_hw_rstkey,kpd_dts_data.kpd_sw_rstkey);
+	}
+	else {
+		kpd_print("[kpd]%s can't find compatible custom node\n", __func__);
+	}
+}
+#endif
 static int kpd_pdrv_probe(struct platform_device *pdev)
 {
 
@@ -808,20 +812,22 @@ static int kpd_pdrv_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	kp_base = of_iomap(pdev->dev.of_node, 0);
 	if (!kp_base) {
-		pr_info(KPD_SAY "KP iomap failed\n");
+		pr_warn(KPD_SAY "KP iomap failed\n");
 		return -ENODEV;
 	};
 
 	kp_irqnr = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (!kp_irqnr) {
-		pr_info(KPD_SAY "KP get irqnr failed\n");
+		pr_warn(KPD_SAY "KP get irqnr failed\n");
 		return -ENODEV;
 	}
-	pr_info(KPD_SAY "kp base: 0x%p  kp irq: %d\n", kp_base, kp_irqnr);
+	pr_warn(KPD_SAY "kp base: 0x%p, addr:0x%p,  kp irq: %d\n", kp_base,&kp_base, kp_irqnr);
 #endif
-
+#if defined(CONFIG_MTK_LEGACY) /*This not need now*/
+#ifdef CONFIG_MTK_LDVT
 	kpd_ldvt_test_init();	/* API 2 for kpd LFVT test enviroment settings */
-
+#endif
+#endif
 	/* initialize and register input device (/dev/input/eventX) */
 	kpd_input_dev = input_allocate_device();
 	if (!kpd_input_dev)
@@ -833,22 +839,33 @@ static int kpd_pdrv_probe(struct platform_device *pdev)
 	kpd_input_dev->id.product = 0x6500;
 	kpd_input_dev->id.version = 0x0010;
 	kpd_input_dev->open = kpd_open;
-
+#if !defined(CONFIG_MTK_LEGACY)
+	kpd_get_dts_info();
+#endif	
 	/* fulfill custom settings */
 	kpd_memory_setting();
 
 	__set_bit(EV_KEY, kpd_input_dev->evbit);
 
 #if (KPD_PWRKEY_USE_EINT || KPD_PWRKEY_USE_PMIC)
+#if !defined(CONFIG_MTK_LEGACY)
+	__set_bit(kpd_dts_data.kpd_sw_pwrkey, kpd_input_dev->keybit);
+#else
 	__set_bit(KPD_PWRKEY_MAP, kpd_input_dev->keybit);
+#endif
 	kpd_keymap[8] = 0;
 #endif
-
+#if !defined(CONFIG_MTK_LEGACY)
+	if(!kpd_dts_data.kpd_use_extend_type){
+		for (i = 17; i < KPD_NUM_KEYS; i += 9)	/* only [8] works for Power key */
+			kpd_keymap[i] = 0;
+	}
+#else
 #if !KPD_USE_EXTEND_TYPE
 	for (i = 17; i < KPD_NUM_KEYS; i += 9)	/* only [8] works for Power key */
 		kpd_keymap[i] = 0;
 #endif
-
+#endif
 	for (i = 0; i < KPD_NUM_KEYS; i++) {
 		if (kpd_keymap[i] != 0)
 			__set_bit(kpd_keymap[i], kpd_input_dev->keybit);
@@ -863,11 +880,18 @@ static int kpd_pdrv_probe(struct platform_device *pdev)
 	__set_bit(EV_SW, kpd_input_dev->evbit);
 	__set_bit(SW_LID, kpd_input_dev->swbit);
 #endif
-
+#if !defined(CONFIG_MTK_LEGACY)
+	if(kpd_dts_data.kpd_sw_rstkey){
+		__set_bit(kpd_dts_data.kpd_sw_rstkey, kpd_input_dev->keybit);
+	}
+#else
 #ifdef KPD_PMIC_RSTKEY_MAP
 	__set_bit(KPD_PMIC_RSTKEY_MAP, kpd_input_dev->keybit);
 #endif
-
+#endif
+#ifdef KPD_KEY_MAP
+		__set_bit(KPD_KEY_MAP, kpd_input_dev->keybit);
+#endif
 	kpd_input_dev->dev.parent = &pdev->dev;
 	r = input_register_device(kpd_input_dev);
 	if (r) {
@@ -884,9 +908,15 @@ static int kpd_pdrv_probe(struct platform_device *pdev)
 		input_unregister_device(kpd_input_dev);
 		return r;
 	}
-
+//#ifdef CONFIG_MTK_TC1_FM_AT_SUSPEND
+//	wake_lock_init(&kpd_suspend_lock, WAKE_LOCK_SUSPEND, "kpd wakelock");
+//#endif
 	/* register IRQ and EINT */
+#if !defined(CONFIG_MTK_LEGACY)
+	kpd_set_debounce(kpd_dts_data.kpd_key_debounce);
+#else
 	kpd_set_debounce(KPD_KEY_DEBOUNCE);
+#endif
 #ifdef CONFIG_OF
 	r = request_irq(kp_irqnr, kpd_irq_handler, IRQF_TRIGGER_NONE, KPD_NAME, NULL);
 #else
@@ -898,9 +928,7 @@ static int kpd_pdrv_probe(struct platform_device *pdev)
 		input_unregister_device(kpd_input_dev);
 		return r;
 	}
-#if KPD_PWRKEY_USE_EINT
 	mt_eint_register();
-#endif
 
 #ifndef KPD_EARLY_PORTING	/*add for avoid early porting build err the macro is defined in custom file */
 	long_press_reboot_function_setting();	/* /API 4 for kpd long press reboot function setting */
@@ -913,12 +941,18 @@ static int kpd_pdrv_probe(struct platform_device *pdev)
 	aee_timer_5s.function = aee_timer_5s_func;
 #endif
 
+
+//#ifdef CONFIG_MTK_TC1_FM_AT_SUSPEND
+//	wake_lock_init(&kpd_suspend_lock, WAKE_LOCK_SUSPEND, "kpd wakelock");
+//#endif
+
+
 	if ((err = kpd_create_attr(&kpd_pdrv.driver))) {
 		kpd_print("create attr file fail\n");
 		kpd_delete_attr(&kpd_pdrv.driver);
 		return err;
 	}
-
+    pr_warn(KPD_SAY "%s Done\n", __FUNCTION__);
 	return 0;
 }
 

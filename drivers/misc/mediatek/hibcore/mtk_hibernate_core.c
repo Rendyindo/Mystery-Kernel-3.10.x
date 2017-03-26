@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "[HIB/CORE] " fmt
+
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/fs.h>
@@ -15,21 +17,22 @@
 #include <linux/suspend.h>
 #include <linux/reboot.h>
 #include <linux/xlog.h>
+#include <linux/mtk_ftrace.h>
+#if !defined(CONFIG_CPU_FREQ_DEFAULT_GOV_HOTPLUG) && !defined(CONFIG_CPU_FREQ_DEFAULT_GOV_BALANCE)
+#include <mach/mt_hotplug_strategy.h>
+#endif
 
 #define HIB_CORE_DEBUG 0
-#define _TAG_HIB_M "HIB/CORE"
 #if (HIB_CORE_DEBUG)
 #undef hib_log
-#define hib_log(fmt, ...)	xlog_printk(ANDROID_LOG_WARN, _TAG_HIB_M, fmt, ##__VA_ARGS__);
+#define hib_log(fmt, ...)	pr_warn(fmt, ##__VA_ARGS__);
 #else
 #define hib_log(fmt, ...)
 #endif
 #undef hib_warn
-#define hib_warn(fmt, ...)  xlog_printk(ANDROID_LOG_WARN, _TAG_HIB_M, fmt,  ##__VA_ARGS__);
+#define hib_warn(fmt, ...)  pr_warn(fmt,  ##__VA_ARGS__);
 #undef hib_err
-#define hib_err(fmt, ...)   xlog_printk(ANDROID_LOG_ERROR, _TAG_HIB_M, fmt,  ##__VA_ARGS__);
-
-#define HIB_USRPROGRAM "/system/bin/ipohctl"
+#define hib_err(fmt, ...)   pr_err(fmt,  ##__VA_ARGS__);
 
 #ifdef CONFIG_PM_AUTOSLEEP
 
@@ -60,6 +63,16 @@ static inline suspend_state_t pm_autosleep_state(void)
 /* kernel/power/wakelock.c */
 extern int pm_wake_lock(const char *buf);
 extern int pm_wake_unlock(const char *buf);
+#else
+int pm_wake_lock(const char *buf)
+{
+	return 0;
+}
+
+int pm_wake_unlock(const char *buf)
+{
+	return 0;
+}
 #endif				/* !CONFIG_PM_WAKELOCKS */
 
 /* HOTPLUG */
@@ -77,13 +90,11 @@ enum {
 };
 static int hibernation_failed_action = HIB_FAILED_TO_S2RAM;
 
-#define MAX_HIB_FAILED_CNT 3
-static int hib_failed_cnt;
-
-#if defined(CONFIG_CPU_FREQ_GOV_HOTPLUG) || defined(CONFIG_CPU_FREQ_GOV_BALANCE)
+#define MAX_HIB_FAILED_CNT 5
+static int hib_failed_cnt = 0;
 
 #define HIB_UNPLUG_CORES	/* force unplug cores before hibernation flow */
-#ifdef HIB_UNPLUG_CORES
+#if defined(HIB_UNPLUG_CORES) && defined(CONFIG_HOTPLUG_CPU)
 #define HIB_MULTIIO_CORES (1)
 static void hib_unplug_cores(void)
 {
@@ -91,7 +102,7 @@ static void hib_unplug_cores(void)
 
 	hib_warn("unplug cores\n");
 
-#ifdef CONFIG_CPU_FREQ_GOV_HOTPLUG
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_HOTPLUG
 	mutex_lock(&hp_onoff_mutex);
 #endif
 	for (i = (num_possible_cpus() - 1); i > 0 && num_online_cpus() > HIB_MULTIIO_CORES; i--) {
@@ -106,7 +117,7 @@ static void hib_unplug_cores(void)
 			}
 		}
 	}
-#ifdef CONFIG_CPU_FREQ_GOV_HOTPLUG
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_HOTPLUG
 	mutex_unlock(&hp_onoff_mutex);
 #endif
 }
@@ -119,30 +130,41 @@ static inline void hib_unplug_cores(void)
 /* en: 1 enable, en: 0 disable */
 static void hib_hotplug_mode(int en)
 {
-	static int g_hp_disable;
+	static int g_hp_disable = 0;
 	if (en) {
 		if (1 == g_hp_disable) {
 			hib_warn("enable hotplug\n");
+#if defined(CONFIG_CPU_FREQ_DEFAULT_GOV_HOTPLUG) || defined(CONFIG_CPU_FREQ_DEFAULT_GOV_BALANCE)
 			hp_set_dynamic_cpu_hotplug_enable(1);
+#else
+			hps_set_enabled(1);
+#endif
 			g_hp_disable = 0;
 		}
 	} else if (!en) {
 		if (0 == g_hp_disable) {
 			hib_warn("disable hotplug\n");
+#if defined(CONFIG_CPU_FREQ_DEFAULT_GOV_HOTPLUG) || defined(CONFIG_CPU_FREQ_DEFAULT_GOV_BALANCE)
 			hp_set_dynamic_cpu_hotplug_enable(0);
+#else
+			hps_set_enabled(0);
+#endif
 			hib_unplug_cores();
 			g_hp_disable = 1;
 		}
 	}
 }
-#else				/* !(CONFIG_CPU_FREQ_GOV_HOTPLUG || CONFIG_CPU_FREQ_GOV_BALANCE) */
-static inline void hib_hotplug_mode(int en)
-{
-}
-#endif				/* CONFIG_CPU_FREQ_GOV_HOTPLUG || CONFIG_CPU_FREQ_GOV_BALANCE */
 
 static void hib_ftrace_buffer(int en)
 {
+#if defined(CONFIG_MTK_SCHED_TRACERS)
+	int fterr = 0;
+
+	hib_warn("%s ftrace mode\n", (en ? "enable" : "disable"));
+	fterr = resize_ring_buffer_for_hibernation(en);
+	if (fterr < 0)
+		hib_warn("calling resize_ring_buffer_for_hibernation() failed (%d)\n", fterr);
+#endif
 }
 
 static void hibernate_recover(void)
@@ -157,6 +179,8 @@ static void hibernate_restore(void)
 	hib_ftrace_buffer(1);
 
 	hib_hotplug_mode(1);
+
+	hib_warn("start trigger ipod\n");
 }
 
 extern int hybrid_sleep_mode(void);
@@ -170,11 +194,13 @@ int mtk_hibernate_via_autosleep(suspend_state_t *autosleep_state)
 		hib_warn
 		    ("@@@@@@@@@@@@@@@@@@@@@@@@@\n@@_Hibernation Failed_@@@\n@@@@@@@@@@@@@@@@@@@@@@@@@\n");
 		/* enhanced error handling */
-		if (err == 0xdead) {	/* 0xdead: magic code */
+#ifdef CONFIG_TOI_ENHANCE
+		if (toi_hibernate_fatalerror()) {
 			kernel_power_off();
 			kernel_halt();
 			BUG();
 		}
+#endif
 		if (hibernation_failed_action == HIB_FAILED_TO_SHUTDOWN) {
 			kernel_power_off();
 			kernel_halt();
@@ -186,6 +212,7 @@ int mtk_hibernate_via_autosleep(suspend_state_t *autosleep_state)
 				hibernation_failed_action = HIB_FAILED_TO_SHUTDOWN;
 			hibernate_recover();
 			*autosleep_state = PM_SUSPEND_MEM;
+			pm_wake_lock("IPOD_HIB_WAKELOCK");
 			system_is_hibernating = false;
 		} else {
 			hib_err("@@@@@@@@@@@@@@@@@@\n@_FATAL ERROR !!!_\n@@@@@@@@@@@@@@@@@@@\n");
@@ -222,11 +249,13 @@ int mtk_hibernate(void)
 		hib_warn
 		    ("@@@@@@@@@@@@@@@@@@@@@@@@@\n@@_Hibernation Failed_@@@\n@@@@@@@@@@@@@@@@@@@@@@@@@\n");
 		/* enhanced error handling */
-		if (err == 0xdead) {	/* 0xdead: magic code */
+#ifdef CONFIG_TOI_ENHANCE
+		if (toi_hibernate_fatalerror()) {
 			kernel_power_off();
 			kernel_halt();
 			BUG();
 		}
+#endif
 		if (hibernation_failed_action == HIB_FAILED_TO_SHUTDOWN) {
 			kernel_power_off();
 			kernel_halt();
@@ -236,6 +265,7 @@ int mtk_hibernate(void)
 			if (++hib_failed_cnt >= MAX_HIB_FAILED_CNT)
 				hibernation_failed_action = HIB_FAILED_TO_SHUTDOWN;
 			hibernate_recover();
+			pm_wake_lock("IPOD_HIB_WAKELOCK");
 			system_is_hibernating = false;
 		} else {
 			hib_err("@@@@@@@@@@@@@@@@@@\n@_FATAL ERROR !!!_\n@@@@@@@@@@@@@@@@@@@\n");
@@ -254,7 +284,7 @@ int mtk_hibernate(void)
 }
 EXPORT_SYMBOL(mtk_hibernate);
 
-#define HIB_PAGE_FREE_DELTA ((40*1024*1024) >> (PAGE_SHIFT))
+#define HIB_PAGE_FREE_DELTA ((60*1024*1024) >> (PAGE_SHIFT))
 int bad_memory_status(void)
 {
 	struct zone *zone;
@@ -286,8 +316,10 @@ int pre_hibernate(void)
 	/* check free memory status. */
 	if (bad_memory_status()) {
 		err = -1;
+		hib_ftrace_buffer(1);
 		goto ERR;
 	}
+
 	/* Adding userspace program stuffs here before hibernation start */
 	/* ... */
 	/* end of adding userspace program stuffs */
@@ -308,7 +340,9 @@ EXPORT_SYMBOL(pre_hibernate);
 
 int mtk_hibernate_abort(void)
 {
+#ifdef CONFIG_TOI_ENHANCE
 	toi_abort_hibernate();
+#endif
 	return 0;
 }
 EXPORT_SYMBOL(mtk_hibernate_abort);

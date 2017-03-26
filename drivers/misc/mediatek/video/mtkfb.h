@@ -21,7 +21,6 @@
 #define MTK_IOR(num, dtype)     _IOR('O', num, dtype)
 #define MTK_IOWR(num, dtype)    _IOWR('O', num, dtype)
 #define MTK_IO(num)             _IO('O', num)
-
 #define MTKFB_QUEUE_OVERLAY_CONFIG			MTK_IOW(137, struct fb_overlay_config)
 /* -------------------------------------------------------------------------- */
 #define MTKFB_SET_OVERLAY_LAYER                MTK_IOW(0, struct fb_overlay_layer)
@@ -53,20 +52,26 @@
 #define MTKFB_GET_INTERFACE_TYPE               MTK_IOR(20, unsigned long)	/* /0 DBI, 1 DPI, 2 MIPI */
 #define MTKFB_GET_POWERSTATE		           MTK_IOR(21, unsigned long)	/* /0: power off  1: power on */
 #define MTKFB_GET_DISPLAY_IF_INFORMATION       MTK_IOR(22, mtk_dispif_info_t)
-#define MTKFB_AEE_LAYER_EXIST                  MTK_IOR(23, unsigned long)	/* called before SET_OVERLAY each time, if true, hwc will not use FB_LAYER again */
+#define MTKFB_AEE_LAYER_EXIST                  MTK_IOR(23, unsigned long)	//called before SET_OVERLAY each time, if true, hwc will not use FB_LAYER again
 #define MTKFB_GET_OVERLAY_LAYER_INFO           MTK_IOR(24, struct fb_overlay_layer_info)
 #define MTKFB_FACTORY_AUTO_TEST                MTK_IOR(25, unsigned long)
 #define MTKFB_GET_FRAMEBUFFER_MVA              MTK_IOR(26, unsigned int)
 #define MTKFB_SLT_AUTO_CAPTURE                 MTK_IOWR(27, struct fb_slt_catpure)
 
-/* error handling */
+//error handling
 #define MTKFB_META_RESTORE_SCREEN              MTK_IOW(101, unsigned long)
 #define MTKFB_ERROR_INDEX_UPDATE_TIMEOUT       MTK_IO(103)
 #define MTKFB_ERROR_INDEX_UPDATE_TIMEOUT_AEE   MTK_IO(104)
 
-/* ---------------------------------------------------------------------- */
+/*restore bootlogo and charater in meta mode*/
+#define MTKFB_META_SHOW_BOOTLOGO               MTK_IO(105)
 
-/* -------------------------------------------------------------------------- */
+//Extension FB active option
+#define FB_ACTIVATE_NO_UPDATE  512       /* Skip frame update */
+
+//----------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
 
 /**
  * Just for mt6589 Platform
@@ -125,6 +130,13 @@ typedef enum {
 	MTK_FB_TV_FMT_UYUV422 = 2,
 	MTK_FB_TV_FMT_YUV420_BLK = 3,
 } MTK_FB_TV_SRC_FORMAT;
+
+typedef enum {
+	LAYER_NORMAL_BUFFER = 0,
+	LAYER_SECURE_BUFFER = 1,
+	LAYER_PROTECTED_BUFFER = 2,
+	LAYER_SECURE_BUFFER_WITH_ALIGN = 0x10001,	/* the higher 16 bits =1 for adding 64 bytes alignment */
+} MTK_FB_OVL_LAYER_SECURE_MODE;
 
 typedef struct _disp_dfo_item {
 	char name[32];

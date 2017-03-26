@@ -43,6 +43,11 @@
 
 #include "siHdmiTx_902x_TPI.h"
 
+#define SINK_480P      (1<< 0)
+#define SINK_720P60    (1<< 1)
+#define SINK_1080P30   (1<< 9)
+
+
 
 #define MAX_TRANSACTION_LENGTH 8
 
@@ -74,7 +79,10 @@ atomic_t hdmi_timer_event = ATOMIC_INIT(0);
 #define SII902xA_plus 0x00	/* Define sii902xA's I2c Address of all pages by the status of CI2CA pin. */
 #endif
 
-/* ------------------------------------ */
+#if defined(GPIO_HDMI_PWR_1_2V_EN)
+unsigned int hdmi_irq;
+#endif
+//------------------------------------
 
 HDMI_UTIL_FUNCS hdmi_util = { 0 };
 
@@ -255,7 +263,7 @@ static void sii9024_get_params(HDMI_PARAMS *params)
 
 	pr_debug("720p\n");
 	params->init_config.vformat = HDMI_VIDEO_1280x720p_60Hz;
-	params->init_config.aformat = HDMI_AUDIO_PCM_16bit_48000;
+	params->init_config.aformat = HDMI_AUDIO_48K_2CH;
 
 	params->clk_pol = HDMI_POLARITY_RISING;
 	params->de_pol = HDMI_POLARITY_RISING;
@@ -365,7 +373,11 @@ static int hdmi_timer_kthread(void *data)
 		atomic_set(&hdmi_timer_event, 0);
 		siHdmiTx_TPI_Poll();
 #if defined(CUST_EINT_EINT_HDMI_HPD_NUM)
+        #if defined(GPIO_HDMI_PWR_1_2V_EN)
+		enable_irq(hdmi_irq);
+	#else
 		mt_eint_unmask(CUST_EINT_EINT_HDMI_HPD_NUM);
+#endif
 #endif
 		if (kthread_should_stop())
 			break;
@@ -390,7 +402,7 @@ static int sii9024_exit(void)	/* ch7035 power off */
 
 static void sii9024_suspend(void)
 {
-#ifdef SINGLE_PANEL_OUTPUT
+#if defined(CONFIG_SINGLE_PANEL_OUTPUT)
 #if defined(GPIO_HDMI_LCD_SW_EN)
 	mt_set_gpio_mode(GPIO_HDMI_LCD_SW_EN, GPIO_MODE_00);
 	mt_set_gpio_dir(GPIO_HDMI_LCD_SW_EN, GPIO_DIR_OUT);
@@ -409,7 +421,7 @@ static void sii9024_suspend(void)
 
 static void sii9024_resume(void)
 {
-#ifdef SINGLE_PANEL_OUTPUT
+#if defined(CONFIG_SINGLE_PANEL_OUTPUT)
 #if defined(GPIO_HDMI_LCD_SW_EN)
 	mt_set_gpio_mode(GPIO_HDMI_LCD_SW_EN, GPIO_MODE_00);
 	mt_set_gpio_dir(GPIO_HDMI_LCD_SW_EN, GPIO_DIR_OUT);
@@ -440,8 +452,44 @@ static int sii9024_video_enable(bool enable)
 
 /*----------------------------------------------------------------------------*/
 
+void Set_I2S_Pin(bool enable)
+{
+
+	if((1 == ucHdmi_isr_en) &&
+		(enable == true))
+	{
+#ifdef GPIO_HDMI_I2S_OUT_WS_PIN
+			mt_set_gpio_mode(GPIO_HDMI_I2S_OUT_WS_PIN, GPIO_MODE_01);
+			mt_set_gpio_mode(GPIO_HDMI_I2S_OUT_CK_PIN, GPIO_MODE_01);
+			mt_set_gpio_mode(GPIO_HDMI_I2S_OUT_DAT_PIN, GPIO_MODE_01);
+
+			mt_set_gpio_dir(GPIO_HDMI_I2S_OUT_WS_PIN, GPIO_DIR_OUT);
+#else
+			HDMI_LOG("%s,%d. GPIO_HDMI_I2S_OUT_WS_PIN is not defined\n", __func__, __LINE__);
+#endif
+	}
+else
+	{
+#ifdef GPIO_HDMI_I2S_OUT_WS_PIN
+			mt_set_gpio_mode(GPIO_HDMI_I2S_OUT_WS_PIN, GPIO_MODE_02);
+			mt_set_gpio_mode(GPIO_HDMI_I2S_OUT_CK_PIN, GPIO_MODE_01);
+			mt_set_gpio_mode(GPIO_HDMI_I2S_OUT_DAT_PIN, GPIO_MODE_02);
+
+			mt_set_gpio_dir(GPIO_HDMI_I2S_OUT_WS_PIN, GPIO_DIR_IN);
+#endif
+	}
+
+    return ;
+
+}
+
+
 static int sii9024_audio_enable(bool enable)
 {
+    bool flag = enable;
+	TPI_DEBUG_PRINT(("%s,Audio enable flag = %d\n",__func__,flag));
+
+    Set_I2S_Pin(flag);
 
 	return 0;
 }
@@ -503,7 +551,21 @@ int sii9024_power_on(void)	/* sii9024 suspend */
 		mt_set_gpio_dir(GPIO_HDMI_POWER_CONTROL, GPIO_DIR_OUT);
 		mt_set_gpio_out(GPIO_HDMI_POWER_CONTROL, GPIO_OUT_ONE);
 #endif
-		hwPowerOn(MT6323_POWER_LDO_VGP3, VOL_1200, "HDMI");	/* PMIC output 1.2v for 9024 */
+      
+      /* For 6595, use gpio132 as the 1.2v output enable pin */
+#if defined(GPIO_HDMI_PWR_1_2V_EN)
+		mt_set_gpio_mode(GPIO_HDMI_PWR_1_2V_EN, GPIO_MODE_00);
+		mt_set_gpio_dir(GPIO_HDMI_PWR_1_2V_EN, GPIO_DIR_OUT);
+		mt_set_gpio_pull_enable(GPIO_HDMI_PWR_1_2V_EN, TRUE);
+		mt_set_gpio_pull_select(GPIO_HDMI_PWR_1_2V_EN, GPIO_PULL_UP);
+	  mt_set_gpio_out(GPIO_HDMI_PWR_1_2V_EN, GPIO_OUT_ONE);
+#elif defined(CONFIG_ARCH_MT6582) || defined(CONFIG_ARCH_MT6592)
+      /* For 92&82, PMIC output 1.2v for 9024*/
+		hwPowerOn(MT6323_POWER_LDO_VGP3, VOL_1200, "HDMI");
+#elif defined(CONFIG_ARCH_MT6752)
+	/*For K2(MT6752, use PMIC 6325 for 1.2v output) */
+      hwPowerOn(MT6325_POWER_LDO_VGP2,VOL_1200, "HDMI");
+#endif
 		ucHdmi_isr_en = 1;
 		HDMI_reset();
 		siHdmiTx_VideoSel(HDMI_720P60);
@@ -511,8 +573,12 @@ int sii9024_power_on(void)	/* sii9024 suspend */
 		siHdmiTx_TPI_Init();
 		/* siHdmiTx_PowerStateD3(); */
 #if defined(CUST_EINT_EINT_HDMI_HPD_NUM)
+	 #if defined(GPIO_HDMI_PWR_1_2V_EN)
+	 enable_irq(hdmi_irq);
+	 #else
 		mt_eint_unmask(CUST_EINT_EINT_HDMI_HPD_NUM);
 #endif
+      #endif      
 	}
 	return 0;
 }
@@ -521,10 +587,28 @@ void sii9024_power_off(void)	/* sii9024 resume */
 {
 	if (ucHdmi_isr_en) {
 #if defined(CUST_EINT_EINT_HDMI_HPD_NUM)
+    #if defined(GPIO_HDMI_PWR_1_2V_EN)
+	  disable_irq(hdmi_irq);
+    #else
 		mt_eint_mask(CUST_EINT_EINT_HDMI_HPD_NUM);
 #endif
+#endif
 
+#if defined(GPIO_HDMI_PWR_1_2V_EN)
+		 mt_set_gpio_mode(GPIO_HDMI_PWR_1_2V_EN, GPIO_MODE_00);
+		 mt_set_gpio_dir(GPIO_HDMI_PWR_1_2V_EN, GPIO_DIR_OUT);
+		 mt_set_gpio_pull_enable(GPIO_HDMI_PWR_1_2V_EN, TRUE);
+		 mt_set_gpio_pull_select(GPIO_HDMI_PWR_1_2V_EN,GPIO_PULL_DOWN);
+		 mt_set_gpio_out(GPIO_HDMI_PWR_1_2V_EN, GPIO_OUT_ZERO);
+#elif defined(CONFIG_ARCH_MT6582) || defined(CONFIG_ARCH_MT6592)
+		 /* For 92&82, PMIC output 1.2v for 9024*/
 		hwPowerDown(MT6323_POWER_LDO_VGP3, "HDMI");
+#elif defined(CONFIG_ARCH_MT6752)
+
+		 hwPowerDown(MT6325_POWER_LDO_VGP2, "HDMI");
+#endif
+
+		/* hwPowerDown(MT6323_POWER_LDO_VGP3, "HDMI"); */
 
 		ucHdmi_isr_en = 0;
 #if defined(GPIO_HDMI_POWER_CONTROL)
@@ -532,7 +616,7 @@ void sii9024_power_off(void)	/* sii9024 resume */
 		mt_set_gpio_dir(GPIO_HDMI_POWER_CONTROL, GPIO_DIR_OUT);
 		mt_set_gpio_out(GPIO_HDMI_POWER_CONTROL, GPIO_OUT_ZERO);
 #endif
-#ifdef SINGLE_PANEL_OUTPUT
+#if defined(CONFIG_SINGLE_PANEL_OUTPUT)
 #if defined(GPIO_HDMI_LCD_SW_EN)
 		mt_set_gpio_mode(GPIO_HDMI_LCD_SW_EN, GPIO_MODE_00);
 		mt_set_gpio_dir(GPIO_HDMI_LCD_SW_EN, GPIO_DIR_OUT);
@@ -543,14 +627,20 @@ void sii9024_power_off(void)	/* sii9024 resume */
 	}
 }
 
-static void _sil9024_irq_handler(void)
+static irqreturn_t _sil9024_irq_handler(int irq, void *data)
 {
 	pr_debug("9024 irq\n");
 #if defined(CUST_EINT_EINT_HDMI_HPD_NUM)
+    #if defined(GPIO_HDMI_PWR_1_2V_EN)
+	disable_irq_nosync(hdmi_irq);
+    #else
 	mt_eint_mask(CUST_EINT_EINT_HDMI_HPD_NUM);
+#endif
 #endif
 	atomic_set(&hdmi_timer_event, 1);
 	wake_up_interruptible(&hdmi_timer_wq);
+
+	return IRQ_HANDLED;
 }
 
 static int hdmi_sii_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -595,11 +685,31 @@ static int hdmi_sii_probe(struct i2c_client *client, const struct i2c_device_id 
 			/* mt_set_gpio_pull_enable(GPIO_HDMI_EINT_9024, true); */
 			/* mt_set_gpio_pull_select(GPIO_HDMI_EINT_9024,  GPIO_PULL_UP); */
 #if defined(CUST_EINT_EINT_HDMI_HPD_NUM)
-			mt_eint_set_sens(CUST_EINT_EINT_HDMI_HPD_NUM, MT_LEVEL_SENSITIVE);
-			mt_eint_registration(CUST_EINT_EINT_HDMI_HPD_NUM, EINTF_TRIGGER_LOW,
-					     &_sil9024_irq_handler, 0);
+                #if defined(GPIO_HDMI_PWR_1_2V_EN)
+                hdmi_irq = mt_gpio_to_irq(CUST_EINT_EINT_HDMI_HPD_NUM);
+                if(hdmi_irq)
+                {
+                   irq_set_irq_type(hdmi_irq,MT_LEVEL_SENSITIVE);
 
+                   ret =  request_irq(hdmi_irq,&_sil9024_irq_handler,IRQF_TRIGGER_LOW,"EINT_HDMI_HPD-eint",NULL);
+                   if(ret)
+                   {
+                       printk("HDMI IRQ LINE NOT AVAILABLE\n");    
+                   }
+                   else
+                   {
+                       disable_irq(hdmi_irq);
+                   }                           
+		}
+                else 
+                {
+                   printk("[%s] can't find hdmi eint node\n",__func__);
+                }
+	        #else
+                mt_eint_set_sens(CUST_EINT_EINT_HDMI_HPD_NUM, MT_LEVEL_SENSITIVE);
+                mt_eint_registration(CUST_EINT_EINT_HDMI_HPD_NUM,  EINTF_TRIGGER_LOW, &_sil9024_irq_handler, 0);
 			mt_eint_mask(CUST_EINT_EINT_HDMI_HPD_NUM);
+#endif
 #endif
 		}
 	} else {
@@ -636,13 +746,24 @@ static int sii9024_init(void)
 {
 	int ret;
 
+#if defined(GPIO_HDMI_PWR_1_2V_EN)
+	i2c_register_board_info(2, sii9024_i2c_hdmi, 5);
+#else
 	i2c_register_board_info(0, sii9024_i2c_hdmi, 5);
+#endif
 	ret = i2c_add_driver(&hdmi_sii_i2c_driver);
 	if (ret)
 		pr_debug("%s: failed to add sii902xA i2c driver\n", __func__);
 	return ret;
 }
 
+void hdmi_AppGetEdidInfo(HDMI_EDID_INFO_T *pv_get_info)
+{
+    unsigned int ui4CEA_NTSC = SINK_480P | SINK_720P60 | SINK_1080P30 ;	 
+    pv_get_info->ui4_ntsc_resolution |= ui4CEA_NTSC;
+   
+   
+}
 /*----------------------------------------------------------------------------*/
 const HDMI_DRIVER *HDMI_GetDriver(void)
 {
@@ -665,7 +786,9 @@ const HDMI_DRIVER *HDMI_GetDriver(void)
 		.read = sii9024_read,
 		.write = sii9024_write,
 		.get_state = sii9024_get_state,
-		.log_enable = sii9024_log_enable
+		.log_enable     = sii9024_log_enable,
+		.getedid          = hdmi_AppGetEdidInfo,
+
 	};
 
 	return &HDMI_DRV;

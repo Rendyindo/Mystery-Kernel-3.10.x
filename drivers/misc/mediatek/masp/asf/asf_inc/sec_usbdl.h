@@ -12,6 +12,7 @@
 /**************************************************************************
  * EXPORT FUNCTION
  **************************************************************************/
-extern int sec_usbdl_enabled(void);
+extern int sec_usbdl_enabled (void);
 
-#endif				/* SEC_USBDL_H */
+#endif /* SEC_USBDL_H */
+

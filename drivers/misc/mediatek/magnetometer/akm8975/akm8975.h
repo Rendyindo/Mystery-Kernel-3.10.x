@@ -9,7 +9,7 @@
 #define AKM8975_I2C_NAME "akm8975"
 
 #define AKM8975_I2C_ADDRESS 	0x18	// CAD0 = 0, CAD1 =0
-#define AKM8975_BUFSIZE		0x20
+#define AKM8975_BUFSIZE		0x50
 
 /*! \name AK8975 operation mode
  \anchor AK8975_Mode

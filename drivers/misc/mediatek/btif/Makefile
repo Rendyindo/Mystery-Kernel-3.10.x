@@ -3,12 +3,12 @@
 # kernel build system and can use its language.
 ifneq ($(KERNELRELEASE),)
 	#subdir-ccflags-y can be used in 2.6.34 in the future
+	MTK_PLATFORM := $(subst ",,$(CONFIG_MTK_PLATFORM))
+	subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/mach/$(MTK_PLATFORM)/include
   ccflags-y += -I$(src)/inc -I$(src)/hal_inc 
   obj-y += btif.o
   btif-y	:= mtk_btif.o mtk_btif_exp.o
-  #btif-y	+= hal_btif/hal_btif.o hal_btif/hal_btif_dma.o 
-  obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
-
+	obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 # Otherwise we were called directly from the command
 # line; invoke the kernel build system.
 else

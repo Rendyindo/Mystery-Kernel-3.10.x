@@ -425,15 +425,15 @@ int wd_api_init(void)
 {
 
 	int i = 0;
-	int *check_p = NULL;
+	long *check_p = NULL;
 	int api_size = 0;
 
-	api_size = (sizeof(g_wd_api_obj) / 4);
+	api_size = (sizeof(g_wd_api_obj) / sizeof(long));
 	printk("wd api_size=%d\n", api_size);
 	/* check wd api */
-	check_p = (int *)&g_wd_api_obj;
+	check_p = (long *)&g_wd_api_obj;
 	for (i = 1; i < api_size; i++) {
-		printk("p[%d]=%x\n", i, *(check_p + i));
+		printk("p[%d]=%lx\n", i, *(check_p + i));
 		if (0 == check_p[i]) {
 			printk("wd_api init fail the %d api not init\n", i);
 			g_wd_api_obj.ready = 0;

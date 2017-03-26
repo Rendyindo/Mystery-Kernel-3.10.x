@@ -47,8 +47,8 @@
 static int kwdt_thread(void *arg);
 static int start_kicker(void);
 
-static int g_kicker_init;
-static int debug_sleep;
+static int g_kicker_init =0;
+static int debug_sleep = 0;
 
 static DEFINE_SPINLOCK(lock);
 
@@ -59,15 +59,15 @@ extern int nr_cpu_ids;
 #endif
 #define CPU_NR (nr_cpu_ids)
 struct task_struct *wk_tsk[16];	/* max cpu 16 */
-static unsigned long kick_bit;
+static unsigned long kick_bit = 0;
 
 
 enum ext_wdt_mode g_wk_wdt_mode = WDT_DUAL_MODE;
-static struct wd_api *g_wd_api;
+static struct wd_api*g_wd_api = NULL;
 static int g_kinterval = -1;
 static int g_timeout = -1;
-static int g_need_config;
-static int wdt_start;
+static int g_need_config = 0;
+static int wdt_start = 0;
 static int g_enable = 1;
 
 
@@ -207,7 +207,7 @@ static int start_kicker_thread_with_default_setting(void)
 	return ret;
 }
 
-static unsigned int cpus_kick_bit;
+static unsigned int cpus_kick_bit = 0;
 void wk_start_kick_cpu(int cpu)
 {
 	if (IS_ERR(wk_tsk[cpu])) {
@@ -215,6 +215,22 @@ void wk_start_kick_cpu(int cpu)
 	} else {
 		kthread_bind(wk_tsk[cpu], cpu);
 		printk("[wdk]bind thread[%d] to cpu[%d]\n", wk_tsk[cpu]->pid, cpu);
+		wake_up_process(wk_tsk[cpu]);
+	}
+}
+
+void kicker_cpu_bind(int cpu)
+{
+	if(IS_ERR(wk_tsk[cpu]))
+	{
+		printk("[wdk]wk_task[%d] is NULL\n",cpu);
+	}
+	else
+	{
+		//kthread_bind(wk_tsk[cpu], cpu);
+		WARN_ON_ONCE(set_cpus_allowed_ptr(wk_tsk[cpu], cpumask_of(cpu)) < 0);
+		
+		printk("[wdk]bind kicker thread[%d] to cpu[%d]\n",wk_tsk[cpu]->pid,cpu);
 		wake_up_process(wk_tsk[cpu]);
 	}
 }
@@ -322,8 +338,7 @@ static int kwdt_thread(void *arg)
 					local_bit |= (1 << cpu);
 					/* aee_rr_rec_wdk_kick_jiffies(jiffies); */
 				}
-				printk_deferred
-				    ("[WDK], local_bit:0x%x, cpu:%d, check bit0x:%x,RT[%lld]\n",
+				printk_deferred("[WDK], local_bit:0x%x, cpu:%d, check bit0x:%x,RT[%lld]\n",
 				     local_bit, cpu, wk_check_kick_bit(), sched_clock());
 				if (local_bit == wk_check_kick_bit()) {
 					printk_deferred("[WDK]: kick Ex WDT,RT[%lld]\n",
@@ -358,8 +373,7 @@ static int kwdt_thread(void *arg)
 			rtc_time_to_tm(tv.tv_sec, &tm);
 			tv_android.tv_sec -= sys_tz.tz_minuteswest * 60;
 			rtc_time_to_tm(tv_android.tv_sec, &tm_android);
-			printk_deferred
-			    ("[thread:%d][RT:%lld] %d-%02d-%02d %02d:%02d:%02d.%u UTC; android time %d-%02d-%02d %02d:%02d:%02d.%03d\n",
+			printk_deferred("[thread:%d][RT:%lld] %d-%02d-%02d %02d:%02d:%02d.%u UTC; android time %d-%02d-%02d %02d:%02d:%02d.%03d\n",
 			     current->pid, sched_clock(), tm.tm_year + 1900, tm.tm_mon + 1,
 			     tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (unsigned int)tv.tv_usec,
 			     tm_android.tm_year + 1900, tm_android.tm_mon + 1, tm_android.tm_mday,
@@ -387,7 +401,7 @@ static int start_kicker(void)
 {
 
 	int i;
-
+	wk_cpu_update_bit_flag(0, 1);
 	for (i = 0; i < CPU_NR; i++) {
 		wk_tsk[i] = kthread_create(kwdt_thread, (void *)(unsigned long)i, "wdtk-%d", i);
 		if (IS_ERR(wk_tsk[i])) {
@@ -398,7 +412,6 @@ static int start_kicker(void)
 		/* wk_cpu_update_bit_flag(i,1); */
 		wk_start_kick_cpu(i);
 	}
-	wk_cpu_update_bit_flag(0, 1);
 	g_kicker_init = 1;
 	printk("[WDK] WDT start kicker  done\n");
 	return 0;
@@ -539,13 +552,15 @@ static int __cpuinit wk_cpu_callback(struct notifier_block *nfb, unsigned long a
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
 /* watchdog_prepare_cpu(hotcpu); */
+		wk_cpu_update_bit_flag(hotcpu, 1);
 		break;
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
 
-		wk_cpu_update_bit_flag(hotcpu, 1);
-		if (1 == g_kicker_init) {
-			wk_start_kick_cpu(hotcpu);
+		//wk_cpu_update_bit_flag(hotcpu, 1);
+		if(1 == g_kicker_init)
+		{
+		   kicker_cpu_bind(hotcpu);
 		}
 
 		mtk_wdt_restart(WD_TYPE_NORMAL);	/* for KICK external wdt */
@@ -585,13 +600,15 @@ static int __cpuinit wk_cpu_callback(struct notifier_block *nfb, unsigned long a
 }
 
 static struct notifier_block cpu_nfb __cpuinitdata = {
-	.notifier_call = wk_cpu_callback
+	.notifier_call = wk_cpu_callback,
+	.priority = 6
 };
 
 
 static int __init init_wk(void)
 {
 	int res = 0;
+	int i=0;
 	/* init api */
 	wd_api_init();
 	/*  */
@@ -610,8 +627,26 @@ static int __init init_wk(void)
 #endif
 
 	wk_proc_init();
+    cpu_hotplug_disable();
 	register_cpu_notifier(&cpu_nfb);
-	printk("[WDK] init_wk done\n");
+
+	for (i = 0; i < CPU_NR; i++) 
+	{
+		if(cpu_online(i))
+		{
+			wk_cpu_update_bit_flag(i, 1);
+			printk("[WDK]init cpu online %d\n",i);
+		}
+		else
+		{
+			wk_cpu_update_bit_flag(i, 0);
+			printk("[WDK]init cpu offline %d\n",i);
+		}
+	}
+	mtk_wdt_restart(WD_TYPE_NORMAL);	/* for KICK external wdt */
+	cpu_hotplug_enable();
+	printk("[WDK]init_wk done late_initcall cpus_kick_bit=0x%x -----\n", cpus_kick_bit);
+		
 	return 0;
 }
 

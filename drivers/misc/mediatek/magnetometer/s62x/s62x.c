@@ -29,7 +29,7 @@
 #include <linux/hwmsen_dev.h>
 #include <linux/sensors_io.h>
 
-#include <mach/mt_devs.h>
+#include <linux/proc_fs.h>
 #include <mach/mt_typedefs.h>
 #include <mach/mt_gpio.h>
 #include <mach/mt_pm_ldo.h>
@@ -37,6 +37,8 @@
 
 #include <cust_mag.h>
 #include <linux/hwmsen_helper.h>
+#include "mag.h"
+
 
 
 /*-------------------------MT6516&MT6573 define-------------------------------*/
@@ -71,7 +73,7 @@
 #define S62X_I2C_ADDR1          (0x0C<<1)
 #define S62X_I2C_ADDR2          (0x1E<<1)
 #else
-#define S62X_I2C_ADDR1          (0x0C)
+#define S62X_I2C_ADDR1          (0x0E)
 #define S62X_I2C_ADDR2          (0x1E)
 #endif
 
@@ -112,8 +114,8 @@
 #define SENSOR_DATA_COUNT       (SENSOR_DATA_SIZE/sizeof(short))
 #define CALIBRATION_DATA_SIZE   12
 
-#define RWBUF_SIZE              32
-#define S62X_BUFSIZE            32
+#define RWBUF_SIZE              96
+#define S62X_BUFSIZE            96
 
 #define CONVERT_O		1
 #define CONVERT_O_DIV		1
@@ -172,6 +174,15 @@
 
 #define S62X_IDX_PROBE_OE       0x37
 #define PROBE_OE_WATCHDOG       0x10
+#define S62X_MUL_X              20
+#define S62X_DIV_X              28
+#define S62X_OFF_X              2048
+#define S62X_MUL_Y              20
+#define S62X_DIV_Y              28
+#define S62X_OFF_Y              2048
+#define S62X_MUL_Z              20
+#define S62X_DIV_Z              32
+#define S62X_OFF_Z              2048
 
 /*----------------------------------------------------------------------------*/
 static struct i2c_client *this_client = NULL;
@@ -187,11 +198,9 @@ static short ssmd_delay = S62X_DEFAULT_DELAY;
 static char ssmd_status[RWBUF_SIZE];
 
 static atomic_t open_flag = ATOMIC_INIT(0);
-static atomic_t m_flag = ATOMIC_INIT(0);
-static atomic_t o_flag = ATOMIC_INIT(0);
 static atomic_t m_get_data;
 static atomic_t o_get_data;
-static atomic_t dev_open_count;
+static atomic_t dev_open_count = ATOMIC_INIT(0);;
 static atomic_t init_phase = ATOMIC_INIT(2);  // 1 = id check ok, 0 = init ok
 
 /*----------------------------------------------------------------------------*/
@@ -261,6 +270,7 @@ static struct i2c_driver s62x_i2c_driver = {
 };
 
 /*----------------------------------------------------------------------------*/
+#if 0
 static struct platform_driver ssm_sensor_driver = {
         .probe      = ssm_probe,
         .remove     = ssm_remove,
@@ -271,10 +281,33 @@ static struct platform_driver ssm_sensor_driver = {
 #endif
         }
 };
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id ssm_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
+
+static struct platform_driver ssm_sensor_driver =
+{
+	.probe      = ssm_probe,
+	.remove     = ssm_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = ssm_of_match,
+		#endif
+	}
+};
 
 /*----------------------------------------------------------------------------*/
 static void s62x_power(struct mag_hw *hw, unsigned int on)
 {
+#ifdef __USE_LINUX_REGULATOR_FRAMEWORK__
+#else
         static unsigned int power_on = 0;
 
         if (hw->power_id != POWER_NONE_MACRO) {
@@ -293,6 +326,7 @@ static void s62x_power(struct mag_hw *hw, unsigned int on)
         }
 
         power_on = on;
+#endif //__USE_LINUX_REGULATOR_FRAMEWORK__
 }
 
 /*----------------------------------------------------------------------------*/
@@ -385,6 +419,26 @@ static int I2C_TxData2(unsigned char c1, unsigned char c2)
         data[1] = c2;
 
         return I2C_TxData(data, 2);
+}
+
+static void modify_en_flag(int enable)
+{
+	SSMDBG(" fun : %s , enable = 0x%x \n", __FUNCTION__, enable);
+
+	if (enable == 1) {
+		atomic_inc(&open_flag);
+	} else {
+		if (atomic_read(&open_flag) > 0) {
+			atomic_dec(&open_flag);
+		}
+	}
+
+	if (atomic_read(&open_flag) == 0) {
+		atomic_set(&m_get_data, 0);
+		atomic_set(&o_get_data, 0);
+	}
+
+	SSMDBG(" fun : %s , open_flag = 0x%x , dev_open_count = 0x%x\n", __FUNCTION__, atomic_read(&open_flag), atomic_read(&dev_open_count));
 }
 
 static int ECS_InitDevice(void)
@@ -537,6 +591,7 @@ static int ECS_SetMode(char mode)
 {
         int ret;
 
+		SSMDBG(" fun : %s , mode = 0x%x\n", __FUNCTION__, mode);
         switch (mode) {
 
         case SS_SENSOR_MODE_OFF:
@@ -665,13 +720,15 @@ static int ECS_GetData(short *mag)
 
 static int ECS_GetOpenStatus(void)
 {
-        wait_event_interruptible(open_wq, (atomic_read(&open_flag) != 0));
+		SSMDBG(" fun : %s , open_flag = 0x%x, dev_open_count = 0x%x\n", __FUNCTION__, atomic_read(&open_flag), atomic_read(&dev_open_count));
+        wait_event_interruptible(open_wq, (atomic_read(&open_flag) > 0) && (atomic_read(&dev_open_count) >= 0));
         return atomic_read(&open_flag);
 }
 
 static int ECS_GetCloseStatus(void)
 {
-        wait_event_interruptible(open_wq, (atomic_read(&open_flag) <= 0));
+		SSMDBG(" fun : %s , open_flag = 0x%x, dev_open_count = 0x%x\n", __FUNCTION__, atomic_read(&open_flag), atomic_read(&dev_open_count));
+        wait_event_interruptible(open_wq, (atomic_read(&open_flag) == 0) && (atomic_read(&dev_open_count) == 0));
         return atomic_read(&open_flag);
 }
 
@@ -920,6 +977,7 @@ static int s62x_open(struct inode *inode, struct file *file)
 
         atomic_inc(&dev_open_count);
         ret = nonseekable_open(inode, file);
+		SSMDBG(" fun : %s , open_flag = 0x%x, dev_open_count = 0x%x\n", __FUNCTION__, atomic_read(&open_flag), atomic_read(&dev_open_count));
 
         return ret;
 }
@@ -936,7 +994,15 @@ static int s62x_release(struct inode *inode, struct file *file)
 #endif
         atomic_dec(&dev_open_count);
 
+		SSMDBG(" fun : %s , open_flag = 0x%x, dev_open_count = 0x%x\n", __FUNCTION__, atomic_read(&open_flag), atomic_read(&dev_open_count));
         return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+static int factory_mode(void)
+{
+        /* for factory mode (without open from the Daemon and successfully initialized) */
+        return (atomic_read(&dev_open_count) == 1 && atomic_read(&init_phase) == 0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -954,10 +1020,13 @@ static long s62x_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lo
         char buff[S62X_BUFSIZE];
         char mode;
         short value[12];
+		uint32_t enable;
+		hwm_sensor_data* hwm_data;
         short delay;
         int status;
         int ret = -1;
 
+		SSMDBG(" fun : %s , command = 0x%x\n", __FUNCTION__, cmd);
         switch (cmd) {
 
         case ECS_IOCTL_WRITE:
@@ -1026,6 +1095,14 @@ static long s62x_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lo
                 }
                 break;
 
+		case MSENSOR_IOCTL_SET_MODE:
+				printk("arg = %d  \n", (char)arg);
+                ret = ECS_SetMode((char)arg);
+                if (ret < 0) {
+                        return ret;
+                }
+                break;
+
         case ECS_IOCTL_GETDATA:
                 ret = ECS_GetData(mdata);
                 if (ret < 0) {
@@ -1089,9 +1166,90 @@ static long s62x_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lo
                         return -EFAULT;
                 }
                 break;
+				
+		case MSENSOR_IOCTL_READ_CHIPINFO:
+				if (argp == NULL) {
+						printk(KERN_ERR "S61X IO parameter pointer is NULL!\n");
+						break;
+				}
+		
+				ECS_ReadChipInfo(buff, S62X_BUFSIZE);
+				if (copy_to_user(argp, buff, strlen(buff)+1)) {
+						return -EFAULT;
+				}
+				break;
+		
+		case MSENSOR_IOCTL_READ_SENSORDATA:
+				if (argp == NULL) {
+						printk(KERN_ERR "S61X IO parameter pointer is NULL!\n");
+						break;
+				}
+		
+				if (factory_mode()) {
+						ret = ECS_GetData(mdata);
+						if (ret < 0) {
+								return -EFAULT;
+						}
+				}
+		
+				mutex_lock(&last_m_data_mutex);
+				memcpy(mdata, last_m_data, sizeof(mdata));
+				mutex_unlock(&last_m_data_mutex);
+				mdata[0] = mdata[0] * S62X_MUL_X / S62X_DIV_X;
+				mdata[1] = mdata[1] * S62X_MUL_Y / S62X_DIV_Y;
+				mdata[2] = mdata[2] * S62X_MUL_Z / S62X_DIV_Z;
+				sprintf(buff, "%x %x %x", (int)mdata[0], (int)mdata[1], (int)mdata[2]);
+				if (copy_to_user(argp, buff, strlen(buff)+1)) {
+						return -EFAULT;
+				}
+				break;
+		
+		case MSENSOR_IOCTL_SENSOR_ENABLE:
+				if (argp == NULL) {
+						printk(KERN_ERR "S61X IO parameter pointer is NULL!\n");
+						break;
+				}
+		
+				if (copy_from_user(&enable, argp, sizeof(enable))) {
+						SSMDBG("copy_from_user failed.");
+						return -EFAULT;
+				} else {
+						SSMDBG("MSENSOR_IOCTL_SENSOR_ENABLE enable=%d", enable);
+						modify_en_flag(enable);
+						wake_up(&open_wq);
+		
+						if (factory_mode()) {
+								int mode = enable ? SS_SENSOR_MODE_MEASURE : SS_SENSOR_MODE_OFF;
+								SSMDBG("MSENSOR_IOCTL_SENSOR_ENABLE SetMode(%d)\n", mode);
+								ECS_SetMode(mode);
+						}
+				}
+				break;
+		
+		case MSENSOR_IOCTL_READ_FACTORY_SENSORDATA:
+				if (argp == NULL) {
+						printk(KERN_ERR "S61X IO parameter pointer is NULL!\n");
+						break;
+				}
+		
+				hwm_data = (hwm_sensor_data *)buff;
+				mutex_lock(&sensor_data_mutex);
+				hwm_data->values[0] = sensor_data[0] * CONVERT_O;
+				hwm_data->values[1] = sensor_data[1] * CONVERT_O;
+				hwm_data->values[2] = sensor_data[2] * CONVERT_O;
+				hwm_data->status = sensor_data[4];
+				hwm_data->value_divide = CONVERT_O_DIV;
+				mutex_unlock(&sensor_data_mutex);
+		
+				sprintf(buff, "%x %x %x %x %x", hwm_data->values[0], hwm_data->values[1],
+						hwm_data->values[2], hwm_data->status, hwm_data->value_divide);
+				if (copy_to_user(argp, buff, strlen(buff)+1)) {
+						return -EFAULT;
+				}
+				break;
 
         default:
-                printk(KERN_ERR "S62X %s not supported = 0x%04x\n", __FUNCTION__, cmd);
+                printk(KERN_ERR "S62X %s not supported = 0x%x\n", __FUNCTION__, cmd);
                 return -ENOIOCTLCMD;
                 break;
         }
@@ -1138,6 +1296,8 @@ int s62x_operate(void* self, uint32_t command, void* buff_in, int size_in,
                 SSMFUNC("s62x_operate");
         }
 #endif
+		SSMDBG(" fun : %s , command = 0x%x\n", __FUNCTION__, command);
+
         switch (command) {
 
         case SENSOR_DELAY:
@@ -1161,16 +1321,7 @@ int s62x_operate(void* self, uint32_t command, void* buff_in, int size_in,
 
                         value = *(int *)buff_in;
 
-                        if (value == 1) {
-                                atomic_set(&m_flag, 1);
-                                atomic_set(&open_flag, 1);
-                        } else {
-                                atomic_set(&m_get_data, 0);
-                                atomic_set(&m_flag, 0);
-                                if (atomic_read(&o_flag) == 0) {
-                                        atomic_set(&open_flag, 0);
-                                }
-                        }
+                        modify_en_flag(value);
                         wake_up(&open_wq);
                 }
                 break;
@@ -1227,6 +1378,7 @@ int s62x_orientation_operate(void* self, uint32_t command, void* buff_in, int si
                 SSMFUNC("s62x_orientation_operate");
         }
 #endif
+		SSMDBG(" fun : %s , command = 0x%x \n", __FUNCTION__, command);
 
         switch (command) {
 
@@ -1251,16 +1403,7 @@ int s62x_orientation_operate(void* self, uint32_t command, void* buff_in, int si
 
                         value = *(int *)buff_in;
 
-                        if (value == 1) {
-                                atomic_set(&o_flag, 1);
-                                atomic_set(&open_flag, 1);
-                        } else {
-                                atomic_set(&o_get_data, 0);
-                                atomic_set(&o_flag, 0);
-                                if (atomic_read(&m_flag) == 0) {
-                                        atomic_set(&open_flag, 0);
-                                }
-                        }
+                        modify_en_flag(value);
                         wake_up(&open_wq);
                 }
                 break;
@@ -1511,7 +1654,7 @@ static int s62x_i2c_probe(struct i2c_client *client, const struct i2c_device_id 
                 goto exit_kfree;
         }
 
-#if CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_EARLYSUSPEND) 
         data->early_drv.level   = EARLY_SUSPEND_LEVEL_DISABLE_FB - 1,
         data->early_drv.suspend = s62x_early_suspend,
         data->early_drv.resume  = s62x_late_resume,

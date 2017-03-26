@@ -85,6 +85,11 @@ static int service_tx_status_request(
 
 	switch (recip) {
 	case USB_RECIP_DEVICE:
+#if defined(CONFIG_USBIF_COMPLIANCE)
+		if (ctrlrequest->wIndex == 0xf000) {
+			result[0] = musb->g.host_request;
+		} else {
+#endif
 		result[0] = musb->is_self_powered << USB_DEVICE_SELF_POWERED;
 		result[0] |= musb->may_wakeup << USB_DEVICE_REMOTE_WAKEUP;
 		if (musb->g.is_otg) {
@@ -94,6 +99,9 @@ static int service_tx_status_request(
 				<< USB_DEVICE_A_ALT_HNP_SUPPORT;
 			result[0] |= musb->g.a_hnp_support
 				<< USB_DEVICE_A_HNP_SUPPORT;
+#if defined(CONFIG_USBIF_COMPLIANCE)
+		}
+#endif
 		}
 		break;
 
@@ -209,6 +217,11 @@ static inline void musb_try_b_hnp_enable(struct musb *musb)
 	DBG(2, "HNP: Setting HR\n");
 	devctl = musb_readb(mbase, MUSB_DEVCTL);
 	musb_writeb(mbase, MUSB_DEVCTL, devctl | MUSB_DEVCTL_HR);
+#if defined(CONFIG_USBIF_COMPLIANCE)
+	devctl = musb_readb(mbase, MUSB_DEVCTL);
+	u8 opstate = musb_readb(mbase, MUSB_OPSTATE);
+	pr_info("HNP: Setting HR Done - DEVCTL: 0x%x, OPSTATE: 0x%x\n", devctl, opstate);
+#endif
 }
 
 /*
@@ -245,7 +258,7 @@ __acquires(musb->lock)
 		case USB_REQ_CLEAR_FEATURE:
 			switch (recip) {
 			case USB_RECIP_DEVICE:
-				DBG(0, "MUSB_ACTION : USB_REQ_CLEAR_FEATURE - USB_RECIP_DEVICE\n");
+				pr_debug("MUSB_ACTION: USB_REQ_CLEAR_FEATURE - USB_RECIP_DEVICE\n");
 				if (ctrlrequest->wValue
 						!= USB_DEVICE_REMOTE_WAKEUP)
 					break;
@@ -253,7 +266,7 @@ __acquires(musb->lock)
 				handled = 1;
 				break;
 			case USB_RECIP_INTERFACE:
-				DBG(0, "MUSB_ACTION : USB_REQ_CLEAR_FEATURE - USB_RECIP_INTERFACE\n");
+				pr_debug("MUSB_ACTION: USB_REQ_CLEAR_FEATURE - USB_RECIP_INTERFACE\n");
 				break;
 			case USB_RECIP_ENDPOINT:{
 				const u8		epnum =
@@ -341,7 +354,11 @@ __acquires(musb->lock)
 					break;
 				case USB_DEVICE_TEST_MODE:
 					if (musb->g.speed != USB_SPEED_HIGH)
+#if defined(CONFIG_USBIF_COMPLIANCE)
+						pr_debug("SET_FEATURE - NOT HIGH SPEED - speed: 0x%x\n", musb->g.speed);
+#else
 						goto stall;
+#endif
 					if (ctrlrequest->wIndex & 0xff)
 						goto stall;
 
@@ -395,12 +412,29 @@ __acquires(musb->lock)
 						musb->test_mode_nr =
 							MUSB_TEST_FORCE_HOST;
 						break;
+#if defined(CONFIG_USBIF_COMPLIANCE)
+					case 0x6:
+						musb->g.otg_srp_reqd = 1;
+						pr_debug("SET_FEATURE - TEST_MODE - OTG_SRP_REQD: 0x%x\n", musb->g.otg_srp_reqd);
+						break;
+
+					case 0x7:
+						musb->g.host_request = 1;
+						pr_debug("SET_FEATURE - TEST_MODE - OTG_HNP_REQD: 0x%x\n", musb->g.host_request);
+						break;
+#endif
 					default:
 						goto stall;
 					}
 
 					/* enter test mode after irq */
+#if defined(CONFIG_USBIF_COMPLIANCE)
+					if (handled > 0 && 
+						((ctrlrequest->wIndex >> 8) != 6) &&
+						((ctrlrequest->wIndex >> 8) != 7))
+#else
 					if (handled > 0)
+#endif
 						musb->test_mode = true;
 					break;
 				case USB_DEVICE_B_HNP_ENABLE:
@@ -684,13 +718,13 @@ __acquires(musb->lock)
 
 	retval = musb->gadget_driver->setup(&musb->g, ctrlrequest);
 
-    if(ctrlrequest->bRequest == USB_REQ_SET_CONFIGURATION){
-        if (ctrlrequest->wValue & 0xff)
-	        usb_state = USB_CONFIGURED;
-        else
-	        usb_state = USB_UNCONFIGURED;
-	    musb_sync_with_bat(musb,usb_state); // annonce to the battery
-   }
+	if (ctrlrequest->bRequest == USB_REQ_SET_CONFIGURATION) {
+		if (ctrlrequest->wValue & 0xff)
+			usb_state = USB_CONFIGURED;
+		else
+			usb_state = USB_UNCONFIGURED;
+		musb_sync_with_bat(musb,usb_state); // annonce to the battery
+	}
 
 	spin_lock(&musb->lock);
 	return retval;

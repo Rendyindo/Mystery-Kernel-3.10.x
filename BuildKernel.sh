@@ -5,7 +5,7 @@
 
 mkdir -p out
 
-export CROSS_COMPILE=$PWD/toolchain/bin/arm-eabi-
+export CROSS_COMPILE=$PWD/linaro/bin/arm-eabi-
 
 #Change toolchain path before using build script!
 #export CROSS_COMPILE=~/toolchains/arm-eabi-linaro-4.7.3/bin/arm-eabi-

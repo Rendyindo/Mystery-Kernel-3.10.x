@@ -942,17 +942,17 @@ EXPORT_SYMBOL(mt_wifi_power_off);
         /* command & resp ett settings */
         { MSDC_HS200_MODE, 0xb4,  (0x7 << 3), 0x1 }, //MSDC_PATCH_BIT1[MSDC_PB1_CMD_RSP_TA_CNTR]
         { MSDC_HS200_MODE, 0x4,   (0x1 << 1), 0x1 }, //MSDC_IOCON[MSDC_IOCON_RSPL]
-        { MSDC_HS200_MODE, 0xf0,  (0x1f<<16), 0x13}, //MSDC_PAD_TUNE0[MSDC_PAD_TUNE_CMDRDLY]
-        { MSDC_HS200_MODE, 0xf0,  (0x1f<<22), 0x12}, //MSDC_PAD_TUNE0[MSDC_PAD_TUNE_CMDRRDLY]
+        { MSDC_HS200_MODE, 0xf0,  (0x1f<<16), 0x0 }, //MSDC_PAD_TUNE0[MSDC_PAD_TUNE_CMDRDLY]
+        { MSDC_HS200_MODE, 0xf0,  (0x1f<<22), 0x0 }, //MSDC_PAD_TUNE0[MSDC_PAD_TUNE_CMDRRDLY]
 
         /* write ett settings */
         { MSDC_HS200_MODE, 0xb4,  (0x7 << 0), 0x1 }, //MSDC_PATCH_BIT1[MSDC_PB1_WRDAT_CRCS_TA_CNTR]
-        { MSDC_HS200_MODE, 0xf0,  (0x1f<< 0), 0x14}, //MSDC_PAD_TUNE0[MSDC_PAD_TUNE_DATWRDLY]
+        { MSDC_HS200_MODE, 0xf0,  (0x1f<< 0), 0x0 }, //MSDC_PAD_TUNE0[MSDC_PAD_TUNE_DATWRDLY]
         { MSDC_HS200_MODE, 0x4,   (0x1 <<8),  0x1 }, //MSDC_IOCON[MSDC_IOCON_W_D_SMPL]
         { MSDC_HS200_MODE, 0xf8,  (0x1f<<24), 0x0 }, //DAT_RD_DLY0[MSDC_DAT_RDDLY0_D0]
 
         /* read ett settings */
-        { MSDC_HS200_MODE, 0xf0,  (0x1f<< 8), 0xA }, //MSDC_PAD_TUNE0[MSDC_PAD_TUNE_DATRRDLY]
+        { MSDC_HS200_MODE, 0xf0,  (0x1f<< 8), 0x0 }, //MSDC_PAD_TUNE0[MSDC_PAD_TUNE_DATRRDLY]
         { MSDC_HS200_MODE, 0xb0,  (0x1 << 3), 0x1 }, //MSDC_PATCH_BIT0[MSDC_PB0_RD_DAT_SEL]
         //{ MSDC_HS200_MODE, 0x4,   (0x1 << 2), 0x0 }, //MSDC_IOCON[MSDC_IOCON_R_D_SMPL]
     }; 

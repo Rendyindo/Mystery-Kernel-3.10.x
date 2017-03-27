@@ -291,6 +291,7 @@ NSFeature :  : RAWSensorInfo < _id >  :  : getFlickerPara \
 #define SENSOR_DRVNAME_OV5693_MIPI_RAW          "ov5693mipi"
 #define SENSOR_DRVNAME_OV5670_QH_MIPI_RAW       "ov5670mipiraw_qh" //change by wangyang for two camera 20150416
 #define SENSOR_DRVNAME_OV5670_HQ_MIPI_RAW       "ov5670mipiraw_hq" //change by wangyang for two camera 20150416
+#define SENSOR_DRVNAME_OV5670_MIPI_RAW          "ov5670mipiraw"
 #define SENSOR_DRVNAME_OV5671_MIPI_RAW          "ov5671mipiraw"
 #define SENSOR_DRVNAME_OV5647MIPI_RAW           "ov5647mipiraw"
 #define SENSOR_DRVNAME_OV5645_MIPI_YUV          "ov5645_mipi_yuv"

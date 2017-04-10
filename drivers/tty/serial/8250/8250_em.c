@@ -95,23 +95,25 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	struct serial8250_em_priv *priv;
 	struct uart_8250_port up;
-	int ret;
+	int ret = -EINVAL;
 
 	if (!regs || !irq) {
 		dev_err(&pdev->dev, "missing registers or irq\n");
-		return -EINVAL;
+		goto err0;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "unable to allocate private data\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err0;
 	}
 
-	priv->sclk = devm_clk_get(&pdev->dev, "sclk");
+	priv->sclk = clk_get(&pdev->dev, "sclk");
 	if (IS_ERR(priv->sclk)) {
 		dev_err(&pdev->dev, "unable to get clock\n");
-		return PTR_ERR(priv->sclk);
+		ret = PTR_ERR(priv->sclk);
+		goto err1;
 	}
 
 	memset(&up, 0, sizeof(up));
@@ -134,13 +136,20 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	ret = serial8250_register_8250_port(&up);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "unable to register 8250 port\n");
-		clk_disable(priv->sclk);
-		return ret;
+		goto err2;
 	}
 
 	priv->line = ret;
 	platform_set_drvdata(pdev, priv);
 	return 0;
+
+ err2:
+	clk_disable(priv->sclk);
+	clk_put(priv->sclk);
+ err1:
+	kfree(priv);
+ err0:
+	return ret;
 }
 
 static int serial8250_em_remove(struct platform_device *pdev)
@@ -149,6 +158,8 @@ static int serial8250_em_remove(struct platform_device *pdev)
 
 	serial8250_unregister_port(priv->line);
 	clk_disable(priv->sclk);
+	clk_put(priv->sclk);
+	kfree(priv);
 	return 0;
 }
 

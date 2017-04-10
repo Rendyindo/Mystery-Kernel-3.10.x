@@ -26,6 +26,8 @@
 #include <linux/dmapool.h>
 
 #include "xhci.h"
+#include <mach/mt_boot.h>
+#include <linux/dma-mapping.h>
 
 /*
  * Allocates a generic ring segment from the ring pool, sets the dma address,
@@ -1455,11 +1457,18 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		break;
 	case USB_SPEED_FULL:
 	case USB_SPEED_LOW:
-        /* workaround for maxp size issue of mt6595 */
-        if((max_packet % 4 == 2) && (max_packet % 16 != 14) &&
-            (max_burst == 0) && usb_endpoint_dir_in(&ep->desc))
-            max_packet += 2;
+	{
+		CHIP_SW_VER sw_code = mt_get_chip_sw_ver();
+		unsigned int hw_code = mt_get_chip_hw_code();
+			
+		if((hw_code == 0x6595) && (sw_code <= CHIP_SW_VER_01)){
+			/* workaround for maxp size issue of RXXE */
+			if((max_packet % 4 == 2) && (max_packet % 16 != 14) &&
+				(max_burst == 0) && usb_endpoint_dir_in(&ep->desc))
+				max_packet += 2;
+		}
 		break;
+	}
 	default:
 		BUG();
 	}
@@ -1805,7 +1814,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	}
 
 	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	for (i = 0; i < num_ports && xhci->rh_bw; i++) {
+	for (i = 0; i < num_ports; i++) {
 		struct xhci_interval_bw_table *bwt = &xhci->rh_bw[i].bw_table;
 		for (j = 0; j < XHCI_MAX_INTERVAL; j++) {
 			struct list_head *ep = &bwt->interval_bw[j].endpoints;

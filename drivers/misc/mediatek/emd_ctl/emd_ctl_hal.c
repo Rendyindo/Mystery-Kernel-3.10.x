@@ -17,10 +17,6 @@ void cm_release_wakeup_md_signal(void)
 void cm_enable_ext_md_wakeup_irq(void)
 {
     EMD_MSG_INF("chr","TODO: Dummy cm_enable_ext_md_wakeup_irq!\n");
-}  
-void cm_disable_ext_md_wakeup_irq(void)
-{
-    EMD_MSG_INF("chr","TODO: Dummy cm_disable_ext_md_wakeup_irq!\n");
 }
 int  cm_do_md_power_on(void)
 {
@@ -46,6 +42,21 @@ int cm_register_irq_cb(int type, void(*irq_cb)(void))
 int cm_get_assertlog_status(void)
 {
     EMD_MSG_INF("chr","TODO: Dummy cm_get_assertlog_status!\n");
+    return 0;
+}
+void cm_disable_ext_md_wdt_irq(void)
+{
+    EMD_MSG_INF("chr","TODO: Dummy cm_disable_ext_md_wdt_irq!\n");
+    return 0;
+}
+void cm_disable_ext_md_wakeup_irq(void)
+{
+    EMD_MSG_INF("chr","TODO: Dummy cm_disable_ext_md_wakeup_irq!\n");
+    return 0;
+}
+void cm_disable_ext_md_exp_irq(void)
+{
+    EMD_MSG_INF("chr","TODO: Dummy cm_disable_ext_md_exp_irq!\n");
     return 0;
 }
 

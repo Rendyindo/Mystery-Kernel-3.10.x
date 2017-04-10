@@ -91,6 +91,8 @@
 //#include <asm/mach-types.h>
 #include <sound/mt_soc_audio.h>
 
+#define EFUSE_HP_TRIM
+
 /*
 define for PCM settings
 */
@@ -139,6 +141,11 @@ define for PCM settings
 #define MRGRX_MAX_BUFFER_SIZE     (64*1024)
 #define MRGRX_MIN_PERIOD_SIZE       1
 #define MRGRX_MAX_PERIOD_SIZE     MRGRX_MAX_BUFFER_SIZE
+
+#define FM_I2S_MAX_BUFFER_SIZE     (64*1024)
+#define FM_I2S_MIN_PERIOD_SIZE       1
+#define FM_I2S_MAX_PERIOD_SIZE     MRGRX_MAX_BUFFER_SIZE
+
 
 #define SND_SOC_ADV_MT_FMTS (\
 			       SNDRV_PCM_FMTBIT_S16_LE |\

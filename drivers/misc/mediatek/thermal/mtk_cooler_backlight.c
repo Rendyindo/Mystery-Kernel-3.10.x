@@ -11,7 +11,6 @@
 #include <linux/kobject.h>
 
 #include "mach/mtk_thermal_monitor.h"
-#include <mach/system.h>
 
 /* This API function is implemented in mediatek/kernel/drivers/leds/leds.c */
 extern int setMaxbrightness(int max_level, int enable);

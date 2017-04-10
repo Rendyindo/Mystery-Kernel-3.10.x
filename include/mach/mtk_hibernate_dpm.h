@@ -1,6 +1,7 @@
 #ifndef __MTK_HIBERNATE_DPM_H
 #define __MTK_HIBERNATE_DPM_H
 
+#include <linux/device.h>
 
 /* -------------other configure-------------------------// */
 #define MAX_CB_FUNCS	  (10)
@@ -16,6 +17,7 @@ typedef enum {
 	ID_M_SPC = 2,
 	ID_M_MSDC = 3,
 	ID_M_MALI = 4,
+	ID_M_GPU = 4,
 	ID_M_MJC = 5,
 	ID_M_CONNSYS = 6,
 	ID_M_END = MAX_CB_FUNCS,

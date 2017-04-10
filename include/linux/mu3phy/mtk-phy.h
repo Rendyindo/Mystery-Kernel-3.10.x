@@ -38,35 +38,50 @@
 
 
 /* TYPE DEFINE */
-typedef unsigned int PHY_UINT32;
-typedef int PHY_INT32;
-typedef unsigned short PHY_UINT16;
-typedef short PHY_INT16;
-typedef unsigned char PHY_UINT8;
-typedef char PHY_INT8;
+typedef unsigned int	PHY_UINT32;
+typedef int				PHY_INT32;
+typedef	unsigned short	PHY_UINT16;
+typedef short			PHY_INT16;
+typedef unsigned char	PHY_UINT8;
+typedef char			PHY_INT8;
 
-typedef PHY_UINT32 __bitwise PHY_LE32;
+typedef PHY_UINT32 __bitwise	PHY_LE32;
+
+
+#ifdef CONFIG_U3_PHY_AHB_SUPPORT
+#ifdef CONFIG_ARM64
+typedef u64 u3phy_addr_t;
+#define ALIGN_MASK 0xFFFFFFFFFFFFFFFC
+#else
+typedef u32 u3phy_addr_t;
+#define ALIGN_MASK 0xFFFFFFFC
+#endif
+#else
+typedef u32 u3phy_addr_t;
+#define ALIGN_MASK 0xFFFFFFFC
+#endif
+
 
 /* CONSTANT DEFINE */
 #define PHY_FALSE	0
 #define PHY_TRUE	1
 
-/* #define DRV_MDELAY    mdelay */
+//#define DRV_MDELAY	mdelay
 #define DRV_MSLEEP	msleep
 #define DRV_UDELAY	udelay
-/* #define DRV_USLEEP    usleep */
+//#define DRV_USLEEP	usleep
 
 /* PHY FUNCTION DEFINE, implemented in platform files, ex. ahb, gpio */
-PHY_INT32 U3PhyWriteReg32(PHY_UINT32 addr, PHY_UINT32 data);
-PHY_INT32 U3PhyReadReg32(PHY_UINT32 addr);
-PHY_INT32 U3PhyWriteReg8(PHY_UINT32 addr, PHY_UINT8 data);
-PHY_INT8 U3PhyReadReg8(PHY_UINT32 addr);
+PHY_INT32 U3PhyWriteReg32(u3phy_addr_t addr, PHY_UINT32 data);
+PHY_INT32 U3PhyReadReg32(u3phy_addr_t addr);
+PHY_INT32 U3PhyWriteReg8(u3phy_addr_t addr, PHY_UINT8 data);
+PHY_INT8 U3PhyReadReg8(u3phy_addr_t addr);
 
 /* PHY GENERAL USAGE FUNC, implemented in mtk-phy.c */
-PHY_INT32 U3PhyWriteField8(PHY_INT32 addr, PHY_INT32 offset, PHY_INT32 mask, PHY_INT32 value);
-PHY_INT32 U3PhyWriteField32(PHY_INT32 addr, PHY_INT32 offset, PHY_INT32 mask, PHY_INT32 value);
-PHY_INT32 U3PhyReadField8(PHY_INT32 addr, PHY_INT32 offset, PHY_INT32 mask);
-PHY_INT32 U3PhyReadField32(PHY_INT32 addr, PHY_INT32 offset, PHY_INT32 mask);
+PHY_INT32 U3PhyWriteField8(phys_addr_t addr, PHY_INT32 offset, PHY_INT32 mask, PHY_INT32 value);
+PHY_INT32 U3PhyWriteField32(phys_addr_t addr, PHY_INT32 offset, PHY_INT32 mask, PHY_INT32 value);
+PHY_INT32 U3PhyReadField8(phys_addr_t addr, PHY_INT32 offset, PHY_INT32 mask);
+PHY_INT32 U3PhyReadField32(phys_addr_t addr, PHY_INT32 offset, PHY_INT32 mask);
 
 struct u3phy_info {
 	PHY_INT32 phy_version;
@@ -83,7 +98,7 @@ struct u3phy_info {
 	struct sifslv_fm_feg_e *sifslv_fm_regs_e;
 #else
 #ifdef CONFIG_C60802_SUPPORT
-	/* c60802 regs reference */
+	//c60802 regs reference
 	struct u2phy_reg_c *u2phy_regs_c;
 	struct u3phya_reg_c *u3phya_regs_c;
 	struct u3phya_da_reg_c *u3phya_da_regs_c;
@@ -93,7 +108,7 @@ struct u3phy_info {
 	struct sifslv_fm_feg_c *sifslv_fm_regs_c;
 #endif
 #ifdef CONFIG_D60802_SUPPORT
-	/* d60802 regs reference */
+	//d60802 regs reference
 	struct u2phy_reg_d *u2phy_regs_d;
 	struct u3phya_reg_d *u3phya_regs_d;
 	struct u3phya_da_reg_d *u3phya_da_regs_d;
@@ -103,7 +118,7 @@ struct u3phy_info {
 	struct sifslv_fm_feg_d *sifslv_fm_regs_d;
 #endif
 #ifdef CONFIG_E60802_SUPPORT
-	/* e60802 regs reference */
+	//e60802 regs reference
 	struct u2phy_reg_e *u2phy_regs_e;
 	struct u3phya_reg_e *u3phya_regs_e;
 	struct u3phya_da_reg_e *u3phya_da_regs_e;
@@ -117,19 +132,15 @@ struct u3phy_info {
 };
 
 struct u3phy_operator {
-	PHY_INT32(*init) (struct u3phy_info *info);
-	PHY_INT32(*change_pipe_phase) (struct u3phy_info *info, PHY_INT32 phy_drv,
-				       PHY_INT32 pipe_phase);
-	PHY_INT32(*eyescan_init) (struct u3phy_info *info);
-	PHY_INT32(*eyescan) (struct u3phy_info *info, PHY_INT32 x_t1, PHY_INT32 y_t1,
-			     PHY_INT32 x_br, PHY_INT32 y_br, PHY_INT32 delta_x, PHY_INT32 delta_y,
-			     PHY_INT32 eye_cnt, PHY_INT32 num_cnt, PHY_INT32 PI_cal_en,
-			     PHY_INT32 num_ignore_cnt);
-	PHY_INT32(*u2_connect) (struct u3phy_info *info);
-	PHY_INT32(*u2_disconnect) (struct u3phy_info *info);
-	PHY_INT32(*u2_save_current_entry) (struct u3phy_info *info);
-	PHY_INT32(*u2_save_current_recovery) (struct u3phy_info *info);
-	PHY_INT32(*u2_slew_rate_calibration) (struct u3phy_info *info);
+	PHY_INT32 (*init) (struct u3phy_info *info);
+	PHY_INT32 (*change_pipe_phase) (struct u3phy_info *info, PHY_INT32 phy_drv, PHY_INT32 pipe_phase);
+	PHY_INT32 (*eyescan_init) (struct u3phy_info *info);
+	PHY_INT32 (*eyescan) (struct u3phy_info *info, PHY_INT32 x_t1, PHY_INT32 y_t1, PHY_INT32 x_br, PHY_INT32 y_br, PHY_INT32 delta_x, PHY_INT32 delta_y, PHY_INT32 eye_cnt, PHY_INT32 num_cnt, PHY_INT32 PI_cal_en, PHY_INT32 num_ignore_cnt);
+	PHY_INT32 (*u2_connect) (struct u3phy_info *info);
+	PHY_INT32 (*u2_disconnect) (struct u3phy_info *info);
+	PHY_INT32 (*u2_save_current_entry) (struct u3phy_info *info);
+	PHY_INT32 (*u2_save_current_recovery) (struct u3phy_info *info);
+	PHY_INT32 (*u2_slew_rate_calibration) (struct u3phy_info *info);
 };
 
 #undef EXTERN
@@ -147,31 +158,34 @@ EXTERN struct u3phy_operator *u3phy_ops;
 #define LO_BYTE(x)                   ((PHY_UINT8)((x) & 0xFF))
 #define HI_BYTE(x)                   ((PHY_UINT8)(((x) & 0xFF00) >> 8))
 
-typedef enum {
-	SCAN_UP,
-	SCAN_DN
+typedef enum
+{
+  SCAN_UP,
+  SCAN_DN
 } enumScanDir;
 
-struct strucScanRegion {
-	PHY_INT8 bX_tl;
-	PHY_INT8 bY_tl;
-	PHY_INT8 bX_br;
-	PHY_INT8 bY_br;
-	PHY_INT8 bDeltaX;
-	PHY_INT8 bDeltaY;
+struct strucScanRegion
+{
+  PHY_INT8 bX_tl;
+  PHY_INT8 bY_tl;
+  PHY_INT8 bX_br;
+  PHY_INT8 bY_br;
+  PHY_INT8 bDeltaX;
+  PHY_INT8 bDeltaY;
 };
 
-struct strucTestCycle {
-	PHY_UINT16 wEyeCnt;
-	PHY_INT8 bNumOfEyeCnt;
-	PHY_INT8 bPICalEn;
-	PHY_INT8 bNumOfIgnoreCnt;
+struct strucTestCycle
+{
+  PHY_UINT16 wEyeCnt;
+  PHY_INT8 bNumOfEyeCnt;
+  PHY_INT8 bPICalEn;
+  PHY_INT8 bNumOfIgnoreCnt;
 };
 
 #define ERRCNT_MAX		128
 #define CYCLE_COUNT_MAX	15
 
-/* / the map resolution is 128 x 128 pts */
+/// the map resolution is 128 x 128 pts
 #define MAX_X                 127
 #define MAX_Y                 127
 #define MIN_X                 0
@@ -179,16 +193,18 @@ struct strucTestCycle {
 
 PHY_INT32 u3phy_init(void);
 
-EXTERN struct strucScanRegion _rEye1;
-EXTERN struct strucScanRegion _rEye2;
-EXTERN struct strucTestCycle _rTestCycle;
-EXTERN PHY_UINT8 _bXcurr;
-EXTERN PHY_UINT8 _bYcurr;
-EXTERN enumScanDir _eScanDir;
-EXTERN PHY_INT8 _fgXChged;
-EXTERN unsigned int _bPIResult;
-EXTERN PHY_UINT32 pwErrCnt0[CYCLE_COUNT_MAX][ERRCNT_MAX][ERRCNT_MAX];
-EXTERN PHY_UINT32 pwErrCnt1[CYCLE_COUNT_MAX][ERRCNT_MAX][ERRCNT_MAX];
+EXTERN struct strucScanRegion           _rEye1;
+EXTERN struct strucScanRegion           _rEye2;
+EXTERN struct strucTestCycle            _rTestCycle;
+EXTERN PHY_UINT8                      _bXcurr;
+EXTERN PHY_UINT8                      _bYcurr;
+EXTERN enumScanDir               _eScanDir;
+EXTERN PHY_INT8                      _fgXChged;
+EXTERN unsigned int                      _bPIResult;
+/* Comment for saving the kernel size. This's only used at external PHY*/
+/*EXTERN PHY_UINT32 pwErrCnt0[CYCLE_COUNT_MAX][ERRCNT_MAX][ERRCNT_MAX];*/
+/*EXTERN PHY_UINT32 pwErrCnt1[CYCLE_COUNT_MAX][ERRCNT_MAX][ERRCNT_MAX];*/
 
 /***********************************/
 #endif
+

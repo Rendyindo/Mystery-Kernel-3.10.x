@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -398,7 +399,7 @@ static struct snd_soc_dai_driver mtk_dai_stub_dai[] =
         .playback = {
             .stream_name = MT_SOC_FM_MRGTX_STREAM_NAME,
             .rates = SNDRV_PCM_RATE_44100,
-            .formats = SNDRV_PCM_FMTBIT_S16_LE,
+            .formats = SND_SOC_ADV_MT_FMTS,
             .channels_min = 1,
             .channels_max = 2,
             .rate_min = 44100,
@@ -487,6 +488,50 @@ static struct snd_soc_dai_driver mtk_dai_stub_dai[] =
         .name = MT_SOC_HP_IMPEDANCE_NAME,
         .ops = &mtk_dai_stub_ops,
     },
+    {
+        .playback = {
+            .stream_name = MT_SOC_FM_I2S_PLAYBACK_STREAM_NAME,
+            .rates = SNDRV_PCM_RATE_8000_48000,
+            .formats = SND_SOC_ADV_MT_FMTS,
+            .channels_min = 1,
+            .channels_max = 2,
+            .rate_min = 8000,
+            .rate_max = 48000,
+        },
+        .capture = {
+            .stream_name = MT_SOC_FM_I2S_PLAYBACK_STREAM_NAME,
+            .rates = SNDRV_PCM_RATE_8000_48000,
+            .formats = SND_SOC_ADV_MT_FMTS,
+            .channels_min = 1,
+            .channels_max = 2,
+            .rate_min = 8000,
+            .rate_max = 48000,
+        },
+        .name = MT_SOC_FM_I2S_NAME,
+        .ops = &mtk_dai_stub_ops,
+    },
+    {
+        .playback = {
+            .stream_name = MT_SOC_FM_I2S_CAPTURE_STREAM_NAME,
+            .rates = SNDRV_PCM_RATE_8000_48000,
+            .formats = SND_SOC_ADV_MT_FMTS,
+            .channels_min = 1,
+            .channels_max = 2,
+            .rate_min = 8000,
+            .rate_max = 48000,
+        },
+        .capture = {
+            .stream_name = MT_SOC_FM_I2S_CAPTURE_STREAM_NAME,
+            .rates = SNDRV_PCM_RATE_8000_48000,
+            .formats = SND_SOC_ADV_MT_FMTS,
+            .channels_min = 1,
+            .channels_max = 2,
+            .rate_min = 8000,
+            .rate_max = 48000,
+        },
+        .name = MT_SOC_FM_I2S_CAPTURE_NAME,
+        .ops = &mtk_dai_stub_ops,
+    },
 };
 
 
@@ -500,6 +545,12 @@ static int mtk_dai_stub_dev_probe(struct platform_device *pdev)
     int rc = 0;
 
     printk("mtk_dai_stub_dev_probe  name %s\n", dev_name(&pdev->dev));
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (pdev->dev.dma_mask == NULL)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
 
     if (pdev->dev.of_node)
     {
@@ -523,6 +574,14 @@ static int mtk_dai_stub_dev_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_dai_stub_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_dai_stub", },
+    {}
+};
+#endif
+
 static struct platform_driver mtk_dai_stub_driver =
 {
     .probe  = mtk_dai_stub_dev_probe,
@@ -530,16 +589,21 @@ static struct platform_driver mtk_dai_stub_driver =
     .driver = {
         .name = MT_SOC_DAI_NAME,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_dai_stub_of_ids,
+        #endif        
     },
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtk_dai_dev;
-
+#endif
 
 static int __init mtk_dai_stub_init(void)
 {
-    int ret;
     printk("%s:\n", __func__);
+    #ifndef CONFIG_OF	
+    int ret;	
     soc_mtk_dai_dev = platform_device_alloc(MT_SOC_DAI_NAME , -1);
     if (!soc_mtk_dai_dev)
     {
@@ -551,6 +615,7 @@ static int __init mtk_dai_stub_init(void)
         platform_device_put(soc_mtk_dai_dev);
         return ret;
     }
+	#endif
     return platform_driver_register(&mtk_dai_stub_driver);
 }
 

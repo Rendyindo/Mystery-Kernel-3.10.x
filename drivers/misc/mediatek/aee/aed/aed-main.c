@@ -20,29 +20,41 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/disp_assert_layer.h>
-#include <mach/system.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/semaphore.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
+#include <linux/stacktrace.h>
+#include <linux/compat.h>
 #include <linux/aee.h>
 #include <linux/seq_file.h>
 #include "aed.h"
-#include <mach/mt_boot.h>
 
-static LIST_HEAD(ke_request_list);
-static struct work_struct work;
+struct aee_req_queue {
+	struct list_head list;
+	spinlock_t lock;
+};
 
+static struct aee_req_queue ke_queue;
+static struct work_struct ke_work;
 static DEFINE_SEMAPHORE(aed_ke_sem);
+
+static struct aee_req_queue ee_queue;
+static struct work_struct ee_work;
+static DEFINE_SEMAPHORE(aed_ee_sem);
 /*
  *  may be accessed from irq
 */
 static spinlock_t aed_device_lock;
-static int aee_mode = AEE_MODE_CUSTOMER_USER;
+int aee_mode = AEE_MODE_NOT_INIT;
 static int force_red_screen = AEE_FORCE_NOT_SET;
 
 static struct proc_dir_entry *aed_proc_dir;
+
+#define MaxStackSize 8100
+#define MaxMapsSize 8100
+
 /******************************************************************************
  * DEBUG UTILITIES
  *****************************************************************************/
@@ -97,6 +109,27 @@ void msg_show(const char *prefix, AE_Msg *msg)
 	case AE_REQ_COREDUMP:
 		cmd_id = "COREDUMP";
 		break;
+	case AE_IND_EXP_RAISED:
+		cmd_id = "EXP_RAISED";
+		break;
+	case AE_IND_WRN_RAISED:
+		cmd_id = "WARN_RAISED";
+		break;
+	case AE_IND_REM_RAISED:
+		cmd_id = "REMIND_RAISED";
+		break;
+	case AE_IND_FATAL_RAISED:
+		cmd_id = "FATAL_RAISED";
+		break;
+	case AE_IND_LOG_CLOSE:
+		cmd_id = "CLOSE";
+		break;
+	case AE_REQ_USERSPACEBACKTRACE:
+		cmd_id = "USERBACKTRACE";
+		break;
+	case AE_REQ_USER_REG:
+		cmd_id = "USERREG";
+		break;
 	default:
 		cmd_id = "UNKNOWN";
 		break;
@@ -127,6 +160,7 @@ void msg_show(const char *prefix, AE_Msg *msg)
  *****************************************************************************/
 
 struct aed_eerec {		/* external exception record */
+	struct list_head list;
 	char assert_type[32];
 	char exp_filename[512];
 	unsigned int exp_linenum;
@@ -138,6 +172,7 @@ struct aed_eerec {		/* external exception record */
 	int *ee_phy;
 	int ee_phy_size;
 	char *msg;
+	int db_opt;
 };
 
 struct aed_kerec {		/* TODO: kernel exception record */
@@ -146,7 +181,7 @@ struct aed_kerec {		/* TODO: kernel exception record */
 };
 
 struct aed_dev {
-	struct aed_eerec eerec;
+	struct aed_eerec *eerec;
 	wait_queue_head_t eewait;
 
 	struct aed_kerec kerec;
@@ -172,7 +207,7 @@ static struct aed_dev aed_dev;
 inline void msg_destroy(char **ppmsg)
 {
 	if (*ppmsg != NULL) {
-		kfree(*ppmsg);
+		vfree(*ppmsg);
 		*ppmsg = NULL;
 	}
 }
@@ -184,7 +219,7 @@ inline AE_Msg *msg_create(char **ppmsg, int extra_size)
 	msg_destroy(ppmsg);
 	size = sizeof(AE_Msg) + extra_size;
 
-	*ppmsg = kzalloc(size, GFP_ATOMIC);
+	*ppmsg = vzalloc(size);
 	if (*ppmsg == NULL) {
 		LOGE("%s : kzalloc() fail\n", __func__);
 		return NULL;
@@ -200,11 +235,20 @@ static ssize_t msg_copy_to_user(const char *prefix, const char *msg, char __user
 {
 	ssize_t ret = 0;
 	int len;
+    char *msg_tmp;
 
 	msg_show(prefix, (AE_Msg *) msg);
 
 	if (msg == NULL)
 		return 0;
+    msg_tmp = kzalloc(count, GFP_KERNEL);
+    if (msg_tmp != NULL) {
+        memcpy(msg_tmp, msg, count);
+    }
+    else {
+        LOGE("%s : kzalloc() fail!\n", __func__);
+        msg_tmp = msg;
+    }
 
 	len = ((AE_Msg *) msg)->len + sizeof(AE_Msg);
 
@@ -214,7 +258,7 @@ static ssize_t msg_copy_to_user(const char *prefix, const char *msg, char __user
 	}
 	/* TODO: semaphore */
 	if ((*f_pos + count) > len) {
-		LOGE("read size overflow, count=%d, *f_pos=%d\n", count, (int)*f_pos);
+		LOGE("read size overflow, count=%zx, *f_pos=%llx\n", count, *f_pos);
 		count = len - *f_pos;
 		ret = -EFAULT;
 		goto out;
@@ -228,6 +272,8 @@ static ssize_t msg_copy_to_user(const char *prefix, const char *msg, char __user
 	*f_pos += count;
 	ret = count;
  out:
+    if (msg_tmp != msg)
+        kfree(msg_tmp);
 	return ret;
 }
 
@@ -366,6 +412,103 @@ static void ke_gen_backtrace_msg(void)
 	rep_msg->len = strlen(data) + 1;
 }
 
+
+static void ke_gen_userbacktrace_msg(void)
+{
+	AE_Msg *rep_msg;
+	char *data;
+	int userinfo_len=0;
+	userinfo_len=aed_dev.kerec.lastlog->userthread_stack.StackLength + sizeof(pid_t)+sizeof(int);
+	rep_msg = msg_create(&aed_dev.kerec.msg,MaxStackSize  ); //8100==stack size
+	if (rep_msg == NULL)
+		return;
+
+	data = (char *)rep_msg + sizeof(AE_Msg);
+	rep_msg->cmdType = AE_RSP;
+	rep_msg->cmdId = AE_REQ_USERSPACEBACKTRACE;
+
+	rep_msg->len = userinfo_len;
+	LOGD("%s rep_msg->len:%lx,  \n", __func__,(long)rep_msg->len);
+
+	memcpy(data,(char *) &(aed_dev.kerec.lastlog->userthread_stack), sizeof(pid_t)+sizeof(int)); //copy pid & stackLength
+	LOGD("len(pid+int):%lx\n", (long)(sizeof(pid_t)+sizeof(int)));
+	LOGD("des :%lx\n", (long)(data+ sizeof(pid_t)+sizeof(int)));
+	LOGD("src addr :%lx\n", (long)((char *)(aed_dev.kerec.lastlog->userthread_stack.Userthread_Stack)));
+	
+	memcpy( (data+ sizeof(pid_t)+sizeof(int)), (char *)(aed_dev.kerec.lastlog->userthread_stack.Userthread_Stack),aed_dev.kerec.lastlog->userthread_stack.StackLength);//copy userthread_stack :8k
+
+	#if 0 //for debug
+	{
+		int i=0;
+		for (i=0;i<64;i++)
+				LOGD("%x\n ", data[i]);
+		
+	}	
+	#endif
+	LOGD("%s  +++ \n", __func__);
+}
+
+static void ke_gen_usermaps_msg(void)
+{
+	AE_Msg *rep_msg;
+	char *data;
+	int userinfo_len=0;
+	userinfo_len=aed_dev.kerec.lastlog->userthread_maps.Userthread_mapsLength+ sizeof(pid_t)+sizeof(int);
+	rep_msg = msg_create(&aed_dev.kerec.msg,MaxMapsSize); //8100==stack size
+	if (rep_msg == NULL)
+		return;
+
+	data = (char *)rep_msg + sizeof(AE_Msg);
+	rep_msg->cmdType = AE_RSP;
+	rep_msg->cmdId = AE_REQ_USER_MAPS;
+
+	rep_msg->len = userinfo_len;
+	LOGD("%s rep_msg->len:%lx,  \n", __func__,(long)rep_msg->len);
+
+	memcpy(data,(char *) &(aed_dev.kerec.lastlog->userthread_maps), sizeof(pid_t)+sizeof(int)); //copy pid & stackLength
+	LOGD("len(pid+int):%lx\n", (long)(sizeof(pid_t)+sizeof(int)));
+	LOGD("des :%lx\n", (long)(data+ sizeof(pid_t)+sizeof(int)));
+	LOGD("src addr :%lx\n", (long)((char *)(aed_dev.kerec.lastlog->userthread_maps.Userthread_maps)));
+	
+	memcpy( (data+ sizeof(pid_t)+sizeof(int)), (char *)(aed_dev.kerec.lastlog->userthread_maps.Userthread_maps),aed_dev.kerec.lastlog->userthread_maps.Userthread_mapsLength);//copy userthread_stack :8k
+
+	LOGD("%s  +++ \n", __func__);
+}
+
+
+
+
+
+static void ke_gen_user_reg_msg(void)
+{
+	AE_Msg *rep_msg;
+	char *data;
+
+	rep_msg = msg_create(&aed_dev.kerec.msg, sizeof(struct aee_thread_reg ));
+	if (rep_msg == NULL)
+		return;
+
+	data = (char *)rep_msg + sizeof(AE_Msg);
+	rep_msg->cmdType = AE_RSP;
+	rep_msg->cmdId = AE_REQ_USER_REG;
+	
+	/* Count into the NUL byte at end of string */
+	rep_msg->len =sizeof(struct aee_thread_reg );
+	memcpy(data, (char *) &(aed_dev.kerec.lastlog->userthread_reg), sizeof(struct aee_thread_reg ));
+	#if 0 //for debug
+	#ifdef __aarch64__ //64bit kernel+32 u
+	if (is_compat_task())//K64_U32
+	{
+		
+		LOGE(" K64+ U32 pc/lr/sp 0x%16lx/0x%16lx/0x%16lx\n", (long)(aed_dev.kerec.lastlog->userthread_reg.regs.user_regs.pc), 
+			(long)(aed_dev.kerec.lastlog->userthread_reg.regs.regs[14]),
+				 (long)(aed_dev.kerec.lastlog->userthread_reg.regs.regs[13]) );
+	}	
+	#endif
+	#endif
+	LOGD("%s +++ \n", __func__);
+}
+
 static void ke_gen_ind_msg(struct aee_oops *oops)
 {
 	unsigned long flags = 0;
@@ -455,34 +598,43 @@ static void ke_destroy_log(void)
 static int ke_log_avail(void)
 {
 	if (aed_dev.kerec.lastlog != NULL) {
-		LOGI("panic log avaiable\n");
+#ifdef __aarch64__
+		if (is_compat_task() != ((aed_dev.kerec.lastlog->dump_option & DB_OPT_AARCH64) == 0))
+			return 0;
+#endif
+		LOGI("AEE api log avaiable\n");
 		return 1;
 	}
 
 	return 0;
 }
 
-
 static void ke_queue_request(struct aee_oops *oops)
 {
+	unsigned long flags = 0;
 	int ret;
-	list_add_tail(&oops->list, &ke_request_list);
-	ret = queue_work(system_nrt_wq, &work);
+
+	spin_lock_irqsave(&ke_queue.lock, flags);
+	list_add_tail(&oops->list, &ke_queue.list);
+	spin_unlock_irqrestore(&ke_queue.lock, flags);
+	ret = queue_work(system_nrt_wq, &ke_work);
 	LOGI("%s: add new ke work, status %d\n", __func__, ret);
 }
 
 static void ke_worker(struct work_struct *work)
 {
 	struct aee_oops *oops, *n;
-	list_for_each_entry_safe(oops, n, &ke_request_list, list) {
+	unsigned long flags = 0;
+	list_for_each_entry_safe(oops, n, &ke_queue.list, list) {
 		if (oops == NULL) {
 			LOGE("%s:Invalid aee_oops struct\n", __func__);
 			return;
 		}
 
 		ke_gen_ind_msg(oops);
-
+		spin_lock_irqsave(&ke_queue.lock, flags);
 		list_del(&oops->list);
+		spin_unlock_irqrestore(&ke_queue.lock, flags);
 		ke_destroy_log();
 	}
 }
@@ -495,7 +647,7 @@ static void ee_gen_notavail_msg(void)
 	AE_Msg *rep_msg;
 	LOGD("%s\n", __func__);
 
-	rep_msg = msg_create(&aed_dev.eerec.msg, 0);
+	rep_msg = msg_create(&aed_dev.eerec->msg, 0);
 	if (rep_msg == NULL)
 		return;
 
@@ -513,7 +665,7 @@ static void ee_gen_class_msg(void)
 
 	LOGD("%s\n", __func__);
 
-	rep_msg = msg_create(&aed_dev.eerec.msg, EX_CLASS_EE_SIZE);
+	rep_msg = msg_create(&aed_dev.eerec->msg, EX_CLASS_EE_SIZE);
 	if (rep_msg == NULL)
 		return;
 
@@ -528,20 +680,21 @@ static void ee_gen_type_msg(void)
 {
 	AE_Msg *rep_msg;
 	char *data;
+	struct aed_eerec *eerec = aed_dev.eerec;
 
 	LOGD("%s\n", __func__);
 
 	rep_msg =
-	    msg_create(&aed_dev.eerec.msg, strlen((char const *)&aed_dev.eerec.assert_type) + 1);
+	    msg_create(&eerec->msg, strlen((char const *)&eerec->assert_type) + 1);
 	if (rep_msg == NULL)
 		return;
 
 	data = (char *)rep_msg + sizeof(AE_Msg);
 	rep_msg->cmdType = AE_RSP;
 	rep_msg->cmdId = AE_REQ_TYPE;
-	rep_msg->len = strlen((char const *)&aed_dev.eerec.assert_type) + 1;
-	strncpy(data, (char const *)&aed_dev.eerec.assert_type,
-		strlen((char const *)&aed_dev.eerec.assert_type));
+	rep_msg->len = strlen((char const *)&eerec->assert_type) + 1;
+	strncpy(data, (char const *)&eerec->assert_type,
+		strlen((char const *)&eerec->assert_type));
 }
 
 static void ee_gen_process_msg(void)
@@ -551,28 +704,29 @@ static void ee_gen_process_msg(void)
 	int n = 0;
 	AE_Msg *rep_msg;
 	char *data;
+	struct aed_eerec *eerec = aed_dev.eerec;
 
 	LOGD("%s\n", __func__);
 
-	rep_msg = msg_create(&aed_dev.eerec.msg, PROCESS_STRLEN);
+	rep_msg = msg_create(&eerec->msg, PROCESS_STRLEN);
 	if (rep_msg == NULL)
 		return;
 
 	data = (char *)rep_msg + sizeof(AE_Msg);
 
-	if (aed_dev.eerec.exp_linenum != 0) {
+	if (eerec->exp_linenum != 0) {
 		/* for old aed_md_exception1() */
-		n = sprintf(data, "%s", aed_dev.eerec.assert_type);
-		if (aed_dev.eerec.exp_filename[0] != 0) {
-			n += sprintf(data + n, ", filename=%s,line=%d", aed_dev.eerec.exp_filename,
-				     aed_dev.eerec.exp_linenum);
-		} else if (aed_dev.eerec.fatal1 != 0 && aed_dev.eerec.fatal2 != 0) {
-			n += sprintf(data + n, ", err1=%d,err2=%d", aed_dev.eerec.fatal1,
-				     aed_dev.eerec.fatal2);
+		n = sprintf(data, "%s", eerec->assert_type);
+		if (eerec->exp_filename[0] != 0) {
+			n += sprintf(data + n, ", filename=%s,line=%d", eerec->exp_filename,
+				     eerec->exp_linenum);
+		} else if (eerec->fatal1 != 0 && eerec->fatal2 != 0) {
+			n += sprintf(data + n, ", err1=%d,err2=%d", eerec->fatal1,
+				     eerec->fatal2);
 		}
 	} else {
 		LOGD("ee_gen_process_msg else\n");
-		n = sprintf(data, "%s", aed_dev.eerec.exp_filename);
+		n = sprintf(data, "%s", eerec->exp_filename);
 	}
 
 	rep_msg->cmdType = AE_RSP;
@@ -580,33 +734,76 @@ static void ee_gen_process_msg(void)
 	rep_msg->len = n + 1;
 }
 
+extern int aee_dump_ccci_debug_info(int md_id, void **addr, int *size);
+__weak int aee_dump_ccci_debug_info(int md_id, void **addr, int *size) {
+	return -1;
+}
+
 static void ee_gen_detail_msg(void)
 {
-#define DETAIL_STRLEN 16384	/* TODO: check if enough? */
-	int i, n = 0;
+	int i, n = 0, l = 0;
 	AE_Msg *rep_msg;
 	char *data;
 	int *mem;
+	int md_id;
+	int msgsize;
+	char *ccci_log = NULL;
+	int ccci_log_size = 0;
+	struct aed_eerec *eerec = aed_dev.eerec;
 
 	LOGD("%s\n", __func__);
 
-	rep_msg = msg_create(&aed_dev.eerec.msg, DETAIL_STRLEN);
-	if (rep_msg == NULL)
-		return;
+	if (strncmp(eerec->assert_type, "md32", 4) == 0) {
+		msgsize = eerec->ee_log_size + 128;
+		rep_msg = msg_create(&eerec->msg, msgsize);
+		if (rep_msg == NULL)
+			return;
 
-	data = (char *)rep_msg + sizeof(AE_Msg);
-
-	n += sprintf(data + n, "== EXTERNAL EXCEPTION LOG ==\n");
-	if (strncmp(aed_dev.eerec.assert_type, "md32", 4) == 0) {
-		n += sprintf(data + n, "%s\n", (char *)aed_dev.eerec.ee_log);
+		data = (char *)rep_msg + sizeof(AE_Msg);
+		//n += snprintf(data + n, msgsize - n, "== EXTERNAL EXCEPTION LOG ==\n");
+		//n += snprintf(data + n, msgsize - n, "%s\n", (char *)eerec->ee_log);
+		l = snprintf(data + n, msgsize - n, "== EXTERNAL EXCEPTION LOG ==\n%s\n", (char *)eerec->ee_log);
+        if (l >= msgsize - n) {
+            LOGE("ee_log may overflow! %d >= %d\n", l, msgsize - n);
+        }
+        n += min(l, msgsize - n);
 	} else {
-		mem = (int *)aed_dev.eerec.ee_log;
-		for (i = 0; i < aed_dev.eerec.ee_log_size / 4; i += 4) {
-			n += sprintf(data + n, "0x%08X 0x%08X 0x%08X 0x%08X\n",
-				     mem[i], mem[i + 1], mem[i + 2], mem[i + 3]);
+		if (strncmp(eerec->assert_type, "modem", 5) == 0) {
+			if (1 == sscanf(eerec->exp_filename, "md%d:", &md_id)) {
+				if(aee_dump_ccci_debug_info(md_id, (void**)&ccci_log, &ccci_log_size)) {
+					ccci_log = NULL;
+					ccci_log_size = 0;
+				}
+			}
+		}
+		msgsize = (eerec->ee_log_size + ccci_log_size) * 4 + 128;
+		rep_msg = msg_create(&eerec->msg, msgsize);
+		if (rep_msg == NULL)
+			return;
+
+		data = (char *)rep_msg + sizeof(AE_Msg);
+		n += snprintf(data + n, msgsize - n, "== EXTERNAL EXCEPTION LOG ==\n");
+		mem = (int *)eerec->ee_log;
+		if (mem) {
+			for (i = 0; i < eerec->ee_log_size / 4; i += 4) {
+				n += snprintf(data + n, msgsize - n, "0x%08X 0x%08X 0x%08X 0x%08X\n",
+					     mem[i], mem[i + 1], mem[i + 2], mem[i + 3]);
+			}
+		} else {
+			n += snprintf(data + n, msgsize -n, "kmalloc fail, no log available\n");
 		}
 	}
-	n += sprintf(data + n, "== MEM DUMP(%d) ==\n", aed_dev.eerec.ee_phy_size);
+	l = snprintf(data + n, msgsize - n, "== MEM DUMP(%d) ==\n", eerec->ee_phy_size);
+    n += min(l, msgsize - n);
+	if (ccci_log) {
+		n += snprintf(data + n, msgsize - n, "== CCCI LOG ==\n");
+		mem = (int *)ccci_log;
+		for (i = 0; i < ccci_log_size / 4; i += 4) {
+			n += snprintf(data + n, msgsize -n, "0x%08X 0x%08X 0x%08X 0x%08X\n",
+				     mem[i], mem[i + 1], mem[i + 2], mem[i + 3]);
+		}
+		n += snprintf(data + n, msgsize -n, "== MEM DUMP(%d) ==\n", ccci_log_size);
+	}
 
 	rep_msg->cmdType = AE_RSP;
 	rep_msg->cmdId = AE_REQ_DETAIL;
@@ -621,7 +818,7 @@ static void ee_gen_coredump_msg(void)
 
 	LOGD("%s\n", __func__);
 
-	rep_msg = msg_create(&aed_dev.eerec.msg, 256);
+	rep_msg = msg_create(&aed_dev.eerec->msg, 256);
 	if (rep_msg == NULL)
 		return;
 
@@ -633,13 +830,72 @@ static void ee_gen_coredump_msg(void)
 	rep_msg->len = strlen(data) + 1;
 }
 
-static void ee_gen_ind_msg(const int db_opt)
+static void ee_destroy_log(void)
 {
+	struct aed_eerec *eerec = aed_dev.eerec;
+	LOGD("%s\n", __func__);
+
+	if (eerec == NULL)
+		return;
+
+	aed_dev.eerec = NULL;
+	msg_destroy(&eerec->msg);
+
+	if (eerec->ee_phy != NULL) {
+		vfree(eerec->ee_phy);
+		eerec->ee_phy = NULL;
+	}
+	eerec->ee_log_size = 0;
+	eerec->ee_phy_size = 0;
+
+	if (eerec->ee_log != NULL) {
+		kfree(eerec->ee_log);
+		/*after this, another ee can enter */
+		eerec->ee_log = NULL;
+	}
+
+	kfree(eerec);
+}
+
+static int ee_log_avail(void)
+{
+	return (aed_dev.eerec != NULL);
+}
+
+static char* ee_msg_avail(void)
+{
+    if (aed_dev.eerec)
+        return aed_dev.eerec->msg;
+	return NULL;
+}
+
+static void ee_gen_ind_msg(struct aed_eerec *eerec)
+{
+	unsigned long flags = 0;
 	AE_Msg *rep_msg;
 
 	LOGD("%s\n", __func__);
+	if (eerec == NULL) {
+		return;
+	}
 
-	rep_msg = msg_create(&aed_dev.eerec.msg, 0);
+	/*
+	   Don't lock the whole function for the time is uncertain.
+	   we rely on the fact that ee_rec is not null if race here!
+	 */
+	spin_lock_irqsave(&aed_device_lock, flags);
+
+	if (aed_dev.eerec == NULL) {
+		aed_dev.eerec = eerec;
+	} else {
+		/* should never come here, skip*/
+		spin_unlock_irqrestore(&aed_device_lock, flags);
+		LOGW("%s: More than one EE message queued\n", __func__);
+		return;
+	}
+	spin_unlock_irqrestore(&aed_device_lock, flags);
+
+	rep_msg = msg_create(&aed_dev.eerec->msg, 0);
 	if (rep_msg == NULL)
 		return;
 
@@ -647,33 +903,42 @@ static void ee_gen_ind_msg(const int db_opt)
 	rep_msg->cmdId = AE_IND_EXP_RAISED;
 	rep_msg->arg = AE_EE;
 	rep_msg->len = 0;
-	rep_msg->dbOption = db_opt;
-}
+	rep_msg->dbOption = eerec->db_opt;
 
-static void ee_destroy_log(void)
-{
-	struct aed_eerec *pmdrec = &aed_dev.eerec;
-	LOGD("%s\n", __func__);
-
-	msg_destroy(&aed_dev.eerec.msg);
-
-	if (pmdrec->ee_phy != NULL) {
-		vfree(pmdrec->ee_phy);
-		pmdrec->ee_phy = NULL;
-	}
-	pmdrec->ee_log_size = 0;
-	pmdrec->ee_phy_size = 0;
-
-	if (pmdrec->ee_log != NULL) {
-		kfree(pmdrec->ee_log);
-		/*after this, another ee can enter */
-		pmdrec->ee_log = NULL;
+	sema_init(&aed_ee_sem, 0);
+	wake_up(&aed_dev.eewait);
+	if (down_timeout(&aed_ee_sem, msecs_to_jiffies(5 * 60 * 1000))) {
+		LOGE("%s: TIMEOUT, not receive close event, skip\n", __func__);
 	}
 }
 
-static int ee_log_avail(void)
+static void ee_queue_request(struct aed_eerec *eerec)
 {
-	return (aed_dev.eerec.ee_log != NULL);
+	int ret;
+	unsigned long flags = 0;
+	spin_lock_irqsave(&ee_queue.lock, flags);
+	list_add_tail(&eerec->list, &ee_queue.list);
+	spin_unlock_irqrestore(&ee_queue.lock, flags);
+	ret = queue_work(system_nrt_wq, &ee_work);
+	LOGI("%s: add new ee work, status %d\n", __func__, ret);
+}
+
+static void ee_worker(struct work_struct *work)
+{
+	struct aed_eerec *eerec, *tmp;
+	unsigned long flags = 0;
+	list_for_each_entry_safe(eerec, tmp, &ee_queue.list, list) {
+		if (eerec == NULL) {
+			LOGE("%s:null eerec\n", __func__);
+			return;
+		}
+
+		ee_gen_ind_msg(eerec);
+		spin_lock_irqsave(&ee_queue.lock, flags);
+		list_del(&eerec->list);
+		spin_unlock_irqrestore(&ee_queue.lock, flags);
+		ee_destroy_log();
+	}
 }
 
 /******************************************************************************
@@ -681,7 +946,6 @@ static int ee_log_avail(void)
  *****************************************************************************/
 static int aed_ee_open(struct inode *inode, struct file *filp)
 {
-	ee_destroy_log();	/* Destroy last log record */
 	LOGD("%s:%d:%d\n", __func__, MAJOR(inode->i_rdev), MINOR(inode->i_rdev));
 	return 0;
 }
@@ -695,7 +959,7 @@ static int aed_ee_release(struct inode *inode, struct file *filp)
 static unsigned int aed_ee_poll(struct file *file, struct poll_table_struct *ptable)
 {
 	/* LOGD("%s\n", __func__); */
-	if (ee_log_avail()) {
+	if (ee_log_avail() && ee_msg_avail()) {
 		return POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM;
 	} else {
 		poll_wait(file, &aed_dev.eewait, ptable);
@@ -705,7 +969,7 @@ static unsigned int aed_ee_poll(struct file *file, struct poll_table_struct *pta
 
 static ssize_t aed_ee_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
 {
-	return msg_copy_to_user(__func__, aed_dev.eerec.msg, buf, count, f_pos);
+	return msg_copy_to_user(__func__, aed_dev.eerec->msg, buf, count, f_pos);
 }
 
 static ssize_t aed_ee_write(struct file *filp, const char __user *buf, size_t count,
@@ -713,17 +977,21 @@ static ssize_t aed_ee_write(struct file *filp, const char __user *buf, size_t co
 {
 	AE_Msg msg;
 	int rsize;
+	struct aed_eerec *eerec = aed_dev.eerec;
 
 	/* recevied a new request means the previous response is unavilable */
 	/* 1. set position to be zero */
 	/* 2. destroy the previous response message */
 	*f_pos = 0;
 
-	msg_destroy(&aed_dev.eerec.msg);
+	if (!eerec)
+		return -1;
+		
+	msg_destroy(&eerec->msg);
 
 	/* the request must be an *AE_Msg buffer */
 	if (count != sizeof(AE_Msg)) {
-		LOGD("%s: ERR, aed_wirte count=%d\n", __func__, count);
+		LOGD("%s: ERR, aed_wirte count=%zx\n", __func__, count);
 		return -1;
 	}
 
@@ -767,7 +1035,7 @@ static ssize_t aed_ee_write(struct file *filp, const char __user *buf, size_t co
 	} else if (msg.cmdType == AE_IND) {
 		switch (msg.cmdId) {
 		case AE_IND_LOG_CLOSE:
-			ee_destroy_log();
+			up(&aed_ee_sem);
 			break;
 		default:
 			/* IGNORE */
@@ -811,9 +1079,8 @@ static unsigned int aed_ke_poll(struct file *file, struct poll_table_struct *pta
 {
 	if (ke_log_avail()) {
 		return POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM;
-	} else {
-		poll_wait(file, &aed_dev.kewait, ptable);
 	}
+	poll_wait(file, &aed_dev.kewait, ptable);
 	return 0;
 }
 
@@ -858,14 +1125,14 @@ static void current_ke_stop(struct seq_file *m, void *p)
 
 static int current_ke_show(struct seq_file *m, void *p)
 {
-	int len;
+	unsigned long len;
 	struct current_ke_buffer *ke_buffer;
 	ke_buffer = m->private;
 	if (ke_buffer == NULL)
 		return 0;
-	if ((int)p >= (int)ke_buffer->data + ke_buffer->size)
+	if ((unsigned long)p >= (unsigned long)ke_buffer->data + ke_buffer->size)
 		return 0;
-	len = (int)ke_buffer->data + ke_buffer->size - (int)p;
+	len = (unsigned long)ke_buffer->data + ke_buffer->size - (unsigned long)p;
 	len = len < PAGE_SIZE ? len : (PAGE_SIZE - 1);
 	if (seq_write(m, p, len)) {
 		len = 0;
@@ -929,7 +1196,7 @@ static ssize_t aed_ke_write(struct file *filp, const char __user *buf, size_t co
 
 	/* the request must be an *AE_Msg buffer */
 	if (count != sizeof(AE_Msg)) {
-		LOGD("ERR: aed_wirte count=%d\n", count);
+		LOGD("ERR: aed_wirte count=%zx\n", count);
 		return -1;
 	}
 
@@ -966,6 +1233,15 @@ static ssize_t aed_ke_write(struct file *filp, const char __user *buf, size_t co
 			break;
 		case AE_REQ_BACKTRACE:
 			ke_gen_backtrace_msg();
+			break;
+		case AE_REQ_USERSPACEBACKTRACE:
+			ke_gen_userbacktrace_msg();
+			break;
+		case AE_REQ_USER_REG:
+			ke_gen_user_reg_msg();
+			break;
+		case AE_REQ_USER_MAPS:
+			ke_gen_usermaps_msg();
 			break;
 		default:
 			ke_gen_notavail_msg();
@@ -1010,15 +1286,13 @@ static long aed_ioctl_bt(unsigned long arg)
 			ret = -EFAULT;
 		} else
 		    if (copy_to_user
-			((struct aee_bt_frame __user *)(unsigned int)ioctl.out,
+			((struct aee_bt_frame __user *)(unsigned long)ioctl.out,
 			 (const void *)bt.entries, sizeof(struct aee_bt_frame) * AEE_NR_FRAME)) {
 			ret = -EFAULT;
 		}
 	}
 	return ret;
 }
-
-
 
 /*
  * aed process daemon and other command line may access me
@@ -1170,6 +1444,16 @@ static long aed_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+	case  AEEIOCTL_USER_IOCTL_TO_KERNEL_WANING: //get current user space reg when call aee_kernel_warning_api
+			{
+				LOGD("%s: AEEIOCTL_USER_IOCTL_TO_KERNEL_WANING,call kthread create ,is ok\n", __func__);
+				//kthread_create(Dstate_test, NULL, "D-state");
+				
+				aee_kernel_warning_api(__FILE__, __LINE__, DB_OPT_DEFAULT|DB_OPT_NATIVE_BACKTRACE, "AEEIOCTL_USER_IOCTL_TO_KERNEL_WANING",
+						   "Trigger Kernel warning");
+				break;
+			}
+	
 	case AEEIOCTL_CHECK_SUID_DUMPABLE:
 		{
 			int pid;
@@ -1231,17 +1515,263 @@ static long aed_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
+static void aed_get_traces(char *msg)
+{
+	struct stack_trace trace;
+	unsigned long stacks[32];
+	int i;
+	int offset;
+	trace.entries = stacks;
+	/*save backtraces */
+	trace.nr_entries = 0;
+	trace.max_entries = 32;
+	trace.skip = 2;
+	save_stack_trace_tsk(current, &trace);
+	offset = strlen(msg);
+	for (i = 0; i < trace.nr_entries; i++) {
+		offset += snprintf(msg + offset, AEE_BACKTRACE_LENGTH - offset, "[<%p>] %pS\n",
+				   (void *)trace.entries[i], (void *)trace.entries[i]);
+	}
+}
+
+void Log2Buffer(struct aee_oops *oops,const char *fmt, ...)
+{
+	char buf[256];
+	int len = 0;
+	va_list ap;
+
+	va_start(ap, fmt);
+	len = strlen(oops->userthread_maps.Userthread_maps);
+	
+	if ((len + sizeof(buf)) < MaxMapsSize)
+	{
+				vsnprintf(&oops->userthread_maps.Userthread_maps[len], sizeof(buf), fmt, ap);
+				oops->userthread_maps.Userthread_mapsLength=len + sizeof(buf);
+	}			
+	va_end(ap);
+}
+
+int DumpThreadNativeInfo(struct aee_oops *oops)
+{
+	struct task_struct *current_task;
+	struct pt_regs *user_ret;
+	struct vm_area_struct *vma;
+	unsigned long userstack_start = 0;
+	unsigned long userstack_end = 0, length = 0;
+	int mapcount = 0;
+	struct file *file;
+	int flags;
+	struct mm_struct *mm;
+	int ret = 0;
+
+	current_task = get_current();
+	user_ret = task_pt_regs(current_task);
+	//CurrentUserPid=current_task->pid; //Thread id
+	oops->userthread_reg.tid=current_task->tgid; //process ID
+	oops->userthread_stack.tid=current_task->tgid; //process ID
+	oops->userthread_maps.tid=current_task->tgid; //process ID
+	
+	memcpy(&oops->userthread_reg.regs, user_ret, sizeof(struct pt_regs));
+	LOGE(" pid:%d /// tgid:%d, stack:0x%08lx\n", current_task->pid, current_task->tgid,(long)oops->userthread_stack.Userthread_Stack);
+	if (!user_mode(user_ret))
+		return 0;
+	
+	if (current_task->mm == NULL)
+		return 0;
+
+	
+
+	#if 1
+	vma = current_task->mm->mmap;
+	while (vma && (mapcount < current_task->mm->map_count)) {
+		file = vma->vm_file;
+		flags = vma->vm_flags;
+		if (file) {
+			
+			LOGE("%08lx-%08lx %c%c%c%c    %s\n", vma->vm_start, vma->vm_end,
+			     flags & VM_READ ? 'r' : '-',
+			     flags & VM_WRITE ? 'w' : '-',
+			     flags & VM_EXEC ? 'x' : '-',
+			     flags & VM_MAYSHARE ? 's' : 'p', (unsigned char *)(file->f_path.dentry->d_iname));
+   Log2Buffer(oops,"%08lx-%08lx %c%c%c%c    %s\n", vma->vm_start, vma->vm_end,
+        flags & VM_READ ? 'r' : '-',
+        flags & VM_WRITE ? 'w' : '-',
+        flags & VM_EXEC ? 'x' : '-',
+        flags & VM_MAYSHARE ? 's' : 'p', (unsigned char *)(file->f_path.dentry->d_iname));
+		} else {
+			const char *name = arch_vma_name(vma);
+			mm = vma->vm_mm;
+			if (!name) {
+				if (mm) {
+					if (vma->vm_start <= mm->start_brk &&
+					    vma->vm_end >= mm->brk) {
+						name = "[heap]";
+					} else if (vma->vm_start <= mm->start_stack &&
+						   vma->vm_end >= mm->start_stack) {
+						name = "[stack]";
+					}
+				} else {
+					name = "[vdso]";
+				}
+			}
+			/* if (name) */
+			{
+
+				LOGE("%08lx-%08lx %c%c%c%c    %s\n", vma->vm_start, vma->vm_end,
+				     flags & VM_READ ? 'r' : '-',
+				     flags & VM_WRITE ? 'w' : '-',
+				     flags & VM_EXEC ? 'x' : '-',
+				     flags & VM_MAYSHARE ? 's' : 'p', name);
+				
+   Log2Buffer(oops,"%08lx-%08lx %c%c%c%c    %s\n", vma->vm_start, vma->vm_end,
+         flags & VM_READ ? 'r' : '-',
+         flags & VM_WRITE ? 'w' : '-',
+         flags & VM_EXEC ? 'x' : '-',
+         flags & VM_MAYSHARE ? 's' : 'p', name);
+   
+
+			}
+		}
+		vma = vma->vm_next;
+		mapcount++;
+
+	}
+	#endif
+	
+	LOGE("maps addr(0x%08lx), maps len:%d\n", (long)oops->userthread_maps.Userthread_maps, oops->userthread_maps.Userthread_mapsLength);
+
+#ifndef __aarch64__ //32bit
+	LOGE(" pc/lr/sp 0x%08lx/0x%08lx/0x%08lx\n", user_ret->ARM_pc, user_ret->ARM_lr,
+			 user_ret->ARM_sp);
+		userstack_start = (unsigned long)user_ret->ARM_sp;
+	
+	vma = current_task->mm->mmap;
+	while (vma != NULL) {
+		if (vma->vm_start <= userstack_start && vma->vm_end >= userstack_start) {
+			userstack_end = vma->vm_end;
+			break;
+		}
+		vma = vma->vm_next;
+		if (vma == current_task->mm->mmap) {
+			break;
+		}
+	}
+	if (userstack_end == 0) {
+		LOGE("Dump native stack failed:\n");
+		return 0;
+	}
+	LOGE("Dump stack range (0x%08lx:0x%08lx)\n", userstack_start, userstack_end);
+	length =((userstack_end - userstack_start) <
+		     (MaxStackSize-1)) ? (userstack_end - userstack_start) : (MaxStackSize-1);
+	oops->userthread_stack.StackLength=length;
+
+	
+	ret = copy_from_user((void *)(oops->userthread_stack.Userthread_Stack), (const void __user *)(userstack_start), length);
+	LOGE("u+k 32 copy_from_user ret(0x%08x),len:%lx\n", ret, length);
+	LOGE("end dump native stack:\n");
+#else //64bit, First deal with K64+U64, the last time to deal with K64+U32
+
+	if (is_compat_task())//K64_U32
+	{
+		
+		LOGE(" K64+ U32 pc/lr/sp 0x%16lx/0x%16lx/0x%16lx\n", (long)(user_ret->user_regs.pc), (long)(user_ret->user_regs.regs[14]),
+				 (long)(user_ret->user_regs.regs[13]) );
+		userstack_start = (unsigned long)user_ret->user_regs.regs[13];
+		vma = current_task->mm->mmap;
+		while (vma != NULL) {
+		if (vma->vm_start <= userstack_start && vma->vm_end >= userstack_start) {
+			userstack_end = vma->vm_end;
+			break;
+		}
+		vma = vma->vm_next;
+		if (vma == current_task->mm->mmap) {
+			break;
+		}
+	}
+	if (userstack_end == 0) {
+		LOGE("Dump native stack failed:\n");
+		return 0;
+	}
+	LOGE("Dump stack range (0x%08lx:0x%08lx)\n", userstack_start, userstack_end);
+		length =((userstack_end - userstack_start) <
+		     (MaxStackSize-1)) ? (userstack_end - userstack_start) : (MaxStackSize-1);
+		oops->userthread_stack.StackLength=length;
+		ret = copy_from_user((void *)(oops->userthread_stack.Userthread_Stack), (const void __user *)(userstack_start), length);
+		LOGE("copy_from_user ret(0x%16x),len:%lx\n", ret, length);
+	}
+	else //K64+U64
+	{
+  LOGE(" K64+ U64 pc/lr/sp 0x%16lx/0x%16lx/0x%16lx\n", (long)(user_ret->user_regs.pc), (long)(user_ret->user_regs.regs[30]),
+         (long)(user_ret->user_regs.sp) );
+  userstack_start = (unsigned long)user_ret->user_regs.sp;
+		vma = current_task->mm->mmap;
+		while (vma != NULL) 
+		{
+			if (vma->vm_start <= userstack_start && vma->vm_end >= userstack_start) {
+				userstack_end = vma->vm_end;
+				break;
+			}
+			vma = vma->vm_next;
+			if (vma == current_task->mm->mmap) {
+				break;
+			}
+		}
+		if (userstack_end == 0) {
+			LOGE("Dump native stack failed:\n");
+			return 0;
+		}
+	
+		LOGE("Dump stack range (0x%16lx:0x%16lx)\n", userstack_start, userstack_end);
+		length =((userstack_end - userstack_start) <
+		     (MaxStackSize-1)) ? (userstack_end - userstack_start) : (MaxStackSize-1);
+		oops->userthread_stack.StackLength=length;
+		ret = copy_from_user((void *)(oops->userthread_stack.Userthread_Stack), (const void __user *)(userstack_start), length);
+		LOGE("copy_from_user ret(0x%08x),len:%lx\n", ret, length);
+	}	
+	
+#endif
+	return 0;
+}
+
 static void kernel_reportAPI(const AE_DEFECT_ATTR attr, const int db_opt, const char *module,
 			     const char *msg)
 {
 	struct aee_oops *oops;
-
+	int n = 0;
+	if (aee_mode == AEE_MODE_CUSTOMER_USER || (aee_mode == AEE_MODE_CUSTOMER_ENG && attr == AE_DEFECT_WARNING))
+		return;
 	oops = aee_oops_create(attr, AE_KERNEL_PROBLEM_REPORT, module);
 	if (NULL != oops) {
-		oops->detail = (char *)msg;
-		oops->detail_len = strlen(msg) + 1;
+		n += snprintf(oops->backtrace, AEE_BACKTRACE_LENGTH, msg);
+		snprintf(oops->backtrace + n, AEE_BACKTRACE_LENGTH - n, "\nBacktrace:\n");
+		aed_get_traces(oops->backtrace);
+		oops->detail = (char *)(oops->backtrace);
+		oops->detail_len = strlen(oops->backtrace) + 1;
 		oops->dump_option = db_opt;
-
+#ifdef __aarch64__
+		if ((db_opt & DB_OPT_NATIVE_BACKTRACE)  && !is_compat_task())
+			oops->dump_option |= DB_OPT_AARCH64;
+#endif
+		if(db_opt & DB_OPT_NATIVE_BACKTRACE)
+		{
+			oops->userthread_stack.Userthread_Stack= vzalloc(MaxStackSize);
+			if (oops->userthread_stack.Userthread_Stack == NULL) 
+			{
+				LOGE("%s: oops->userthread_stack.Userthread_Stack Vmalloc fail", __func__);
+				return;
+			}
+			oops->userthread_maps.Userthread_maps= vzalloc(MaxMapsSize);
+			if (oops->userthread_maps.Userthread_maps == NULL) 
+			{
+				LOGE("%s: oops->userthread_maps.Userthread_maps Vmalloc fail", __func__);
+				return;
+			}
+			LOGE("%s: oops->userthread_stack.Userthread_Stack :0x%08lx,maps:0x%08lx", __func__,(long)oops->userthread_stack.Userthread_Stack,(long)oops->userthread_maps.Userthread_maps);
+			oops->userthread_stack.StackLength=MaxStackSize;  //default 8k
+			oops->userthread_maps.Userthread_mapsLength=MaxMapsSize;  //default 8k
+			DumpThreadNativeInfo(oops);
+			
+		}
 		LOGI("%s,%s,%s,0x%x\n", __func__, module, msg, db_opt);
 		ke_queue_request(oops);
 	}
@@ -1250,12 +1780,17 @@ static void kernel_reportAPI(const AE_DEFECT_ATTR attr, const int db_opt, const 
 #ifndef PARTIAL_BUILD
 void aee_kernel_dal_api(const char *file, const int line, const char *msg)
 {
+	LOGW("aee_kernel_dal_api : <%s:%d> %s ", file, line, msg);
+	if (in_interrupt()) {
+		LOGE("aee_kernel_dal_api: in interrupt context, skip");
+		return;
+	}
+	
 #if defined(CONFIG_MTK_AEE_AED) && defined(CONFIG_MTK_FB)
 	if (down_interruptible(&aed_dal_sem) < 0) {
 		LOGI("ERROR : aee_kernel_dal_api() get aed_dal_sem fail ");
 		return;
 	}
-	LOGI("aee_kernel_dal_api : <%s:%d> %s ", file, line, msg);
 	if (msg != NULL) {
 		struct aee_dal_setcolor dal_setcolor;
 		struct aee_dal_show *dal_show = kzalloc(sizeof(struct aee_dal_show), GFP_KERNEL);
@@ -1286,7 +1821,7 @@ void aee_kernel_dal_api(const char *file, const int line, const char *msg)
 #else
 void aee_kernel_dal_api(const char *file, const int line, const char *msg)
 {
-	LOGI("aee_kernel_dal_api : <%s:%d> %s ", file, line, msg);
+	LOGW("aee_kernel_dal_api : <%s:%d> %s ", file, line, msg);
 	return;
 }
 #endif
@@ -1296,19 +1831,29 @@ static void external_exception(const char *assert_type, const int *log, int log_
 			       const int *phy, int phy_size, const char *detail, const int db_opt)
 {
 	int *ee_log = NULL;
-	unsigned long flags = 0;
+	struct aed_eerec *eerec;
 
-	LOGD("%s : [%s] log size %d phy ptr %p size %d\n", __func__,
-	     assert_type, log_size, phy, phy_size);
+	LOGD("%s : [%s] log ptr %p size %d, phy ptr %p size %d\n", __func__,
+	     assert_type, log, log_size, phy, phy_size);
+	if (aee_mode >= AEE_MODE_CUSTOMER_USER)
+		return;
+	eerec = kzalloc(sizeof(struct aed_eerec), GFP_ATOMIC);
+	if (eerec == NULL) {
+		LOGE("%s: kmalloc fail", __func__);
+		return;
+	}
 
 	if ((log_size > 0) && (log != NULL)) {
-		aed_dev.eerec.ee_log_size = log_size;
+		eerec->ee_log_size = log_size;
 		ee_log = (int *)kmalloc(log_size, GFP_ATOMIC);
-		if (NULL != ee_log)
+		if (NULL != ee_log) {
+			eerec->ee_log = ee_log;
 			memcpy(ee_log, log, log_size);
+		}
 	} else {
-		aed_dev.eerec.ee_log_size = 16;
-		ee_log = (int *)kzalloc(aed_dev.eerec.ee_log_size, GFP_ATOMIC);
+		eerec->ee_log_size = 16;
+		ee_log = (int *)kzalloc(eerec->ee_log_size, GFP_ATOMIC);
+		eerec->ee_log = ee_log;
 	}
 
 	if (NULL == ee_log) {
@@ -1316,32 +1861,16 @@ static void external_exception(const char *assert_type, const int *log, int log_
 		return;
 	}
 
-	/*
-	   Don't lock the whole function for the time is uncertain.
-	   we rely on the fact that ee_log is not null if race here!
-	 */
-	spin_lock_irqsave(&aed_device_lock, flags);
 
-	if (aed_dev.eerec.ee_log == NULL) {
-		aed_dev.eerec.ee_log = ee_log;
-	} else {
-		/*no EE before aee_ee_write destroy the ee log */
-		kfree(ee_log);
-		spin_unlock_irqrestore(&aed_device_lock, flags);
-		LOGW("%s: More than one EE message queued\n", __func__);
-		return;
-	}
-	spin_unlock_irqrestore(&aed_device_lock, flags);
+	memset(eerec->assert_type, 0, sizeof(eerec->assert_type));
+	strncpy(eerec->assert_type, assert_type, sizeof(eerec->assert_type) - 1);
+	memset(eerec->exp_filename, 0, sizeof(eerec->exp_filename));
+	strncpy(eerec->exp_filename, detail, sizeof(eerec->exp_filename) - 1);
+	LOGD("EE [%s]\n", eerec->assert_type);
 
-	memset(aed_dev.eerec.assert_type, 0, sizeof(aed_dev.eerec.assert_type));
-	strncpy(aed_dev.eerec.assert_type, assert_type, sizeof(aed_dev.eerec.assert_type) - 1);
-	memset(aed_dev.eerec.exp_filename, 0, sizeof(aed_dev.eerec.exp_filename));
-	strncpy(aed_dev.eerec.exp_filename, detail, sizeof(aed_dev.eerec.exp_filename) - 1);
-	LOGD("EE [%s]\n", aed_dev.eerec.assert_type);
-
-	aed_dev.eerec.exp_linenum = 0;
-	aed_dev.eerec.fatal1 = 0;
-	aed_dev.eerec.fatal2 = 0;
+	eerec->exp_linenum = 0;
+	eerec->fatal1 = 0;
+	eerec->fatal2 = 0;
 
 	/* Check if we can dump memory */
 	if (in_interrupt()) {
@@ -1354,21 +1883,21 @@ static void external_exception(const char *assert_type, const int *log, int log_
 	}
 
 	if (phy_size > 0) {
-		aed_dev.eerec.ee_phy = (int *)vmalloc_user(phy_size);
-		if (aed_dev.eerec.ee_phy != NULL) {
-			memcpy(aed_dev.eerec.ee_phy, phy, phy_size);
-			aed_dev.eerec.ee_phy_size = phy_size;
+		eerec->ee_phy = (int *)vmalloc_user(phy_size);
+		if (eerec->ee_phy != NULL) {
+			memcpy(eerec->ee_phy, phy, phy_size);
+			eerec->ee_phy_size = phy_size;
 		} else {
 			LOGD("Losing ee phy mem due to vmalloc return NULL\n");
-			aed_dev.eerec.ee_phy_size = 0;
+			eerec->ee_phy_size = 0;
 		}
 	} else {
-		aed_dev.eerec.ee_phy = NULL;
-		aed_dev.eerec.ee_phy_size = 0;
+		eerec->ee_phy = NULL;
+		eerec->ee_phy_size = 0;
 	}
-	ee_gen_ind_msg(db_opt);
+	eerec->db_opt = db_opt;
+	ee_queue_request(eerec);
 	LOGD("external_exception out\n");
-	wake_up(&aed_dev.eewait);
 }
 
 static bool rr_reported;
@@ -1404,7 +1933,7 @@ static int current_ke_ee_coredump_open(struct inode *inode, struct file *file)
 {
 	int ret = seq_open_private(file, &current_ke_op, sizeof(struct current_ke_buffer));
 	if (ret == 0) {
-		struct aed_eerec *eerec = &aed_dev.eerec;
+		struct aed_eerec *eerec = aed_dev.eerec;
 		struct seq_file *m = file->private_data;
 		struct current_ke_buffer *ee_buffer;
 		if (!eerec)
@@ -1470,6 +1999,9 @@ static struct file_operations aed_ee_fops = {
 	.read = aed_ee_read,
 	.write = aed_ee_write,
 	.unlocked_ioctl = aed_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = aed_ioctl,
+#endif
 };
 
 static struct file_operations aed_ke_fops = {
@@ -1480,6 +2012,9 @@ static struct file_operations aed_ke_fops = {
 	.read = aed_ke_read,
 	.write = aed_ke_write,
 	.unlocked_ioctl = aed_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = aed_ioctl,
+#endif
 };
 
 /* QHQ RT Monitor end */
@@ -1508,12 +2043,17 @@ static int __init aed_init(void)
 	if (err != 0)
 		return err;
 
-	memset(&aed_dev.eerec, 0, sizeof(struct aed_eerec));
+	spin_lock_init(&ke_queue.lock);
+	spin_lock_init(&ee_queue.lock);
+	INIT_LIST_HEAD(&ke_queue.list);
+	INIT_LIST_HEAD(&ee_queue.list);
+
 	init_waitqueue_head(&aed_dev.eewait);
 	memset(&aed_dev.kerec, 0, sizeof(struct aed_kerec));
 	init_waitqueue_head(&aed_dev.kewait);
 
-	INIT_WORK(&work, ke_worker);
+	INIT_WORK(&ke_work, ke_worker);
+	INIT_WORK(&ee_work, ee_worker);
 
 	aee_register_api(&kernel_api);
 

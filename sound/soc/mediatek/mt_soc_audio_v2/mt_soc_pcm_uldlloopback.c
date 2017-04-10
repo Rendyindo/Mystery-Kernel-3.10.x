@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include "AudDrv_Common.h"
 #include "AudDrv_Def.h"
 #include "AudDrv_Afe.h"
@@ -102,6 +103,7 @@ static int mtk_uldlloopback_open(struct snd_pcm_substream *substream)
 
     printk("%s \n", __func__);
     AudDrv_Clk_On();
+    AudDrv_ADC_Clk_On();	
     if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
     {
         printk("%s  with mtk_uldlloopback_open \n",__func__);
@@ -168,6 +170,7 @@ static int mtk_uldlloopbackpcm_close(struct snd_pcm_substream *substream)
     EnableAfe (false);
 
     AudDrv_Clk_Off();
+    AudDrv_ADC_Clk_Off();
     return 0;
 }
 
@@ -354,6 +357,13 @@ static struct snd_soc_platform_driver mtk_soc_dummy_platform =
 static int mtk_uldlloopback_probe(struct platform_device *pdev)
 {
     printk("mtk_uldlloopback_probe\n");
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_ULDLLOOPBACK_PCM);
@@ -387,23 +397,36 @@ static int mtk_afe_uldlloopback_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_pcm_uldlloopback_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_uldlloopback", },
+    {}
+};
+#endif
+
 static struct platform_driver mtk_afe_uldllopback_driver =
 {
     .driver = {
         .name = MT_SOC_ULDLLOOPBACK_PCM,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_uldlloopback_of_ids,
+        #endif        
     },
     .probe = mtk_uldlloopback_probe,
     .remove = mtk_afe_uldlloopback_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtkafe_uldlloopback_dev;
+#endif
 
 static int __init mtk_soc_uldlloopback_platform_init(void)
 {
     int ret = 0;
     printk("%s\n", __func__);
-
+    #ifndef CONFIG_OF
     soc_mtkafe_uldlloopback_dev = platform_device_alloc(MT_SOC_ULDLLOOPBACK_PCM , -1);
     if (!soc_mtkafe_uldlloopback_dev)
     {
@@ -416,7 +439,7 @@ static int __init mtk_soc_uldlloopback_platform_init(void)
         platform_device_put(soc_mtkafe_uldlloopback_dev);
         return ret;
     }
-
+    #endif
     ret = platform_driver_register(&mtk_afe_uldllopback_driver);
 
     return ret;

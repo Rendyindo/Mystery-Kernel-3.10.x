@@ -24,7 +24,8 @@ typedef enum {
 	AEE_MODE_MTK_ENG = 1,
 	AEE_MODE_MTK_USER,
 	AEE_MODE_CUSTOMER_ENG,
-	AEE_MODE_CUSTOMER_USER
+	AEE_MODE_CUSTOMER_USER,
+    AEE_MODE_NOT_INIT
 } AEE_MODE;
 
 typedef enum {
@@ -79,6 +80,9 @@ typedef enum {
 	AE_REQ_COREDUMP,	/* msg->data=file path */
 	AE_REQ_SET_READFLAG,	/* set read flag msg */
 	AE_REQ_E2S_INIT,	/* Init notification of client side(application layer) of Exp2Server */
+	AE_REQ_USERSPACEBACKTRACE=40,
+	AE_REQ_USER_REG,
+	AE_REQ_USER_MAPS,
 	AE_CMD_ID_END
 } AE_CMD_ID;
 
@@ -123,11 +127,12 @@ struct aee_ioctl {
 	__u64 out;
 };
 
-struct aee_thread_reg {
-	pid_t tid;
-	struct pt_regs regs;
-};
 
+struct aee_thread_user_stack {
+	pid_t tid;
+	int StackLength;
+	unsigned char Userspace_Stack[8192]; //8k stack ,define to char only for match 64bit/32bit
+};
 #define AEEIOCTL_DAL_SHOW       _IOW('p', 0x01, struct aee_dal_show)	/* Show string on DAL layer  */
 #define AEEIOCTL_DAL_CLEAN      _IO('p', 0x02)	/* Clear DAL layer */
 #define AEEIOCTL_SETCOLOR       _IOW('p', 0x03, struct aee_dal_setcolor)	/* RGB color 0x00RRGGBB */
@@ -142,6 +147,9 @@ struct aee_thread_reg {
 
 #define AEEIOCTL_RT_MON_Kick _IOR('p', 0x0A, int)
 #define AEEIOCTL_SET_FORECE_RED_SCREEN _IOR('p', 0x0B, int)
+#define AEEIOCTL_SET_SF_STATE _IOR('p', 0x0C, long long)
+#define AEEIOCTL_GET_SF_STATE _IOW('p', 0x0D, long long)
+#define AEEIOCTL_USER_IOCTL_TO_KERNEL_WANING _IOR('p', 0x0E, int)
 
 #define AED_FILE_OPS(entry) \
   static const struct file_operations proc_##entry##_fops = { \

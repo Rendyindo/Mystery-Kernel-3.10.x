@@ -4,198 +4,186 @@
 #include <linux/wakelock.h>
 #include <linux/dmapool.h>
 #include <linux/timer.h>
+#include <linux/hrtimer.h>
 
-#ifdef MT6290
-#define MD_CD_MAJOR 190
-#else
-#define MD_CD_MAJOR 184
-#endif
-#define RING_BUFF_SIZE 16
-#define QUEUE_BUDGET RING_BUFF_SIZE
-#define CHECKSUM_SIZE 0		/* 12 */
+#include <mach/ccci_config.h>
+#include <mach/mt_ccci_common.h>
+
+/*
+  * hardcode, max queue number should be synced with port array in port_cfg.c
+  * following number should sync with MAX_TXQ/RXQ_NUM in ccci_core.h and bitmask in modem_cldma.c
+  */
+#define CLDMA_TXQ_NUM 8
+#define CLDMA_RXQ_NUM 8
+
+/* CLDMA feature options:
+ * CHECKSUM_SIZE: 0 to disable checksum function, non-zero for number of checksum bytes
+ * CLDMA_TIMER_LOOP: user a timer to collect TX_DONE skb for network queues, and use workqueue
+ *     for normal queues; if this is not defined, use delayed_work for all queues.
+ * CLDMA_NO_TX_IRQ: mask all TX interrupts, collect TX_DONE skb when get Rx interrupt or Tx busy.
+ * ENABLE_CLDMA_TIMER: use a timer to detect TX packet sent or not. not usable if TX interrupts are masked.
+ */
+#define CHECKSUM_SIZE 0 /* 12 */
+//#define CLDMA_TIMER_LOOP 10 //ms
+//#define CLDMA_NO_TX_IRQ
+#ifndef CLDMA_NO_TX_IRQ
 #define ENABLE_CLDMA_TIMER
+#endif
 
 struct md_cd_queue {
-	DIRECTION dir;
 	unsigned char index;
 	struct ccci_modem *modem;
 	struct ccci_port *napi_port;
 
-	struct list_head *tr_ring;	/* a "pure" ring of request, NO "head" */
-	struct ccci_request *tr_done;
 	/*
-	 * Tx has 2 writers: 1 for packet fill and 1 for packet free, so an extra pointer and a lock
+	 * Tx has 2 writers: 1 for packet fill and 1 for packet free, so an extra pointer and a lock 
 	 * is used. Tx also has 1 reader: CLDMA OUT.
 	 * Rx has 1 reader: packet read&free, and 1 writer: CLDMA IN.
 	 */
+	struct list_head *tr_ring; /* a "pure" ring of request, NO "head" */
+	struct ccci_request *tr_done;
 	struct ccci_request *tx_xmit;
-	int free_slot;		/* counter, only for Tx */
-	spinlock_t ring_lock;	/* lock for the counter, only for Tx */
-	wait_queue_head_t req_wq;	/* only for Tx */
-	int budget;
-	struct work_struct cldma_work;
+	int free_slot; // counter, only for Tx
+	spinlock_t ring_lock; // lock for the counter, only for Tx
+	wait_queue_head_t req_wq; // only for Tx
+	int budget; // ring buffer size
+
 	struct workqueue_struct *worker;
+	struct work_struct cldma_rx_work;
+#ifdef CLDMA_TIMER_LOOP
+	struct hrtimer cldma_poll_timer; /* only for Tx */
+	struct work_struct cldma_tx_work;
+#else
+	struct delayed_work cldma_tx_work;
+#endif
+
+#ifdef ENABLE_CLDMA_TIMER
+	struct timer_list timeout_timer;
+    unsigned long long timeout_start;
+    unsigned long long timeout_end;
+#endif
 	u16 debug_id;
+	DIRECTION dir;
+	unsigned int busy_count;
 };
 
+#define QUEUE_LEN(a) (sizeof(a)/sizeof(struct md_cd_queue))
+
 struct md_cd_ctrl {
-	struct md_cd_queue txq[8];
-	struct md_cd_queue rxq[8];
-	wait_queue_head_t sched_thread_wq;
-	unsigned char sched_thread_kick;
+	struct md_cd_queue txq[CLDMA_TXQ_NUM];
+	struct md_cd_queue rxq[CLDMA_RXQ_NUM];
+	unsigned short txq_active;
+	unsigned short rxq_active;
 	atomic_t reset_on_going;
 	atomic_t wdt_enabled;
+	char   trm_wakelock_name[32];
 	struct wake_lock trm_wake_lock;
+	char   peer_wakelock_name[32];
+	struct wake_lock peer_wake_lock;
 	struct work_struct ccif_work;
+	struct delayed_work ccif_delayed_work;
 	struct timer_list bus_timeout_timer;
-	struct timer_list cldma_timeout_timer;
-	struct tasklet_struct cldma_irq_task;
-	int channel_id;		/* CCIF channel */
+	spinlock_t cldma_timeout_lock; // this lock is using to protect CLDMA, not only for timeout checking
+	struct work_struct cldma_irq_work;
+	struct workqueue_struct *cldma_irq_worker;
+	int channel_id; // CCIF channel
+	struct work_struct wdt_work;
+#if TRAFFIC_MONITOR_INTERVAL
+	unsigned tx_traffic_monitor[CLDMA_TXQ_NUM];
+	unsigned rx_traffic_monitor[CLDMA_RXQ_NUM];
+	unsigned tx_pre_traffic_monitor[CLDMA_TXQ_NUM];
+	unsigned long long tx_done_last_start_time[CLDMA_TXQ_NUM];
+	unsigned int tx_done_last_count[CLDMA_TXQ_NUM];
+
+	struct timer_list traffic_monitor;
+	unsigned long traffic_stamp;
+#endif
 
 	struct dma_pool *tgpd_dmapool;
 	struct dma_pool *rgpd_dmapool;
-	void __iomem *cldma_ap_base;
-	void __iomem *cldma_md_base;
+	void __iomem *cldma_ap_ao_base;
+	void __iomem *cldma_md_ao_base;
+	void __iomem *cldma_ap_pdn_base;
+	void __iomem *cldma_md_pdn_base;    
 	void __iomem *md_rgu_base;
 	void __iomem *md_boot_slave_Vector;
 	void __iomem *md_boot_slave_Key;
 	void __iomem *md_boot_slave_En;
 	void __iomem *md_global_con0;
+	void __iomem *ap_ccif_base;
+	void __iomem *md_ccif_base;
+#ifdef MD_PEER_WAKEUP
 	void __iomem *md_peer_wakeup;
+#endif
+	void __iomem *md_bus_status;
+	void __iomem *md_pc_monitor;
+	void __iomem *md_topsm_status;
+	void __iomem *md_ost_status;
+	void __iomem *md_pll;
+
+	unsigned int cldma_irq_id;
+	unsigned int ap_ccif_irq_id;
+	unsigned int md_wdt_irq_id;
+	unsigned int ap2md_bus_timeout_irq_id;
+
+	unsigned long cldma_irq_flags;
+	unsigned long ap_ccif_irq_flags;
+	unsigned long md_wdt_irq_flags;
+	unsigned long ap2md_bus_timeout_irq_flags;
+
+	struct md_hw_info *hw_info;
 };
 
-#define QUEUE_LEN(a) (sizeof(a)/sizeof(struct md_cd_queue))
-
 struct cldma_tgpd {
-	u8 gpd_flags;
-	u8 gpd_checksum;
-	u16 debug_id;
-	u32 next_gpd_ptr;
-	u32 data_buff_bd_ptr;
-	u16 data_buff_len;
-	u8 desc_ext_len;
-	u8 non_used;
+	u8	gpd_flags;
+	u8	gpd_checksum;
+	u16	debug_id;
+	u32	next_gpd_ptr;
+	u32	data_buff_bd_ptr;
+	u16	data_buff_len;
+	u8	desc_ext_len;
+	u8	non_used;
 } __attribute__ ((packed));
 
 struct cldma_rgpd {
-	u8 gpd_flags;
-	u8 gpd_checksum;
-	u16 data_allow_len;
-	u32 next_gpd_ptr;
-	u32 data_buff_bd_ptr;
-	u16 data_buff_len;
-	u16 debug_id;
-} __attribute__ ((packed));
-
-/* runtime data format uses EEMCS's version, NOT the same with legacy CCCI */
-struct modem_runtime {
-	u32 Prefix;		/* "CCIF" */
-	u32 Platform_L;		/* Hardware Platform String ex: "TK6516E0" */
-	u32 Platform_H;
-	u32 DriverVersion;	/* 0x00000923 since W09.23 */
-	u32 BootChannel;	/* Channel to ACK AP with boot ready */
-	u32 BootingStartID;	/* MD is booting. NORMAL_BOOT_ID or META_BOOT_ID */
-#if 1				/* not using in EEMCS */
-	u32 BootAttributes;	/* Attributes passing from AP to MD Booting */
-	u32 BootReadyID;	/* MD response ID if boot successful and ready */
-	u32 MdlogShareMemBase;
-	u32 MdlogShareMemSize;
-	u32 PcmShareMemBase;
-	u32 PcmShareMemSize;
-	u32 UartPortNum;
-	u32 UartShareMemBase[8];
-	u32 UartShareMemSize[8];
-	u32 FileShareMemBase;
-	u32 FileShareMemSize;
-	u32 RpcShareMemBase;
-	u32 RpcShareMemSize;
-	u32 PmicShareMemBase;
-	u32 PmicShareMemSize;
-	u32 ExceShareMemBase;
-	u32 ExceShareMemSize;
-	u32 SysShareMemBase;
-	u32 SysShareMemSize;
-	u32 IPCShareMemBase;
-	u32 IPCShareMemSize;
-	u32 CheckSum;
-#endif
-	u32 Postfix;		/* "CCIF" */
-#if 1				/* misc region */
-	u32 misc_prefix;	/* "MISC" */
-	u32 support_mask;
-	u32 index;
-	u32 next;
-	u32 feature_0_val[4];
-	u32 feature_1_val[4];
-	u32 feature_2_val[4];
-	u32 feature_3_val[4];
-	u32 feature_4_val[4];
-	u32 feature_5_val[4];
-	u32 feature_6_val[4];
-	u32 feature_7_val[4];
-	u32 feature_8_val[4];
-	u32 feature_9_val[4];
-	u32 feature_10_val[4];
-	u32 feature_11_val[4];
-	u32 feature_12_val[4];
-	u32 feature_13_val[4];
-	u32 feature_14_val[4];
-	u32 feature_15_val[4];
-	u32 reserved_2[3];
-	u32 misc_postfix;	/* "MISC" */
-#endif
+	u8	gpd_flags;
+	u8	gpd_checksum;
+	u16	data_allow_len;
+	u32	next_gpd_ptr;
+	u32	data_buff_bd_ptr;
+	u16	data_buff_len;
+	u16	debug_id;
 } __attribute__ ((packed));
 
 typedef enum {
-	FEATURE_NOT_EXIST = 0,
-	FEATURE_NOT_SUPPORT,
-	FEATURE_SUPPORT,
-	FEATURE_PARTIALLY_SUPPORT,
-} MISC_FEATURE_STATE;
+	UNDER_BUDGET,
+	REACH_BUDGET,
+	PORT_REFUSE,
+	NO_SKB,
+	NO_REQ
+} RX_COLLECT_RESULT;
 
-typedef enum {
-	MISC_DMA_ADDR = 0,
-	MISC_32K_LESS,
-	MISC_RAND_SEED,
-	MISC_MD_COCLK_SETTING,
-} MISC_FEATURE_ID;
-
-typedef enum {
-	MODE_UNKNOWN = -1,	/* -1 */
-	MODE_IDLE,		/* 0 */
-	MODE_USB,		/* 1 */
-	MODE_SD,		/* 2 */
-	MODE_POLLING,		/* 3 */
-	MODE_WAITSD,		/* 4 */
-} LOGGING_MODE;
-
-typedef enum {
-	HIF_EX_INIT = 0,	/* interrupt */
-	HIF_EX_ACK,		/* AP->MD */
-	HIF_EX_INIT_DONE,	/* polling */
-	HIF_EX_CLEARQ_DONE,	/* interrupt */
-	HIF_EX_CLEARQ_ACK,	/* AP->MD */
-	HIF_EX_ALLQ_RESET,	/* polling */
-} HIF_EX_STAGE;
-
-#define MDLOGGER_FILE_PATH "/data/mdl/mdl_config"
+enum{
+	CCCI_TRACE_TX_IRQ = 0,
+	CCCI_TRACE_RX_IRQ = 1,
+};
 
 static void inline md_cd_queue_struct_init(struct md_cd_queue *queue, struct ccci_modem *md,
-					   DIRECTION dir, unsigned char index, int bg)
+	DIRECTION dir, unsigned char index, int bg)
 {
 	queue->dir = OUT;
 	queue->index = index;
 	queue->modem = md;
 	queue->napi_port = NULL;
-
+	
 	queue->tr_ring = NULL;
 	queue->tr_done = NULL;
 	queue->tx_xmit = NULL;
-	queue->free_slot = RING_BUFF_SIZE;
 	init_waitqueue_head(&queue->req_wq);
 	queue->budget = bg;
 	spin_lock_init(&queue->ring_lock);
 	queue->debug_id = 0;
+	queue->busy_count = 0;
 }
 
-#endif				/* __MODEM_CD_H__ */
+#endif //__MODEM_CD_H__

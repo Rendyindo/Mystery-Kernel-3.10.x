@@ -137,7 +137,7 @@ void arm_machine_restart(char mode, const char *cmd)
         flush_cache_all();
 #ifdef CONFIG_RESTART_DISABLE_CACHE
         /* Turn off caching */
-        cpu_proc_fin();
+ //       cpu_proc_fin();		// Don't turn off cach during reboot phase. CA15 have risk if turn off cach.
 #endif
         /* Push out any further dirty data, and ensure cache is empty */
         flush_cache_all();
@@ -189,8 +189,10 @@ void soft_restart(unsigned long addr)
 	local_fiq_disable();
 
 	/* Disable the L2 if we're the last man standing. */
-	if (num_online_cpus() == 1)
+	if (num_online_cpus() == 1) {
+		outer_flush_all();
 		outer_disable();
+	}
 
 	/* Change to the new stack and continue with the reset. */
 	call_with_stack(__soft_restart, (void *)addr, (void *)stack);
@@ -313,6 +315,7 @@ void machine_halt(void)
 	while (1);
 }
 
+extern int reboot_pid;
 /*
  * Power-off simply requires that the secondary CPUs stop performing any
  * activity (executing tasks, handling interrupts). smp_send_stop()
@@ -321,9 +324,44 @@ void machine_halt(void)
  */
 void machine_power_off(void)
 {
-	smp_send_stop();
-	printk("machine_shutdown: start, Proess(%s:%d)\n", current->comm, current->pid);
-  dump_stack();
+	struct task_struct *tsk;
+
+	/* Disable interrupts first */
+	local_irq_disable();
+	local_fiq_disable();
+	
+	smp_send_stop();	
+	if(reboot_pid > 1)
+	{
+		tsk = find_task_by_vpid(reboot_pid);
+		if(tsk == NULL)
+			tsk = current;		
+		dump_stack();
+	}
+	else
+	{
+		tsk = current;
+	}
+
+	if(tsk->real_parent)
+	{
+	 if(tsk->real_parent->real_parent)
+	 {
+	   printk("machine_shutdown: start, Proess(%s:%d). father %s:%d. grandfather %s:%d.\n",
+		tsk->comm, tsk->pid,tsk->real_parent->comm,tsk->real_parent->pid,
+		tsk->real_parent->real_parent->comm,tsk->real_parent->real_parent->pid);
+	 }
+	 else
+	 {
+	   printk("machine_shutdown: start, Proess(%s:%d). father %s:%d.\n", 
+		tsk->comm, tsk->pid,tsk->real_parent->comm,tsk->real_parent->pid);
+	 }
+	}
+	else
+	{
+	  printk("machine_shutdown: start, Proess(%s:%d)\n", tsk->comm, tsk->pid);	  
+	}
+
 #ifdef CONFIG_MTK_EMMC_SUPPORT 
 	last_kmsg_store_to_emmc();
 #endif
@@ -345,7 +383,43 @@ void machine_power_off(void)
  */
 void machine_restart(char *cmd)
 {
+	struct task_struct *tsk;
+	/* Disable interrupts first */
+	local_irq_disable();
+	local_fiq_disable();
+	
 	smp_send_stop();
+
+	if(reboot_pid > 1)
+	{
+		tsk = find_task_by_vpid(reboot_pid);
+		if(tsk == NULL)
+			tsk = current;		
+		dump_stack();
+	}
+	else
+	{
+		tsk = current;
+	}
+
+	if(tsk->real_parent)
+	{
+	 if(tsk->real_parent->real_parent)
+	 {
+	   printk("machine_shutdown: start, Proess(%s:%d). father %s:%d. grandfather %s:%d.\n",
+		tsk->comm, tsk->pid,tsk->real_parent->comm,tsk->real_parent->pid,
+		tsk->real_parent->real_parent->comm,tsk->real_parent->real_parent->pid);
+	 }
+	 else
+	 {
+	   printk("machine_shutdown: start, Proess(%s:%d). father %s:%d.\n", 
+		tsk->comm, tsk->pid,tsk->real_parent->comm,tsk->real_parent->pid);
+	 }
+	}
+	else
+	{
+	  printk("machine_shutdown: start, Proess(%s:%d)\n", tsk->comm, tsk->pid);	  
+	}
 
 	/* Flush the console to make sure all the relevant messages make it
 	 * out to the console drivers */

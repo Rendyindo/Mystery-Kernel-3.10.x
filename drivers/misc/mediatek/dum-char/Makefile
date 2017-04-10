@@ -1,16 +1,6 @@
-# Display parameters shown under Settings -> About Phone
-
-include $(srctree)/drivers/misc/mediatek/Makefile.custom
-
-ifeq ($(CONFIG_MTK_MMC),y)
-  CONFIG_MTK_USIF = y
-else
-	ifeq ($(CONFIG_MTK_MTD_NAND),y)
-  	CONFIG_MTK_USIF = y
-  	else
-  	CONFIG_MTK_USIF = n
-  	endif
-endif
-
-obj-$(CONFIG_MTK_USIF) := DumChar.o
-DumChar-objs :=  sysenv.o
+obj-$(CONFIG_ARCH_MT6582) += $(subst ",,$(CONFIG_MTK_PLATFORM))/
+obj-$(CONFIG_ARCH_MT6592) += $(subst ",,$(CONFIG_MTK_PLATFORM))/
+obj-$(CONFIG_ARCH_MT6572) += $(subst ",,$(CONFIG_MTK_PLATFORM))/
+obj-$(CONFIG_ARCH_MT8127) += $(subst ",,$(CONFIG_MTK_PLATFORM))/
+obj-$(CONFIG_ARCH_MT6580) += $(subst ",,$(CONFIG_MTK_PLATFORM))/
+obj-$(CONFIG_ARCH_MT8163) += $(subst ",,$(CONFIG_MTK_PLATFORM))/

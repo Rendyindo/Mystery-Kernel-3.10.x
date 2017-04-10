@@ -32,6 +32,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/of_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
@@ -133,10 +134,10 @@ enum mxs_auart_type {
 struct mxs_auart_port {
 	struct uart_port port;
 
+#define MXS_AUART_DMA_CONFIG	0x1
 #define MXS_AUART_DMA_ENABLED	0x2
 #define MXS_AUART_DMA_TX_SYNC	2  /* bit 2 */
 #define MXS_AUART_DMA_RX_READY	3  /* bit 3 */
-#define MXS_AUART_RTSCTS	4  /* bit 4 */
 	unsigned long flags;
 	unsigned int ctrl;
 	enum mxs_auart_type devtype;
@@ -639,8 +640,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 		 * we can only implement the DMA support for auart
 		 * in mx28.
 		 */
-		if (is_imx28_auart(s)
-				&& test_bit(MXS_AUART_RTSCTS, &s->flags)) {
+		if (is_imx28_auart(s) && (s->flags & MXS_AUART_DMA_CONFIG)) {
 			if (!mxs_auart_dma_init(s))
 				/* enable DMA tranfer */
 				ctrl2 |= AUART_CTRL2_TXDMAE | AUART_CTRL2_RXDMAE
@@ -1008,8 +1008,7 @@ static int serial_mxs_probe_dt(struct mxs_auart_port *s,
 	}
 	s->port.line = ret;
 
-	if (of_get_property(np, "fsl,uart-has-rtscts", NULL))
-		set_bit(MXS_AUART_RTSCTS, &s->flags);
+	s->flags |= MXS_AUART_DMA_CONFIG;
 
 	return 0;
 }
@@ -1022,6 +1021,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	u32 version;
 	int ret = 0;
 	struct resource *r;
+	struct pinctrl *pinctrl;
 
 	s = kzalloc(sizeof(struct mxs_auart_port), GFP_KERNEL);
 	if (!s) {
@@ -1034,6 +1034,12 @@ static int mxs_auart_probe(struct platform_device *pdev)
 		s->port.line = pdev->id < 0 ? 0 : pdev->id;
 	else if (ret < 0)
 		goto out_free;
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		goto out_free;
+	}
 
 	if (of_id) {
 		pdev->id_entry = of_id->data;

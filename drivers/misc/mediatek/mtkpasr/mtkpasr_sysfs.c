@@ -21,6 +21,7 @@
 #include <linux/highmem.h>
 #include <linux/suspend.h>
 #include <asm/cacheflush.h>
+#include <mach/wd_api.h>
 
 #include "mtkpasr_drv.h"
 
@@ -79,20 +80,21 @@ static struct mtkpasr *dev_to_mtkpasr(struct device *dev)
 	return mtkpasr_device;
 }
 
-static ssize_t mem_used_total_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t mem_used_total_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	u64 val = 0;
 
-	val = (u64) (mtkpasr_acquire_total() - mtkpasr_acquire_frees());
+	val = (u64)(mtkpasr_acquire_total() - mtkpasr_acquire_frees());
 	return sprintf(buf, "%llu\n", val);
 }
 
-static ssize_t compr_status_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t compr_status_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	struct mtkpasr *mtkpasr = dev_to_mtkpasr(dev);
 
-	return sprintf(buf, "Good compress [%u] : Bad compress [%u]\n",
-		       mtkpasr->stats.good_compress, mtkpasr->stats.bad_compress);
+	return sprintf(buf, "Good compress [%u] : Bad compress [%u]\n", mtkpasr->stats.good_compress, mtkpasr->stats.bad_compress);
 }
 
 static ssize_t membank_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -103,7 +105,7 @@ static ssize_t membank_show(struct device *dev, struct device_attribute *attr, c
 #ifdef CONFIG_MTKPASR_MAFL
 static ssize_t page_reserved_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "Reserved pages [%lu]\n", mtkpasr_show_page_reserved());
+	return sprintf(buf, "Reserved pages [%lu]\n", (unsigned long)0/*mtkpasr_show_page_reserved()*/);
 }
 #endif
 
@@ -113,8 +115,7 @@ static ssize_t enable_show(struct device *dev, struct device_attribute *attr, ch
 }
 
 /* 0: all disabled 1: enable MTKPASR 2: enable SR control 3: all enabled*/
-static ssize_t enable_store(struct device *dev, struct device_attribute *attr, const char *buf,
-			    size_t len)
+static ssize_t enable_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
 {
 	int ret;
 	int value;
@@ -133,8 +134,7 @@ static ssize_t debug_level_show(struct device *dev, struct device_attribute *att
 	return sprintf(buf, "%d\n", mtkpasr_debug_level);
 }
 
-static ssize_t debug_level_store(struct device *dev, struct device_attribute *attr, const char *buf,
-				 size_t len)
+static ssize_t debug_level_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
 {
 	int ret;
 	int value;
@@ -150,9 +150,8 @@ static ssize_t debug_level_store(struct device *dev, struct device_attribute *at
 
 static ssize_t mtkpasr_status_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf,
-		       "Enter [%lu]times - Fail [%lu]times :: Last Success - SR-OFF[0x%x] DPD[0x%x]\n",
-		       mtkpasr_triggered, failed_mtkpasr, mtkpasr_sroff, mtkpasr_dpd);
+	return sprintf(buf, "Enter [%lu]times - Fail [%lu]times :: Last Success - SR-OFF[0x%x] DPD[0x%x]\n"
+			, mtkpasr_triggered, failed_mtkpasr, mtkpasr_sroff, mtkpasr_dpd);
 }
 
 /* 1: pass, 0: mask */
@@ -161,8 +160,7 @@ static ssize_t srmask_show(struct device *dev, struct device_attribute *attr, ch
 	return sprintf(buf, "%lu\n", mtkpasr_control);
 }
 
-static ssize_t srmask_store(struct device *dev, struct device_attribute *attr, const char *buf,
-			    size_t len)
+static ssize_t srmask_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
 {
 	int ret;
 	int value;
@@ -183,9 +181,7 @@ static ssize_t execstate_show(struct device *dev, struct device_attribute *attr,
 	int len = 0, tmp;
 
 	/* Compression status */
-	tmp =
-	    sprintf(buf, "Good compress [%u] : Bad compress [%u]\n", mtkpasr->stats.good_compress,
-		    mtkpasr->stats.bad_compress);
+	tmp = sprintf(buf, "Good compress [%u] : Bad compress [%u]\n", mtkpasr->stats.good_compress, mtkpasr->stats.bad_compress);
 	buf += tmp;
 	len += tmp;
 
@@ -200,7 +196,7 @@ static ssize_t execstate_show(struct device *dev, struct device_attribute *attr,
 	len += tmp;
 
 	/* Available size for external compression */
-	val = (u64) (mtkpasr_acquire_total() - mtkpasr_acquire_frees());
+	val = (u64)(mtkpasr_acquire_total() - mtkpasr_acquire_frees());
 	tmp = sprintf(buf, "%llu\n", val);
 	buf += tmp;
 	len += tmp;
@@ -211,15 +207,13 @@ static ssize_t execstate_show(struct device *dev, struct device_attribute *attr,
 	len += tmp;
 
 	/* MTKPASR status */
-	tmp =
-	    sprintf(buf,
-		    "Enter [%lu]times - Fail [%lu]times :: Last Success - SR-OFF[0x%x] DPD[0x%x]\n",
-		    mtkpasr_triggered, failed_mtkpasr, mtkpasr_sroff, mtkpasr_dpd);
+	tmp = sprintf(buf, "Enter [%lu]times - Fail [%lu]times :: Last Success - SR-OFF[0x%x] DPD[0x%x]\n"
+			, mtkpasr_triggered, failed_mtkpasr, mtkpasr_sroff, mtkpasr_dpd);
 	buf += tmp;
 	len += tmp;
 
 	/* Page reserved by MTKPASR */
-	tmp = sprintf(buf, "Reserved pages [%lu]\n", mtkpasr_show_page_reserved());
+	tmp = sprintf(buf, "Page reserved[%lu]\n", mtkpasr_show_page_reserved());
 	buf += tmp;
 	len += tmp;
 
@@ -232,11 +226,20 @@ static ssize_t execstate_show(struct device *dev, struct device_attribute *attr,
 }
 
 #ifdef CONFIG_MTKPASR
+extern void try_to_shrink_slab(void);
 extern void mtkpasr_reset_state(void);
 
 /* Hook to Linux PM */
 void mtkpasr_phaseone_ops(void)
 {
+	struct wd_api *wd_api = NULL;
+
+	/* To restart wdt */
+	if (get_wd_api(&wd_api) == 0) {
+		mtkpasr_log("PASR kicks WDT!\n");
+		wd_api->wd_restart(WD_TYPE_NORMAL);
+	}
+
 	IS_MTKPASR_ENABLED_NORV;
 
 	/* It means no need to apply this op (Simply for paging or other periodic wakeups) */
@@ -245,6 +248,15 @@ void mtkpasr_phaseone_ops(void)
 	}
 
 	MTKPASR_START_PROFILE();
+
+	/* It will go to MTKPASR stage */
+	current->flags |= PF_MTKPASR;
+
+	/* Inform all other memory pools to release their memory */
+	try_to_shrink_slab();
+
+	/* It will leave MTKPASR stage */
+	current->flags &= ~PF_MTKPASR;
 
 #ifdef CONFIG_MTKPASR_MAFL
 	if (mtkpasr_no_phaseone_ops())
@@ -256,7 +268,7 @@ void mtkpasr_phaseone_ops(void)
 	drop_pagecache();
 
 #ifdef CONFIG_MTKPASR_MAFL
- no_phaseone:
+no_phaseone:
 #endif
 	MTKPASR_END_PROFILE();
 }
@@ -270,7 +282,7 @@ int pasr_enter(u32 *sr, u32 *dpd)
 {
 	enum mtkpasr_phase result;
 	int ret = 0;
-	int irq_disabled = 0;	/* MTKPASR_FLUSH -> drain_all_pages -> on_each_cpu_mask will enable local irq */
+	int irq_disabled = 0;		/* MTKPASR_FLUSH -> drain_all_pages -> on_each_cpu_mask will enable local irq */
 
 	IS_MTKPASR_ENABLED;
 
@@ -340,7 +352,7 @@ int pasr_enter(u32 *sr, u32 *dpd)
 		++failed_mtkpasr;
 	}
 
- out:
+out:
 	/* Recover it to irq-disabled environment if needed */
 	if (irq_disabled == 1) {
 		if (!irqs_disabled()) {
@@ -381,10 +393,10 @@ int pasr_exit(void)
 	if (result == MTKPASR_WRONG_STATE) {
 		mtkpasr_err("Wrong state!\n");
 	} else if (result == MTKPASR_FAIL) {
-		pr_err("\n\n\n Some Fatal Error!\n\n\n");
+		printk(KERN_ERR"\n\n\n Some Fatal Error!\n\n\n");
 	}
 
- out:
+out:
 	return 0;
 }
 #endif

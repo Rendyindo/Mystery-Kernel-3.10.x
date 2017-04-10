@@ -991,7 +991,7 @@ finish:
 						URB_SHORT_NOT_OK)
 				&& (urb->transfer_buffer_length -
 						urb->actual_length)
-					> qh->maxpacket)
+					> hw_ep->max_packet_sz_rx)
 			{
 
 				//DBG(7, "Using DMA epnum%d: is_out=%d, urb->actual_length = %d, urb->transfer_buffer_length = %d \n", epnum, is_out, urb->actual_length, urb->transfer_buffer_length);
@@ -2554,12 +2554,12 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 		urb = next_urb(qh);
 
 		/* make software (then hardware) stop ASAP */
-		if (!urb->unlinked)
-			urb->status = -ESHUTDOWN;
-
-		/* cleanup */
-		musb_cleanup_urb(urb, qh);
-
+		if (urb){
+			if (!urb->unlinked)
+				urb->status = -ESHUTDOWN;
+			/* cleanup */
+			musb_cleanup_urb(urb, qh);
+		}
 		/* Then nuke all the others ... and advance the
 		 * queue on hw_ep (e.g. bulk ring) when we're done.
 		 */

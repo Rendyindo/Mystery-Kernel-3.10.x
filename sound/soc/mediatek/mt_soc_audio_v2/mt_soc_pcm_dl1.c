@@ -104,10 +104,23 @@
 #include <sound/pcm.h>
 //#include <asm/mach-types.h>
 
+#ifdef CONFIG_OF
+#include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
+
+static unsigned int pin_extspkamp, pin_extspkamp_2, pin_vowclk, pin_audclk, pin_audmiso, pin_audmosi, pin_i2s1clk, pin_i2s1dat, pin_i2s1mclk, pin_i2s1ws;
+static unsigned int pin_mode_audclk, pin_mode_audmosi, pin_mode_audmiso, pin_mode_vowclk, pin_mode_extspkamp, pin_mode_extspkamp_2, pin_mode_i2s1clk, pin_mode_i2s1dat, pin_mode_i2s1mclk, pin_mode_i2s1ws;
+static unsigned int if_config1, if_config2, if_config3, if_config4, if_config5, if_config6, if_config7, if_config8, if_config9, if_config10;
+#endif
+
 static AFE_MEM_CONTROL_T *pMemControl = NULL;
 static int mPlaybackSramState = 0;
+static struct snd_dma_buffer *Dl1_Playback_dma_buf  = NULL;
 
 static DEFINE_SPINLOCK(auddrv_DLCtl_lock);
+
+static struct device *mDev = NULL;
 
 /*
  *    function implementation
@@ -120,6 +133,7 @@ static int mtk_soc_pcm_dl1_close(struct snd_pcm_substream *substream);
 static int mtk_asoc_pcm_dl1_new(struct snd_soc_pcm_runtime *rtd);
 static int mtk_asoc_dl1_probe(struct snd_soc_platform *platform);
 
+static bool mPrepareDone = false;
 
 #define USE_RATE        SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000
 #define USE_RATE_MIN        8000
@@ -142,7 +156,6 @@ static struct snd_pcm_hardware mtk_pcm_dl1_hardware =
     .channels_min =     SOC_NORMAL_USE_CHANNELS_MIN,
     .channels_max =     SOC_NORMAL_USE_CHANNELS_MAX,
     .buffer_bytes_max = Dl1_MAX_BUFFER_SIZE,
-    //.period_bytes_max = MAX_PERIOD_SIZE, //ccc early porting
     .period_bytes_max = Dl1_MAX_PERIOD_SIZE,
     .periods_min =      SOC_NORMAL_USE_PERIODS_MIN,
     .periods_max =    SOC_NORMAL_USE_PERIODS_MAX,
@@ -151,39 +164,30 @@ static struct snd_pcm_hardware mtk_pcm_dl1_hardware =
 
 static int mtk_pcm_dl1_stop(struct snd_pcm_substream *substream)
 {
-
-    AFE_BLOCK_T *Afe_Block = &(pMemControl->rBlock);
-    PRINTK_AUDDRV("mtk_pcm_dl1_stop \n");
-
     printk("%s \n", __func__);
-    SetIrqEnable(Soc_Aud_IRQ_MCU_MODE_IRQ1_MCU_MODE, false);
 
-    // here to turn off digital part
-    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I05, Soc_Aud_InterConnectionOutput_O03);
-    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I06, Soc_Aud_InterConnectionOutput_O04);
+    SetIrqEnable(Soc_Aud_IRQ_MCU_MODE_IRQ1_MCU_MODE, false);
     SetMemoryPathEnable(Soc_Aud_Digital_Block_MEM_DL1, false);
 
-    SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, false);
-    if (GetI2SDacEnable() == false)
-    {
-        SetI2SDacEnable(false);
-    }
-    EnableAfe(false);
-    RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_DL1);
-    AudDrv_Clk_Off();
+    // here start digital part
+    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I05, Soc_Aud_InterConnectionOutput_O03);
+    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I06, Soc_Aud_InterConnectionOutput_O04);
 
+    ClearMemBlock(Soc_Aud_Digital_Block_MEM_DL1);
     return 0;
 }
 
-static kal_int32 Previous_Hw_cur = 0;
 static snd_pcm_uframes_t mtk_pcm_pointer(struct snd_pcm_substream *substream)
 {
     kal_int32 HW_memory_index = 0;
     kal_int32 HW_Cur_ReadIdx = 0;
     kal_uint32 Frameidx = 0;
+    kal_int32 Afe_consumed_bytes = 0;
     AFE_BLOCK_T *Afe_Block = &pMemControl->rBlock;
-    struct snd_pcm_runtime *runtime = substream->runtime;
+    //struct snd_pcm_runtime *runtime = substream->runtime;
     PRINTK_AUD_DL1(" %s Afe_Block->u4DMAReadIdx = 0x%x\n", __func__, Afe_Block->u4DMAReadIdx);
+
+    Auddrv_Dl1_Spinlock_lock();
 
     // get total bytes to copy
     //Frameidx = audio_bytes_to_frame(substream , Afe_Block->u4DMAReadIdx);
@@ -197,38 +201,82 @@ static snd_pcm_uframes_t mtk_pcm_pointer(struct snd_pcm_substream *substream)
             PRINTK_AUDDRV("[Auddrv] HW_Cur_ReadIdx ==0 \n");
             HW_Cur_ReadIdx = Afe_Block->pucPhysBufAddr;
         }
+
         HW_memory_index = (HW_Cur_ReadIdx - Afe_Block->pucPhysBufAddr);
-        Previous_Hw_cur = HW_memory_index;
-        PRINTK_AUD_DL1("[Auddrv] HW_Cur_ReadIdx =0x%x HW_memory_index = 0x%x pointer return = 0x%x \n", HW_Cur_ReadIdx, HW_memory_index, (HW_memory_index >> 2));
-        return audio_bytes_to_frame(substream , Previous_Hw_cur);
+        if (HW_memory_index >=  Afe_Block->u4DMAReadIdx)
+        {
+            Afe_consumed_bytes = HW_memory_index - Afe_Block->u4DMAReadIdx;
+        }
+        else
+        {
+            Afe_consumed_bytes = Afe_Block->u4BufferSize + HW_memory_index - Afe_Block->u4DMAReadIdx ;
+        }
+
+        Afe_consumed_bytes = Align64ByteSize(Afe_consumed_bytes);
+
+        Afe_Block->u4DataRemained -= Afe_consumed_bytes;
+        Afe_Block->u4DMAReadIdx += Afe_consumed_bytes;
+        Afe_Block->u4DMAReadIdx %= Afe_Block->u4BufferSize;
+        PRINTK_AUD_DL1("[Auddrv] HW_Cur_ReadIdx =0x%x HW_memory_index = 0x%x Afe_consumed_bytes  = 0x%x\n", HW_Cur_ReadIdx, HW_memory_index, Afe_consumed_bytes);
+        Auddrv_Dl1_Spinlock_unlock();
+
+        return audio_bytes_to_frame(substream , Afe_Block->u4DMAReadIdx);
     }
-    PRINTK_AUD_DL1("mtk_pcm_pointer Previous_Hw_cur = 0x%x\n", Previous_Hw_cur);
-    return 0;
+    else
+    {
+        Frameidx = audio_bytes_to_frame(substream , Afe_Block->u4DMAReadIdx);
+        Auddrv_Dl1_Spinlock_unlock();
+        return Frameidx;
+    }
 }
 
+static void SetDL1Buffer(struct snd_pcm_substream *substream,
+                         struct snd_pcm_hw_params *hw_params)
+{
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    AFE_BLOCK_T *pblock = &pMemControl->rBlock;
+    pblock->pucPhysBufAddr =  runtime->dma_addr;
+    pblock->pucVirtBufAddr =  runtime->dma_area;
+    pblock->u4BufferSize = runtime->dma_bytes;
+    pblock->u4SampleNumMask = 0x001f;  // 32 byte align
+    pblock->u4WriteIdx     = 0;
+    pblock->u4DMAReadIdx    = 0;
+    pblock->u4DataRemained  = 0;
+    pblock->u4fsyncflag     = false;
+    pblock->uResetFlag      = true;
+    printk("SetDL1Buffer u4BufferSize = %d pucVirtBufAddr = %p pucPhysBufAddr = 0x%x\n",
+           pblock->u4BufferSize, pblock->pucVirtBufAddr, pblock->pucPhysBufAddr);
+    // set dram address top hardware
+    Afe_Set_Reg(AFE_DL1_BASE , pblock->pucPhysBufAddr , 0xffffffff);
+    Afe_Set_Reg(AFE_DL1_END  , pblock->pucPhysBufAddr + (pblock->u4BufferSize - 1), 0xffffffff);
+    memset((void *)pblock->pucVirtBufAddr, 0, pblock->u4BufferSize);
+
+}
 
 static int mtk_pcm_dl1_params(struct snd_pcm_substream *substream,
-                             struct snd_pcm_hw_params *hw_params)
+                              struct snd_pcm_hw_params *hw_params)
 {
-    struct snd_dma_buffer *dma_buf = &substream->dma_buffer;
+    //struct snd_dma_buffer *dma_buf = &substream->dma_buffer;
     int ret = 0;
-	AFE_BLOCK_T *Afe_Block;
     PRINTK_AUDDRV("mtk_pcm_dl1_params \n");
 
     /* runtime->dma_bytes has to be set manually to allow mmap */
     substream->runtime->dma_bytes = params_buffer_bytes(hw_params);
 
-    // here to allcoate sram to hardware ---------------------------
-    AudDrv_Allocate_mem_Buffer(Soc_Aud_Digital_Block_MEM_DL1, substream->runtime->dma_bytes);
-	#ifdef AUDIO_MEMORY_SRAM //ccc modify
-    //substream->runtime->dma_bytes = AFE_INTERNAL_SRAM_SIZE;
-    substream->runtime->dma_area = (unsigned char *)Get_Afe_SramBase_Pointer();
-    substream->runtime->dma_addr = AFE_INTERNAL_SRAM_PHY_BASE;
-	#else
-	Afe_Block = &pMemControl->rBlock;
-	substream->runtime->dma_area = Afe_Block->pucVirtBufAddr;
-    substream->runtime->dma_addr = Afe_Block->pucPhysBufAddr;
-	#endif
+    if (mPlaybackSramState == SRAM_STATE_PLAYBACKFULL)
+    {
+        //substream->runtime->dma_bytes = AFE_INTERNAL_SRAM_SIZE;
+        substream->runtime->dma_area = (unsigned char *)Get_Afe_SramBase_Pointer();
+        substream->runtime->dma_addr = AFE_INTERNAL_SRAM_PHY_BASE;
+        AudDrv_Allocate_DL1_Buffer(mDev, substream->runtime->dma_bytes);
+    }
+    else
+    {
+        substream->runtime->dma_bytes = params_buffer_bytes(hw_params);
+        substream->runtime->dma_area = Dl1_Playback_dma_buf->area;
+        substream->runtime->dma_addr = Dl1_Playback_dma_buf->addr;
+        SetDL1Buffer(substream, hw_params);
+    }
 
     PRINTK_AUDDRV("dma_bytes = %zu dma_area = %p dma_addr = 0x%lx\n",
                   substream->runtime->dma_bytes, substream->runtime->dma_area, (long)substream->runtime->dma_addr);
@@ -242,7 +290,7 @@ static int mtk_pcm_dl1_hw_free(struct snd_pcm_substream *substream)
 }
 
 
-static struct snd_pcm_hw_constraint_list constraints_dl1_sample_rates =
+static struct snd_pcm_hw_constraint_list constraints_sample_rates =
 {
     .count = ARRAY_SIZE(soc_high_supported_sample_rates),
     .list = soc_high_supported_sample_rates,
@@ -254,10 +302,8 @@ static int mtk_pcm_dl1_open(struct snd_pcm_substream *substream)
     int ret = 0;
     struct snd_pcm_runtime *runtime = substream->runtime;
     PRINTK_AUDDRV("mtk_pcm_dl1_open\n");
-    AudDrv_Clk_On();
 
     AfeControlSramLock();
-	#ifdef AUDIO_MEMORY_SRAM  //ccc early porting
     if (GetSramState() == SRAM_STATE_FREE)
     {
         mtk_pcm_dl1_hardware.buffer_bytes_max = GetPLaybackSramFullSize();
@@ -266,47 +312,46 @@ static int mtk_pcm_dl1_open(struct snd_pcm_substream *substream)
     }
     else
     {
-        mtk_pcm_dl1_hardware.buffer_bytes_max = GetPLaybackSramPartial();
-        mPlaybackSramState = SRAM_STATE_PLAYBACKPARTIAL;
-        SetSramState(mPlaybackSramState);
+        mtk_pcm_dl1_hardware.buffer_bytes_max = GetPLaybackDramSize();
+        mPlaybackSramState = SRAM_STATE_PLAYBACKDRAM;
     }
-	#else
-	mtk_pcm_dl1_hardware.buffer_bytes_max = Dl1_MAX_BUFFER_SIZE;
-	#endif
     AfeControlSramUnLock();
+    if (mPlaybackSramState == SRAM_STATE_PLAYBACKDRAM)
+    {
+        AudDrv_Emi_Clk_On();
+    }
 
-    pMemControl = Get_Mem_ControlT(Soc_Aud_Digital_Block_MEM_DL1);
+    printk("mtk_pcm_dl1_hardware.buffer_bytes_max = %zu mPlaybackSramState = %d\n", mtk_pcm_dl1_hardware.buffer_bytes_max, mPlaybackSramState);
     runtime->hw = mtk_pcm_dl1_hardware;
+
+    AudDrv_Clk_On();
     memcpy((void *)(&(runtime->hw)), (void *)&mtk_pcm_dl1_hardware , sizeof(struct snd_pcm_hardware));
+    pMemControl = Get_Mem_ControlT(Soc_Aud_Digital_Block_MEM_DL1);
 
     ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-                                     &constraints_dl1_sample_rates);
+                                     &constraints_sample_rates);
 
     if (ret < 0)
     {
-        PRINTK_AUDDRV("snd_pcm_hw_constraint_integer failed\n");
+        printk("snd_pcm_hw_constraint_integer failed\n");
     }
-
-    //print for hw pcm information
-    PRINTK_AUDDRV("mtk_pcm_dl1_open runtime rate = %d channels = %d substream->pcm->device = %d\n",
-                  runtime->rate, runtime->channels, substream->pcm->device);
 
     if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
     {
-        PRINTK_AUDDRV("SNDRV_PCM_STREAM_PLAYBACK mtkalsa_playback_constraints\n");
+        printk("SNDRV_PCM_STREAM_PLAYBACK mtkalsa_dl1playback_constraints\n");
     }
     else
     {
-
+        printk("SNDRV_PCM_STREAM_CAPTURE mtkalsa_dl1playback_constraints\n");
     }
 
     if (ret < 0)
     {
-        PRINTK_AUDDRV("mtk_soc_pcm_dl1_close\n");
+        printk("ret < 0 mtk_soc_pcm_dl1_close\n");
         mtk_soc_pcm_dl1_close(substream);
         return ret;
     }
-    AudDrv_Clk_Off();
+
     //PRINTK_AUDDRV("mtk_pcm_dl1_open return\n");
     return 0;
 }
@@ -314,6 +359,25 @@ static int mtk_pcm_dl1_open(struct snd_pcm_substream *substream)
 static int mtk_soc_pcm_dl1_close(struct snd_pcm_substream *substream)
 {
     printk("%s \n", __func__);
+    if (mPrepareDone == true)
+    {
+        // stop DAC output
+        SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, false);
+        if (GetI2SDacEnable() == false)
+        {
+            SetI2SDacEnable(false);
+        }
+
+        RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_DL1, substream);
+
+        EnableAfe(false);
+        mPrepareDone = false;
+    }
+
+    if (mPlaybackSramState == SRAM_STATE_PLAYBACKDRAM)
+    {
+        AudDrv_Emi_Clk_Off();
+    }
     AfeControlSramLock();
     ClearSramState(mPlaybackSramState);
     mPlaybackSramState = GetSramState();
@@ -324,103 +388,70 @@ static int mtk_soc_pcm_dl1_close(struct snd_pcm_substream *substream)
 
 static int mtk_pcm_prepare(struct snd_pcm_substream *substream)
 {
+    bool mI2SWLen;
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    if (mPrepareDone == false)
+    {
+        printk("%s format = %d SNDRV_PCM_FORMAT_S32_LE = %d SNDRV_PCM_FORMAT_U32_LE = %d \n", __func__, runtime->format, SNDRV_PCM_FORMAT_S32_LE, SNDRV_PCM_FORMAT_U32_LE);
+        SetMemifSubStream(Soc_Aud_Digital_Block_MEM_DL1, substream);
+
+        if (runtime->format == SNDRV_PCM_FORMAT_S32_LE || runtime->format == SNDRV_PCM_FORMAT_U32_LE)
+        {
+            SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL1, AFE_WLEN_32_BIT_ALIGN_8BIT_0_24BIT_DATA);
+            SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL2, AFE_WLEN_32_BIT_ALIGN_8BIT_0_24BIT_DATA);
+            SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_24BIT, Soc_Aud_InterConnectionOutput_O03);
+            SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_24BIT, Soc_Aud_InterConnectionOutput_O04);
+            mI2SWLen = Soc_Aud_I2S_WLEN_WLEN_32BITS;
+        }
+        else
+        {
+            SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL1, AFE_WLEN_16_BIT);
+            SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL2, AFE_WLEN_16_BIT);
+            SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_16BIT, Soc_Aud_InterConnectionOutput_O03);
+            SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_16BIT, Soc_Aud_InterConnectionOutput_O04);
+            mI2SWLen = Soc_Aud_I2S_WLEN_WLEN_16BITS;
+        }
+
+        SetSampleRate(Soc_Aud_Digital_Block_MEM_I2S,  runtime->rate);
+
+        // start I2S DAC out
+        if (GetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC) == false)
+        {
+            SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
+            SetI2SDacOut(substream->runtime->rate, false, mI2SWLen);
+            SetI2SDacEnable(true);
+        }
+        else
+        {
+            SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
+        }
+        // here to set interrupt_distributor
+        SetIrqMcuCounter(Soc_Aud_IRQ_MCU_MODE_IRQ1_MCU_MODE, runtime->period_size);
+        SetIrqMcuSampleRate(Soc_Aud_IRQ_MCU_MODE_IRQ1_MCU_MODE, runtime->rate);
+
+        EnableAfe(true);
+        mPrepareDone = true;
+    }
     return 0;
 }
+
 
 static int mtk_pcm_dl1_start(struct snd_pcm_substream *substream)
 {
     struct snd_pcm_runtime *runtime = substream->runtime;
-    AudDrv_Clk_On();
-    SetMemifSubStream(Soc_Aud_Digital_Block_MEM_DL1, substream);
-    if (runtime->format == SNDRV_PCM_FORMAT_S32_LE || runtime->format == SNDRV_PCM_FORMAT_U32_LE)
-    {
-        SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL1, AFE_WLEN_32_BIT_ALIGN_8BIT_0_24BIT_DATA);
-        SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL2, AFE_WLEN_32_BIT_ALIGN_8BIT_0_24BIT_DATA);
-        SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_24BIT, Soc_Aud_InterConnectionOutput_O00);
-        SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_24BIT, Soc_Aud_InterConnectionOutput_O01);
-    }
-    else
-    {
-        SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL1, AFE_WLEN_16_BIT);
-        SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL2, AFE_WLEN_16_BIT);
-        SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_16BIT, Soc_Aud_InterConnectionOutput_O00);
-        SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_16BIT, Soc_Aud_InterConnectionOutput_O01);
-    }
-
-    if (runtime->format == SNDRV_PCM_FORMAT_S32_LE || runtime->format == SNDRV_PCM_FORMAT_U32_LE)
-    {
-        SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL1, AFE_WLEN_32_BIT_ALIGN_8BIT_0_24BIT_DATA);
-        SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL2, AFE_WLEN_32_BIT_ALIGN_8BIT_0_24BIT_DATA);
-        SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_24BIT, Soc_Aud_InterConnectionOutput_O03);
-        SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_24BIT, Soc_Aud_InterConnectionOutput_O04);
-    }
-    else
-    {
-        SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL1, AFE_WLEN_16_BIT);
-        SetMemIfFetchFormatPerSample(Soc_Aud_Digital_Block_MEM_DL2, AFE_WLEN_16_BIT);
-        SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_16BIT, Soc_Aud_InterConnectionOutput_O03);
-        SetoutputConnectionFormat(OUTPUT_DATA_FORMAT_16BIT, Soc_Aud_InterConnectionOutput_O04);
-    }
-
+    printk("%s\n", __func__);
     // here start digital part
+
     SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I05, Soc_Aud_InterConnectionOutput_O03);
     SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I06, Soc_Aud_InterConnectionOutput_O04);
 
-    // set dl1 sample ratelimit_state
+    SetIrqEnable(Soc_Aud_IRQ_MCU_MODE_IRQ1_MCU_MODE, true);
+
     SetSampleRate(Soc_Aud_Digital_Block_MEM_DL1, runtime->rate);
     SetChannels(Soc_Aud_Digital_Block_MEM_DL1, runtime->channels);
     SetMemoryPathEnable(Soc_Aud_Digital_Block_MEM_DL1, true);
 
-    // start I2S DAC out
-    if (GetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC) == false)
-    {
-        SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
-        SetI2SDacOut(substream->runtime->rate);
-        SetI2SDacEnable(true);
-    }
-    else
-    {
-        SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
-    }
-
-    // here to set interrupt
-    SetIrqMcuCounter(Soc_Aud_IRQ_MCU_MODE_IRQ1_MCU_MODE, runtime->period_size);
-    SetIrqMcuSampleRate(Soc_Aud_IRQ_MCU_MODE_IRQ1_MCU_MODE, runtime->rate);
-    SetIrqEnable(Soc_Aud_IRQ_MCU_MODE_IRQ1_MCU_MODE, true);
-
     EnableAfe(true);
-
-	#ifdef K2_EARLYPORTING_PMIC_LOOPBACK //ccc early porting, copy from TurnOnDacPower() and ADC_LOOP_DAC_Func()
-	//ClsqEnable(true);
-	//Topck_Enable(true);
-	//NvregEnable(true);
-	Ana_Set_Reg(AFE_AUDIO_TOP_CON0, 0x0000, 0xffff);   //power on clock
-	//Ana_Set_Reg(AUDADC_CFG0, 0x0400, 0xffff);	   // Enable ADC CLK
-	
-	//Ana_Set_Reg(AFE_ADDA2_UL_SRC_CON1_L, 0x0000, 0xffffffff); //power on ADC clk
-	//Ana_Set_Reg(AFE_TOP_CON0, 0x4000, 0xffffffff); //AFE[14] loopback test1 ( UL tx sdata to DL rx) //ccc mark
-	Ana_Set_Reg(AFUNC_AUD_CON2, 0x0006, 0xffffffff);
-	Ana_Set_Reg(AFUNC_AUD_CON0, 0xc3a1, 0xffffffff); //sdm audio fifo clock power on
-	Ana_Set_Reg(AFUNC_AUD_CON2, 0x0003, 0xffffffff); //sdm power on
-	Ana_Set_Reg(AFUNC_AUD_CON2, 0x000b, 0xffffffff); //sdm fifo enable
-	Ana_Set_Reg(AFE_DL_SDM_CON1, 0x001e, 0xffffffff); //set attenuation gain
-	Ana_Set_Reg(AFE_UL_DL_CON0 , 0x0001, 0xffffffff); //[0] afe enable
-	
-	//Ana_Set_Reg(AFE_UL_SRC0_CON0_H, 0x0000 , 0x0010); // UL1
-	//	Ana_Set_Reg(AFE_UL_SRC0_CON0_L, 0x0001, 0xffff);   //power on uplink
-	//Ana_Set_Reg(AFE_PMIC_NEWIF_CFG0, 0x0380, 0xffff); //MTKIF
-	//Ana_Set_Reg(AFE_DL_SRC2_CON0_H, 0x0800, 0xffff);   //DL
-	//Ana_Set_Reg(AFE_DL_SRC2_CON0_L, 0x0001, 0xffff); //DL
-
-    Ana_Set_Reg(AFE_PMIC_NEWIF_CFG0 , 0 << 12 | 0x330 , 0xffffffff); //8k sample rate
-    Ana_Set_Reg(AFE_DL_SRC2_CON0_H , 0 << 12 | 0x330 , 0xffffffff);//8k sample rate
-    Ana_Set_Reg(AFE_DL_SRC2_CON0_L , 0x1801 , 0xffffffff); //turn off mute function and turn on dl
-    Ana_Set_Reg(PMIC_AFE_TOP_CON0 , 0x0000 , 0xffffffff); //set DL in normal path, not from sine gen table
-	#endif
-
-	#if 0 //ccc early porting debug
-	Afe_Log_Print();
-	#endif
     return 0;
 }
 
@@ -446,7 +477,7 @@ static int mtk_pcm_copy(struct snd_pcm_substream *substream,
     AFE_BLOCK_T  *Afe_Block = NULL;
     int copy_size = 0, Afe_WriteIdx_tmp;
     unsigned long flags;
-    struct snd_pcm_runtime *runtime = substream->runtime;
+    //struct snd_pcm_runtime *runtime = substream->runtime;
     char *data_w_ptr = (char *)dst;
     PRINTK_AUD_DL1("mtk_pcm_copy pos = %lu count = %lu\n ", pos, count);
     // get total bytes to copy
@@ -478,6 +509,9 @@ static int mtk_pcm_copy(struct snd_pcm_substream *substream,
             copy_size = count;
         }
     }
+
+    copy_size = Align64ByteSize(copy_size);
+    PRINTK_AUD_DL1("copy_size=0x%x, count=0x%lx \n", copy_size, count);
 
     if (copy_size != 0)
     {
@@ -518,8 +552,9 @@ static int mtk_pcm_copy(struct snd_pcm_substream *substream,
         else  // copy twice
         {
             kal_uint32 size_1 = 0, size_2 = 0;
-            size_1 = Afe_Block->u4BufferSize - Afe_WriteIdx_tmp;
-            size_2 = copy_size - size_1;
+            size_1 = Align64ByteSize((Afe_Block->u4BufferSize - Afe_WriteIdx_tmp));
+            size_2 = Align64ByteSize((copy_size - size_1));
+            PRINTK_AUD_DL1("size_1=0x%x, size_2=0x%x \n", size_1, size_2);
             if (!access_ok(VERIFY_READ, data_w_ptr, size_1))
             {
                 printk("AudDrv_write 1ptr invalid data_w_ptr=%p, size_1=%d", data_w_ptr, size_1);
@@ -528,7 +563,7 @@ static int mtk_pcm_copy(struct snd_pcm_substream *substream,
             else
             {
 
-                PRINTK_AUD_DL1("mcmcpy Afe_Block->pucVirtBufAddr+Afe_WriteIdx= %x data_w_ptr = %p size_1 = %x\n",
+                PRINTK_AUD_DL1("mcmcpy Afe_Block->pucVirtBufAddr+Afe_WriteIdx= %p data_w_ptr = %p size_1 = %x\n",
                                Afe_Block->pucVirtBufAddr + Afe_WriteIdx_tmp, data_w_ptr, size_1);
                 if ((copy_from_user((Afe_Block->pucVirtBufAddr + Afe_WriteIdx_tmp), data_w_ptr , size_1)))
                 {
@@ -551,7 +586,7 @@ static int mtk_pcm_copy(struct snd_pcm_substream *substream,
             else
             {
 
-                PRINTK_AUD_DL1("mcmcpy Afe_Block->pucVirtBufAddr+Afe_WriteIdx= %x data_w_ptr+size_1 = %p size_2 = %x\n",
+                PRINTK_AUD_DL1("mcmcpy Afe_Block->pucVirtBufAddr+Afe_WriteIdx= %p data_w_ptr+size_1 = %p size_2 = %x\n",
                                Afe_Block->pucVirtBufAddr + Afe_WriteIdx_tmp, data_w_ptr + size_1, size_2);
                 if ((copy_from_user((Afe_Block->pucVirtBufAddr + Afe_WriteIdx_tmp), (data_w_ptr + size_1), size_2)))
                 {
@@ -616,8 +651,18 @@ static struct snd_soc_platform_driver mtk_soc_platform =
 
 static int mtk_soc_dl1_probe(struct platform_device *pdev)
 {
+#ifndef CONFIG_OF
     int ret = 0;
+#endif
+
     PRINTK_AUDDRV("%s \n", __func__);
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_DL1_PCM);
@@ -625,7 +670,12 @@ static int mtk_soc_dl1_probe(struct platform_device *pdev)
 
     PRINTK_AUDDRV("%s: dev name %s\n", __func__, dev_name(&pdev->dev));
     InitAfeControl();
-    ret = Register_Aud_Irq(&pdev->dev);
+#ifndef CONFIG_OF
+    ret = Register_Aud_Irq(&pdev->dev, MT6752_AFE_MCU_IRQ_LINE);
+#endif
+
+    mDev = &pdev->dev;
+
     return snd_soc_register_platform(&pdev->dev,
                                      &mtk_soc_platform);
 }
@@ -641,6 +691,9 @@ static int mtk_asoc_pcm_dl1_new(struct snd_soc_pcm_runtime *rtd)
 static int mtk_asoc_dl1_probe(struct snd_soc_platform *platform)
 {
     PRINTK_AUDDRV("mtk_asoc_dl1_probe\n");
+    // allocate dram
+    AudDrv_Allocate_mem_Buffer(platform->dev, Soc_Aud_Digital_Block_MEM_DL1, Dl1_MAX_BUFFER_SIZE);
+    Dl1_Playback_dma_buf =  Get_Mem_Buffer(Soc_Aud_Digital_Block_MEM_DL1);
     return 0;
 }
 
@@ -651,22 +704,367 @@ static int mtk_afe_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+extern void *AFE_BASE_ADDRESS;
+u32 afe_irq_number = 0;
+int AFE_BASE_PHY;
+
+static const struct of_device_id mt_soc_pcm_dl1_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_dl1", },
+    {}
+};
+
+static int Auddrv_Reg_map_new(void)
+{
+    struct device_node *node = NULL;
+
+    node = of_find_compatible_node(NULL, NULL, "mediatek,mt_soc_pcm_dl1");
+    if (node)
+    {
+        /* Setup IO addresses */
+        AFE_BASE_ADDRESS = of_iomap(node, 0);
+        printk("[mt_soc_pcm_dl1] AFE_BASE_ADDRESS=0x%p\n", AFE_BASE_ADDRESS);
+    }
+    else
+    {
+        printk("[mt_soc_pcm_dl1] node NULL, can't iomap AFE_BASE!!!\n");
+    }
+    of_property_read_u32(node, "reg", &AFE_BASE_PHY);
+    printk("[mt_soc_pcm_dl1] AFE_BASE_PHY=0x%x\n", AFE_BASE_PHY);
+
+    /*get afe irq num*/
+    afe_irq_number = irq_of_parse_and_map(node, 0);
+    printk("[mt_soc_pcm_dl1] afe_irq_number=0x%x\n", afe_irq_number);
+    if (!afe_irq_number)
+    {
+        printk("[mt_soc_pcm_dl1] get afe_irq_number failed!!!\n");
+        return -1;
+    }
+    return 0;
+}
+
+static int Auddrv_OF_ParseGPIO(void)
+{
+    struct device_node *node = NULL;
+
+    node = of_find_compatible_node(NULL, NULL, "mediatek,mt_soc_pcm_dl1");
+    if (node)
+    {
+        if_config1 = 1;
+        if_config2 = 1;
+        if_config3 = 1;
+        if_config4 = 1;
+        if_config5 = 1;
+        if_config6 = 1;
+        if_config7 = 1;
+        if_config8 = 1;
+        if_config9 = 1;
+	if_config10 = 1;
+
+        if (of_property_read_u32_index(node, "audclk-gpio", 0, &pin_audclk))
+        {
+            if_config1 = 0;
+            printk("audclk-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "audclk-gpio", 1, &pin_mode_audclk))
+        {
+            if_config1 = 0;
+            printk("audclk-gpio get pin_mode fail!!!\n");
+        }
+
+        if (of_property_read_u32_index(node, "audmiso-gpio", 0, &pin_audmiso))
+        {
+            if_config2 = 0;
+            printk("audmiso-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "audmiso-gpio", 1, &pin_mode_audmiso))
+        {
+            if_config2 = 0;
+            printk("audmiso-gpio get pin_mode fail!!!\n");
+        }
+
+        if (of_property_read_u32_index(node, "audmosi-gpio", 0, &pin_audmosi))
+        {
+            if_config3 = 0;
+            printk("audmosi-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "audmosi-gpio", 1, &pin_mode_audmosi))
+        {
+            if_config3 = 0;
+            printk("audmosi-gpio get pin_mode fail!!!\n");
+        }
+
+        if (of_property_read_u32_index(node, "vowclk-gpio", 0, &pin_vowclk))
+        {
+            if_config4 = 0;
+            printk("vowclk-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "vowclk-gpio", 1, &pin_mode_vowclk))
+        {
+            if_config4 = 0;
+            printk("vowclk-gpio get pin_mode fail!!!\n");
+        }
+
+        if (of_property_read_u32_index(node, "extspkamp-gpio", 0, &pin_extspkamp))
+        {
+            if_config5 = 0;
+            printk("extspkamp-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "extspkamp-gpio", 1, &pin_mode_extspkamp))
+        {
+            if_config5 = 0;
+            printk("extspkamp-gpio get pin_mode fail!!!\n");
+        }
+
+        if (of_property_read_u32_index(node, "i2s1clk-gpio", 0, &pin_i2s1clk))
+        {
+            if_config6 = 0;
+            printk("i2s1clk-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "i2s1clk-gpio", 1, &pin_mode_i2s1clk))
+        {
+            if_config6 = 0;
+            printk("i2s1clk-gpio get pin_mode fail!!!\n");
+        }
+
+        if (of_property_read_u32_index(node, "i2s1dat-gpio", 0, &pin_i2s1dat))
+        {
+            if_config7 = 0;
+            printk("i2s1dat-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "i2s1dat-gpio", 1, &pin_mode_i2s1dat))
+        {
+            if_config7 = 0;
+            printk("i2s1dat-gpio get pin_mode fail!!!\n");
+        }
+
+        if (of_property_read_u32_index(node, "i2s1mclk-gpio", 0, &pin_i2s1mclk))
+        {
+            if_config8 = 0;
+            printk("i2s1mclk-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "i2s1mclk-gpio", 1, &pin_mode_i2s1mclk))
+        {
+            if_config8 = 0;
+            printk("i2s1mclk-gpio get pin_mode fail!!!\n");
+        }
+
+        if (of_property_read_u32_index(node, "i2s1ws-gpio", 0, &pin_i2s1ws))
+        {
+            if_config9 = 0;
+            printk("i2s1ws-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "i2s1ws-gpio", 1, &pin_mode_i2s1ws))
+        {
+            if_config9 = 0;
+            printk("i2s1ws-gpio get pin_mode fail!!!\n");
+        }
+		
+        if (of_property_read_u32_index(node, "extspkamp_2-gpio", 0, &pin_extspkamp_2))
+        {
+            if_config10 = 0;
+            printk("extspkamp_2-gpio get pin fail!!!\n");
+        }
+        if (of_property_read_u32_index(node, "extspkamp_2-gpio", 1, &pin_mode_extspkamp_2))
+        {
+            if_config10 = 0;
+            printk("extspkamp_2-gpio get pin_mode fail!!!\n");
+        }
+
+        printk("Auddrv_OF_ParseGPIO pin_audclk=%d, pin_audmiso=%d, pin_audmosi=%d \n", pin_audclk, pin_audmiso, pin_audmosi);
+        printk("Auddrv_OF_ParseGPIO pin_vowclk=%d, pin_extspkamp=%d \n", pin_vowclk, pin_extspkamp);
+        printk("Auddrv_OF_ParseGPIO pin_i2s1clk=%d, pin_i2s1dat=%d, pin_i2s1mclk=%d, pin_i2s1ws=%d \n", pin_i2s1clk, pin_i2s1dat, pin_i2s1mclk, pin_i2s1ws);
+    }
+    else
+    {
+        printk("Auddrv_OF_ParseGPIO node NULL!!!\n");
+        return -1;
+    }
+    return 0;
+}
+
+int GetGPIO_Info(int type, int *pin, int *pinmode)
+{
+    switch (type)
+    {
+        case 1: //pin_audclk
+            if (if_config1 == 1)
+            {
+                *pin = pin_audclk | 0x80000000;
+                *pinmode = pin_mode_audclk;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;
+
+        case 2: //pin_audmiso
+            if (if_config2 == 1)
+            {
+                *pin = pin_audmiso | 0x80000000;
+                *pinmode = pin_mode_audmiso;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;
+
+        case 3: //pin_audmosi
+            if (if_config3 == 1)
+            {
+                *pin = pin_audmosi | 0x80000000;
+                *pinmode = pin_mode_audmosi;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;
+
+        case 4: //pin_vowclk
+            if (if_config4 == 1)
+            {
+                *pin = pin_vowclk | 0x80000000;
+                *pinmode = pin_mode_vowclk;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;
+
+        case 5: //pin_extspkamp
+            if (if_config5 == 1)
+            {
+                *pin = pin_extspkamp | 0x80000000;
+                *pinmode = pin_mode_extspkamp;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;
+
+        case 6: //pin_i2s1clk
+            if (if_config6 == 1)
+            {
+                *pin = pin_i2s1clk | 0x80000000;
+                *pinmode = pin_mode_i2s1clk;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;
+
+        case 7: //pin_i2s1dat
+            if (if_config7 == 1)
+            {
+                *pin = pin_i2s1dat | 0x80000000;
+                *pinmode = pin_mode_i2s1dat;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;
+
+        case 8: //pin_i2s1mclk
+            if (if_config8 == 1)
+            {
+                *pin = pin_i2s1mclk | 0x80000000;
+                *pinmode = pin_mode_i2s1mclk;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;
+
+        case 9: //pin_i2s1ws
+            if (if_config9 == 1)
+            {
+                *pin = pin_i2s1ws | 0x80000000;
+                *pinmode = pin_mode_i2s1ws;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;
+
+	case 10: //pin_extspkamp_2
+            if (if_config10 == 1)
+            {
+                *pin = pin_extspkamp_2 | 0x80000000;
+                *pinmode = pin_mode_extspkamp_2;
+            }
+            else
+            {
+                printk("GetGPIO_Info type %d fail!!!\n", type);
+                *pin = -1;
+                *pinmode = -1;
+            }
+            break;			
+
+        default:
+            *pin = -1;
+            *pinmode = -1;
+            printk("Auddrv_OF_ParseGPIO invalid type=%d!!!\n", type);
+            break;
+    }
+}
+
+EXPORT_SYMBOL(GetGPIO_Info);
+#endif
+
 static struct platform_driver mtk_afe_driver =
 {
     .driver = {
         .name = MT_SOC_DL1_PCM,
         .owner = THIS_MODULE,
+#ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_dl1_of_ids,
+#endif
     },
     .probe = mtk_soc_dl1_probe,
     .remove = mtk_afe_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtkafe_dev;
+#endif
 
 static int __init mtk_soc_platform_init(void)
 {
     int ret;
     PRINTK_AUDDRV("%s \n", __func__);
+#ifdef CONFIG_OF
+    Auddrv_Reg_map_new();
+    ret = Register_Aud_Irq(NULL, afe_irq_number);
+    Auddrv_OF_ParseGPIO();
+#else
     soc_mtkafe_dev = platform_device_alloc(MT_SOC_DL1_PCM, -1);
     if (!soc_mtkafe_dev)
     {
@@ -679,7 +1077,7 @@ static int __init mtk_soc_platform_init(void)
         platform_device_put(soc_mtkafe_dev);
         return ret;
     }
-
+#endif
     ret = platform_driver_register(&mtk_afe_driver);
     return ret;
 

@@ -30,6 +30,11 @@
 #include <zram_drv.h>
 #endif
 
+/* for collecting ion total memory usage*/
+#ifdef CONFIG_ION_MTK
+#include <linux/ion_drv.h>
+#endif
+
 #include "mlog_internal.h"
 
 #define CONFIG_MLOG_BUF_SHIFT   16	/* 64KB */
@@ -58,6 +63,7 @@
 #define M_INACTIVE              (1 << 7)
 #define M_SHMEM              (1 << 8)
 #define M_GPU_PAGE_CACHE              (1 << 9)
+#define M_ION              (1 << 10)
 
 #define V_PSWPIN            (1 << 0)
 #define V_PSWPOUT           (1 << 1)
@@ -79,7 +85,7 @@
 #define P_FMT_SIZE          (P_RSS | P_RSWAP)
 #define P_FMT_COUNT         (P_SWPIN | P_SWPOUT | P_FMFAULT | P_MINFAULT | P_MAJFAULT)
 
-#define M_FILTER_ALL        (M_MEMFREE | M_SWAPFREE | M_CACHED | M_GPUUSE | M_GPU_PAGE_CACHE | M_MLOCK | M_ZRAM | M_ACTIVE | M_INACTIVE | M_SHMEM)
+#define M_FILTER_ALL        (M_MEMFREE | M_SWAPFREE | M_CACHED | M_GPUUSE | M_GPU_PAGE_CACHE | M_MLOCK | M_ZRAM | M_ACTIVE | M_INACTIVE | M_SHMEM | M_ION)
 #define V_FILTER_ALL        (V_PSWPIN | V_PSWPOUT | V_PGFMFAULT | V_PGANFAULT)
 #define P_FILTER_ALL        (P_ADJ | P_RSS | P_RSWAP | P_SWPIN | P_SWPOUT | P_FMFAULT)
 #define B_FILTER_ALL        (B_NORMAL | B_HIGH)
@@ -277,6 +283,8 @@ int mlog_print_fmt(struct seq_file *m)
 		seq_puts(m, "   inactive");
 	if (meminfo_filter & M_SHMEM)
 		seq_puts(m, "   shmem");
+	if (meminfo_filter & M_ION)
+		seq_printf(m, "   ion");
 
 	if (vmstat_filter & V_PSWPIN)
 		seq_puts(m, "   swpin");
@@ -336,6 +344,7 @@ static void mlog_meminfo(void)
 	unsigned long zram;
 	unsigned long active, inactive;
 	unsigned long shmem;
+	unsigned long ion = 0;
 
 	memfree = P2K(global_page_state(NR_FREE_PAGES) + mtkpasr_show_page_reserved());
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
@@ -366,6 +375,10 @@ static void mlog_meminfo(void)
 	/* MLOG_PRINTK("active: %lu, inactive: %lu\n", active, inactive); */
 	shmem = P2K(global_page_state(NR_SHMEM));
 
+#ifdef CONFIG_ION_MTK
+    ion = B2K((unsigned long)ion_mm_heap_total_memory());
+#endif
+
 	spin_lock_bh(&mlogbuf_lock);
 	mlog_emit_32(memfree);
 	mlog_emit_32(swapfree);
@@ -377,6 +390,7 @@ static void mlog_meminfo(void)
 	mlog_emit_32(active);
 	mlog_emit_32(inactive);
 	mlog_emit_32(shmem);
+	mlog_emit_32(ion);
 	spin_unlock_bh(&mlogbuf_lock);
 }
 
@@ -536,6 +550,13 @@ static void mlog_procinfo(void)
 		if (!cred)
 			goto unlock_continue;
 
+	/*
+	 * 1. mediaserver is a suspect in many ANR/FLM cases.
+	 * 2. procesname is "mediaserver" not "/system/bin/mediaserver"
+	 */
+	if (strncmp("mediaserver", p->comm, TASK_COMM_LEN) == 0)
+		goto collect_proc_mem_info;
+
 		/* skip root user */
 		if (cred->uid == AID_ROOT)
 			goto unlock_continue;
@@ -555,6 +576,7 @@ static void mlog_procinfo(void)
 				goto unlock_continue;
 		}
 
+collect_proc_mem_info:
 		/* reset data */
 		swap_in = swap_out = fm_flt = min_flt = maj_flt = 0;
 
@@ -569,6 +591,13 @@ static void mlog_procinfo(void)
 			swap_out += t->swap_out;
 #endif
 			t = next_thread(t);
+#ifdef MLOG_DEBUG
+#if defined(__LP64__) || defined(_LP64)
+			if ((long long)t < 0xffffffc000000000)
+				break;
+#endif
+#endif
+
 		} while (t != p);
 
 		/* emit log */

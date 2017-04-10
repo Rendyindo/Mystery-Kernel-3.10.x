@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include "mt_soc_pcm_common.h"
 
 //information about
@@ -120,7 +121,7 @@ static bool SetVoipDAIBTAttribute(int sample_rate)
 
 static void StartAudioBtDaiHardware(struct snd_pcm_substream *substream)
 {
-    //printk("StartAudioBtDaiHardware period_size = %d\n",substream->runtime->period_size);
+    printk("StartAudioBtDaiHardware period_size = %d\n",(unsigned int)(substream->runtime->period_size));
 
     // here to set interrupt
     SetIrqMcuCounter(Soc_Aud_IRQ_MCU_MODE_IRQ2_MCU_MODE, substream->runtime->period_size>>1);
@@ -165,9 +166,8 @@ static int mtk_bt_dai_alsa_stop(struct snd_pcm_substream *substream)
     {
         SetDaiBtEnable(false);
     }
-
     StopAudioBtDaiHardware(substream);
-    RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_DAI);
+    RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_DAI,substream);
     return 0;
 }
 
@@ -189,7 +189,7 @@ static snd_pcm_uframes_t mtk_bt_dai_pcm_pointer(struct snd_pcm_substream *substr
         Frameidx =audio_bytes_to_frame(substream , Dai_Block->u4DMAReadIdx);
         return Frameidx;
 
-        HW_Cur_ReadIdx = Afe_Get_Reg(AFE_DAI_CUR);
+        HW_Cur_ReadIdx = Align64ByteSize(Afe_Get_Reg(AFE_DAI_CUR));
         if (HW_Cur_ReadIdx == 0)
         {
             printk("[Auddrv] mtk_bt_dai_pcm_pointer  HW_Cur_ReadIdx ==0 \n");
@@ -380,7 +380,7 @@ static int mtk_bt_dai_pcm_copy(struct snd_pcm_substream *substream,
     printk("%s  pos = %lu count = %lu\n ", __func__, pos, count);
 
     // get total bytes to copy
-    count =audio_frame_to_bytes(substream , count);
+    count = Align64ByteSize(audio_frame_to_bytes(substream , count));
 
     // check which memif nned to be write
     pDAI_MEM_ConTrol = Bt_Dai_Control_context;
@@ -561,6 +561,13 @@ static struct snd_soc_platform_driver mtk_bt_dai_soc_platform =
 static int mtk_bt_dai_probe(struct platform_device *pdev)
 {
     printk("mtk_bt_dai_probe\n");
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_VOIP_BT_IN);
@@ -570,29 +577,17 @@ static int mtk_bt_dai_probe(struct platform_device *pdev)
     return snd_soc_register_platform(&pdev->dev,
                                      &mtk_bt_dai_soc_platform);
 }
-static u64 awb_pcm_dmamask = DMA_BIT_MASK(32);
 
 static int mtk_asoc_bt_dai_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-    struct snd_card *card = rtd->card->snd_card;
-    int ret = 0;
-    if (!card->dev->dma_mask)
-    {
-        card->dev->dma_mask = &awb_pcm_dmamask;
-    }
-    if (!card->dev->coherent_dma_mask)
-    {
-        card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
-    }
-
     printk("mtk_asoc_bt_dai_pcm_new \n");
-    return ret;
+    return 0;
 }
 
 static int mtk_asoc_bt_dai_probe(struct snd_soc_platform *platform)
 {
     printk("mtk_asoc_bt_dai_probe\n");
-    AudDrv_Allocate_mem_Buffer(Soc_Aud_Digital_Block_MEM_DAI, BT_DAI_MAX_BUFFER_SIZE);
+    AudDrv_Allocate_mem_Buffer(platform->dev, Soc_Aud_Digital_Block_MEM_DAI, BT_DAI_MAX_BUFFER_SIZE);
     Bt_Dai_Capture_dma_buf =  Get_Mem_Buffer(Soc_Aud_Digital_Block_MEM_DAI);
     return 0;
 }
@@ -604,22 +599,36 @@ static int mtk_bt_dai_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_pcm_bt_dai_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_bt_dai", },
+    {}
+};
+#endif
+
 static struct platform_driver mtk_bt_dai_capture_driver =
 {
     .driver = {
         .name = MT_SOC_VOIP_BT_IN,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_bt_dai_of_ids,
+        #endif        
     },
     .probe = mtk_bt_dai_probe,
     .remove = mtk_bt_dai_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_bt_dai_capture_dev;
+#endif
 
 static int __init mtk_soc_bt_dai_platform_init(void)
 {
     int ret = 0;
     printk("%s\n", __func__);
+	#ifndef CONFIG_OF
     soc_bt_dai_capture_dev = platform_device_alloc(MT_SOC_VOIP_BT_IN, -1);
     if (!soc_bt_dai_capture_dev)
     {
@@ -632,6 +641,7 @@ static int __init mtk_soc_bt_dai_platform_init(void)
         platform_device_put(soc_bt_dai_capture_dev);
         return ret;
     }
+	#endif
     ret = platform_driver_register(&mtk_bt_dai_capture_driver);
     return ret;
 }

@@ -18,7 +18,6 @@
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
 #include <linux/printk.h>
-#include <mach/mtk_memcfg.h>
 
 /* Some utility macro*/
 #define SEQ_printf(m, x...)	    \
@@ -31,7 +30,7 @@
 
 #define MT_DEBUG_ENTRY(name) \
 static int mt_##name##_show(struct seq_file *m, void *v);\
-static int mt_##name##_write(struct file *filp, const char *ubuf, size_t cnt, loff_t *data);\
+static ssize_t mt_##name##_write(struct file *filp, const char *ubuf, size_t cnt, loff_t *data);\
 static int mt_##name##_open(struct inode *inode, struct file *file) \
 { \
     return single_open(file, mt_##name##_show, inode->i_private); \
@@ -104,10 +103,8 @@ static ssize_t mt_debug_config_write(struct file *filp, const char *ubuf, size_t
 		pr_err("MTK debug disable:\n");
 		/* printk("1.ftrace\n"); */
 /* mt_ftrace_enable_disable(0); */
-		pr_err("3.storage_logger\n");
-		storage_logger_switch(0);
-		pr_err("4.memory\n");
-		mtk_memcfg_set_bypass_slub_debug_flag(1);
+//		pr_err("3.storage_logger\n");
+	//	storage_logger_switch(0);
 		pr_err("5.prove locking\n");
 		debug_locks_off();
 		pr_err("6.Disable console log\n");

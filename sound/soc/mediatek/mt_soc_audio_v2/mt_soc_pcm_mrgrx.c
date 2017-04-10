@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include "AudDrv_Common.h"
 #include "AudDrv_Def.h"
 #include "AudDrv_Afe.h"
@@ -59,10 +60,9 @@
 #include "mt_soc_digital_type.h"
 #include "mt_soc_pcm_common.h"
 
-#if 0 //temp mark for early porting
+
 #include <mach/mtk_wcn_cmb_stub.h>
 extern  int mtk_wcn_cmb_stub_audio_ctrl(CMB_STUB_AIF_X state);
-#endif
 
 //static DEFINE_SPINLOCK(auddrv_mrgrx_lock);
 
@@ -91,17 +91,10 @@ static int Audio_mrgrx_Volume_Set(struct snd_kcontrol *kcontrol, struct snd_ctl_
 {
     mmrgrx_Volume = ucontrol->value.integer.value[0];
     printk("%s mmrgrx_Volume = 0x%x \n", __func__, mmrgrx_Volume);
-#if 0 // TODO(Harvey)
     if (GetMemoryPathEnable(Soc_Aud_Digital_Block_MRG_I2S_OUT) == true)
     {
         SetHwDigitalGain(mmrgrx_Volume, Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1);
     }
-#else
-    if (GetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN_2) == true)
-    {
-        SetHwDigitalGain(mmrgrx_Volume, Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1);
-    }
-#endif
     return 0;
 }
 
@@ -113,11 +106,7 @@ static const struct soc_enum wcn_stub_audio_ctr_Enum[] =
     SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(wcn_stub_audio_ctr), wcn_stub_audio_ctr),
 };
 
-#if 0  //temp mark for early porting
-//static int mAudio_Wcn_Cmb = CMB_STUB_AIF_3;
-#else
-static int mAudio_Wcn_Cmb;
-#endif
+static int mAudio_Wcn_Cmb = CMB_STUB_AIF_3;
 static int Audio_Wcn_Cmb_Get(struct snd_kcontrol *kcontrol,
                              struct snd_ctl_elem_value *ucontrol)
 {
@@ -130,7 +119,7 @@ static int Audio_Wcn_Cmb_Set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 {
     mAudio_Wcn_Cmb = ucontrol->value.integer.value[0];
     printk("%s mAudio_Wcn_Cmb = 0x%x \n", __func__, mAudio_Wcn_Cmb);
-    //mtk_wcn_cmb_stub_audio_ctrl((CMB_STUB_AIF_X)mAudio_Wcn_Cmb);//temp mark for early porting
+    mtk_wcn_cmb_stub_audio_ctrl((CMB_STUB_AIF_X)mAudio_Wcn_Cmb);
     return 0;
 }
 
@@ -199,8 +188,6 @@ static int mtk_pcm_mrgrx_open(struct snd_pcm_substream *substream)
     struct snd_pcm_runtime *runtime = substream->runtime;
     int ret = 0;
     AudDrv_Clk_On();
-    AudDrv_I2S_Clk_On();
-
     printk("mtk_pcm_mrgrx_open\n");
     runtime->hw = mtk_mrgrx_hardware;
     memcpy((void *)(&(runtime->hw)), (void *)&mtk_mrgrx_hardware , sizeof(struct snd_pcm_hardware));
@@ -230,32 +217,25 @@ static int mtk_pcm_mrgrx_open(struct snd_pcm_substream *substream)
         mtk_pcm_mrgrx_close(substream);
         return ret;
     }
+    SetFMEnableFlag(true);
+    
     printk("mtk_pcm_mrgrx_open return\n");
+    
     return 0;
 }
 
 static int mtk_pcm_mrgrx_close(struct snd_pcm_substream *substream)
 {
     struct snd_pcm_runtime *runtime = substream->runtime;
-
     printk("%s \n", __func__);
-    //mtk_wcn_cmb_stub_audio_ctrl((CMB_STUB_AIF_X)CMB_STUB_AIF_0);//temp mark for early porting
 
-#if 0 // TODO(Harvey)
+    mtk_wcn_cmb_stub_audio_ctrl((CMB_STUB_AIF_X)CMB_STUB_AIF_0);
+
     SetMemoryPathEnable(Soc_Aud_Digital_Block_MRG_I2S_OUT, false);
     if (GetMemoryPathEnable(Soc_Aud_Digital_Block_MRG_I2S_OUT) == false)
     {
         SetMrgI2SEnable(false, runtime->rate);
     }
-#else
-    SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN_2, false);
-    if (GetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN_2) == false)
-    {
-        SetI2SASRCEnable(false);
-        SetI2SASRCConfig(false, 0); // Setting to bypass ASRC
-        Set2ndI2SInEnable(false);
-    }
-#endif
 
     SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, false);
     if (GetI2SDacEnable() == false)
@@ -264,22 +244,19 @@ static int mtk_pcm_mrgrx_close(struct snd_pcm_substream *substream)
     }
 
     // interconnection setting
-#if 0 // TODO(Harvey) 
     SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I15, Soc_Aud_InterConnectionOutput_O13);
     SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I16, Soc_Aud_InterConnectionOutput_O14);
-#else
-    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I00, Soc_Aud_InterConnectionOutput_O13);
-    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I01, Soc_Aud_InterConnectionOutput_O14);
-#endif
+
     SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I10, Soc_Aud_InterConnectionOutput_O03);
     SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I11, Soc_Aud_InterConnectionOutput_O04);
 
 
     EnableAfe(false);
 
-    AudDrv_I2S_Clk_Off();
     AudDrv_Clk_Off();
     mPrepareDone = false;
+    SetFMEnableFlag(false);
+    
     return 0;
 }
 
@@ -290,28 +267,24 @@ static int mtk_pcm_mrgrx_prepare(struct snd_pcm_substream *substream)
 
     if (mPrepareDone == false)
     {
-        //mtk_wcn_cmb_stub_audio_ctrl((CMB_STUB_AIF_X)CMB_STUB_AIF_3);//temp mark for early porting
+        mtk_wcn_cmb_stub_audio_ctrl((CMB_STUB_AIF_X)CMB_STUB_AIF_3);
 
         // interconnection setting
-#if 0 // TODO(Harvey) 
         SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I15, Soc_Aud_InterConnectionOutput_O13);
         SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I16, Soc_Aud_InterConnectionOutput_O14);
-#else
-        SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I00, Soc_Aud_InterConnectionOutput_O13);
-        SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I01, Soc_Aud_InterConnectionOutput_O14);
-#endif
+
         SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I10, Soc_Aud_InterConnectionOutput_O03);
         SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I11, Soc_Aud_InterConnectionOutput_O04);
 
         // Set HW_GAIN
-        SetHwDigitalGainMode(Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1, runtime->rate, 0x80);
+        SetHwDigitalGainMode(Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1, runtime->rate, 0x40);
         SetHwDigitalGainEnable(Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1, true);
         SetHwDigitalGain(mmrgrx_Volume, Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1);
 
         // start I2S DAC out
         if (GetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC) == false)
         {
-            SetI2SDacOut(runtime->rate);
+            SetI2SDacOut(runtime->rate,false, Soc_Aud_I2S_WLEN_WLEN_16BITS);
             SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
             SetI2SDacEnable(true);
         }
@@ -319,7 +292,7 @@ static int mtk_pcm_mrgrx_prepare(struct snd_pcm_substream *substream)
         {
             SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
         }
-#if 0 // TODO(Harvey)
+
         if (GetMemoryPathEnable(Soc_Aud_Digital_Block_MRG_I2S_OUT) == false)
         {
             //set merge interface
@@ -330,35 +303,7 @@ static int mtk_pcm_mrgrx_prepare(struct snd_pcm_substream *substream)
         {
             SetMemoryPathEnable(Soc_Aud_Digital_Block_MRG_I2S_OUT, true);
         }
-#else
-        if (GetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN_2) == false)
-        {
-            //set merge interface
-            SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN_2, true);
 
-            // Config 2nd I2S IN
-            AudioDigtalI2S m2ndI2SInAttribute;
-            memset((void *)&m2ndI2SInAttribute, 0, sizeof(m2ndI2SInAttribute));
-
-            m2ndI2SInAttribute.mLR_SWAP = Soc_Aud_LR_SWAP_NO_SWAP;
-            m2ndI2SInAttribute.mI2S_IN_PAD_SEL = false; // I2S_IN_FROM_CONNSYS
-            m2ndI2SInAttribute.mI2S_SLAVE = Soc_Aud_I2S_SRC_SLAVE_MODE;
-            m2ndI2SInAttribute.mI2S_SAMPLERATE = 32000;
-            m2ndI2SInAttribute.mINV_LRCK = Soc_Aud_INV_LRCK_NO_INVERSE;
-            m2ndI2SInAttribute.mI2S_FMT = Soc_Aud_I2S_FORMAT_I2S;
-            m2ndI2SInAttribute.mI2S_WLEN = Soc_Aud_I2S_WLEN_WLEN_16BITS;
-            Set2ndI2SIn(&m2ndI2SInAttribute);
-
-            SetI2SASRCConfig(true, 44100);  // Covert from 32000 Hz to 44100 Hz
-            SetI2SASRCEnable(true);
-
-            Set2ndI2SInEnable(true);
-        }
-        else
-        {
-            SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN_2, true);
-        }
-#endif
         EnableAfe(true);
         mPrepareDone = true;
     }
@@ -437,6 +382,13 @@ static struct snd_soc_platform_driver mtk_mrgrx_soc_platform =
 static int mtk_mrgrx_probe(struct platform_device *pdev)
 {
     printk("%s \n", __func__);
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_MRGRX_PCM);
@@ -470,22 +422,36 @@ static int mtk_mrgrx_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_pcm_mrgrx_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_mrgrx", },
+    {}
+};
+#endif
+
 static struct platform_driver mtk_mrgrx_driver =
 {
     .driver = {
         .name = MT_SOC_MRGRX_PCM,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_mrgrx_of_ids,
+        #endif        
     },
     .probe = mtk_mrgrx_probe,
     .remove = mtk_mrgrx_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtkmrgrx_dev;
+#endif
 
 static int __init mtk_mrgrx_soc_platform_init(void)
 {
     int ret = 0;
     printk("%s \n", __func__);
+	#ifndef CONFIG_OF
     soc_mtkmrgrx_dev = platform_device_alloc(MT_SOC_MRGRX_PCM, -1);
     if (!soc_mtkmrgrx_dev)
     {
@@ -497,7 +463,7 @@ static int __init mtk_mrgrx_soc_platform_init(void)
         platform_device_put(soc_mtkmrgrx_dev);
         return ret;
     }
-
+    #endif
     ret = platform_driver_register(&mtk_mrgrx_driver);
     return ret;
 

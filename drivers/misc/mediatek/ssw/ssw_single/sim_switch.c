@@ -1,20 +1,6 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
 
 #include <ssw.h>
 #include <mach/mtk_ccci_helper.h>
-
 /*--------------Feature option---------------*/
 #define __ENABLE_SSW_SYSFS 1
 
@@ -177,12 +163,14 @@ static int set_sim_gpio(unsigned int mode)
 	switch(mode)
 	{
 		case SINGLE_TALK_MDSYS:
+			#if defined(GPIO_SIM1_SCLK) && defined(GPIO_SIM1_SIO) && defined(GPIO_SIM2_SCLK) && defined(GPIO_SIM2_SIO)
 			mt_set_gpio_mode(GPIO_SIM1_SCLK, 1);	//SIM1_SCLK	
 			mt_set_gpio_mode(GPIO_SIM1_SIO, 1); 	//SIM1_SIO
 			mt_set_gpio_mode(GPIO_SIM2_SCLK, 1); 	//SIM2_SCLK
 			mt_set_gpio_mode(GPIO_SIM2_SIO, 1); 	//SIM2_SIO
 			//mt_set_gpio_mode(GPIO_SIM1_SRST, 4);	//SIM1_SRST, 6582 not use reset pin
 			//mt_set_gpio_mode(GPIO_SIM2_SRST, 4);	//SIM2_SRST, 6582 not use reset pin
+			#endif
 			break;
 		
 		default:
@@ -196,9 +184,11 @@ static int set_sim_gpio(unsigned int mode)
 			  mt_get_gpio_mode(GPIO2), mt_get_gpio_dir(GPIO2), mt_get_gpio_mode(GPIO3), mt_get_gpio_dir(GPIO3), \
 			  mt_get_gpio_mode(GPIO89), mt_get_gpio_dir(GPIO89), mt_get_gpio_mode(GPIO90), mt_get_gpio_dir(GPIO90));
 #else
+	#if defined(GPIO_SIM1_SCLK) && defined(GPIO_SIM1_SIO) && defined(GPIO_SIM2_SCLK) && defined(GPIO_SIM2_SIO)
 	SSW_DBG("Current sim mode(%d), GPIO_SIM1_SCLK_MODE(%d, %d), GPIO_SIM1_SIO_MODE(%d, %d), GPIO_SIM2_SCLK_MODE(%d, %d), GPIO_SIM2_SIO_MODE(%d, %d)\n", \
 		mode, mt_get_gpio_mode(GPIO_SIM1_SCLK), mt_get_gpio_dir(GPIO_SIM1_SCLK), mt_get_gpio_mode(GPIO_SIM1_SIO), mt_get_gpio_dir(GPIO_SIM1_SIO), \
 			  mt_get_gpio_mode(GPIO_SIM2_SCLK), mt_get_gpio_dir(GPIO_SIM2_SCLK), mt_get_gpio_mode(GPIO_SIM2_SIO), mt_get_gpio_dir(GPIO_SIM2_SIO));
+	#endif
 #endif
 	
 	return SSW_SUCCESS;
@@ -280,7 +270,8 @@ static int sim_switch_probe(struct platform_device *dev)
 		
 	//sim_switch_init();
 	
-	mutex_init(&sim_switch_mutex);
+    //move this to sim_switch_driver_init(). Because this function not exceute on device tree branch.   
+	//mutex_init(&sim_switch_mutex);
 	
 	//register_ccci_kern_func(ID_SSW_SWITCH_MODE, switch_sim_mode);
 	
@@ -334,6 +325,9 @@ static int __init sim_switch_driver_init(void)
 		SSW_DBG("ssw_driver register fail(%d)\n", ret);
 		return ret;
 	}
+
+    mutex_init(&sim_switch_mutex);
+
 #if __ENABLE_SSW_SYSFS
 	ssw_sysfs_init();
 #endif

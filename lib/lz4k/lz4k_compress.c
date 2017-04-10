@@ -3,6 +3,7 @@
  */
 #include <linux/lz4k.h>
 #include <linux/types.h>
+#include <linux/string.h>
 
 unsigned short lz4k_matchlen_encode[32] =
     { 0, 0, 0, 1024, 1026, 2049, 2053, 2057, 2061, 3091, 3123, 3083, 2563, 3643, 3707, 3115, 3099,
@@ -292,6 +293,7 @@ int lz4k_compress(const unsigned char *in, size_t in_len, unsigned char *out,
 		*out_len = 0;
 		return -1;
 	} else {
+		memset(wrkmem, 0, LZ4K_MEM_COMPRESS);
 		_lz4k_do_compress(in, in_len, op, out_len, wrkmem);
 	}
 

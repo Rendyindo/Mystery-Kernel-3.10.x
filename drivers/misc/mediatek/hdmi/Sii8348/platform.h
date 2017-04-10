@@ -9,14 +9,14 @@ modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation version 2.
 This program is distributed AS-IS WITHOUT ANY WARRANTY of any
 kind, whether express or implied; INCLUDING without the implied warranty
-of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See
-the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.
+of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See 
+the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.             
 
 */
 
 #if !defined(PLATFORM_H)
 #define PLATFORM_H
-
+ 
 #define DEVICE_ID_8348				0x8348
 #define DEVICE_ID_8346				0x8346
 
@@ -27,22 +27,26 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #define LCD_TEXT_LENGTH_MAX	16
 
 enum dbg_msg_level {
-	DBG_MSG_LEVEL_ERR =
-	    0, DBG_MSG_LEVEL_WARN, DBG_MSG_LEVEL_INFO, DBG_MSG_LEVEL_GPIO, DBG_MSG_LEVEL_EDID_READ,
-	    DBG_MSG_LEVEL_EDID_INFO
+	DBG_MSG_LEVEL_ERR = 0
+	,DBG_MSG_LEVEL_WARN
+	,DBG_MSG_LEVEL_INFO
+	,DBG_MSG_LEVEL_GPIO
+	,DBG_MSG_LEVEL_EDID_READ
+	,DBG_MSG_LEVEL_EDID_INFO
 };
 
 
-typedef enum {
-	HAL_RET_SUCCESS,
-	HAL_RET_FAILURE,
-	HAL_RET_PARAMETER_ERROR,
-	HAL_RET_NO_DEVICE,
-	HAL_RET_DEVICE_NOT_OPEN,
-	HAL_RET_NOT_INITIALIZED,
-	HAL_RET_OUT_OF_RESOURCES,
-	HAL_RET_TIMEOUT,
-	HAL_RET_ALREADY_INITIALIZED
+typedef enum
+{
+    HAL_RET_SUCCESS,			
+    HAL_RET_FAILURE,			
+    HAL_RET_PARAMETER_ERROR,	
+    HAL_RET_NO_DEVICE,			
+    HAL_RET_DEVICE_NOT_OPEN,	
+    HAL_RET_NOT_INITIALIZED,	
+    HAL_RET_OUT_OF_RESOURCES,	
+    HAL_RET_TIMEOUT,			
+    HAL_RET_ALREADY_INITIALIZED 
 } halReturn_t;
 
 
@@ -50,22 +54,24 @@ typedef enum {
 #if defined(DEBUG)
 
 void print_formatted_debug_msg(int level,
-			       char *file_spec, const char *func_name,
-			       int line_num, char *fmt, ...);
+		char *file_spec, const char *func_name,
+		int line_num, 
+		char *fmt, ...);
 
-void dump_i2c_transfer(void *context, u8 page, u8 offset, u16 count, u8 *values, bool write);
+void dump_i2c_transfer(void *context, u8 page, u8 offset,
+		u16 count, u8 *values, bool write);
 /*
 #define MHL_TX_DBG_GPIO(driver_context, fmt, arg...)				\
 	print_formatted_debug_msg(DBG_MSG_LEVEL_GPIO,				\
 			NULL, __func__, __LINE__,				\
 			fmt, ## arg);
 */
-#define MHL_TX_EDID_READ(context, fmt, arg...)					\
+#define MHL_TX_EDID_READ(context,fmt,arg...) 					\
 	print_formatted_debug_msg(DBG_MSG_LEVEL_EDID_READ,			\
 			NULL, __func__, __LINE__,				\
 			fmt, ## arg);
 
-#define MHL_TX_EDID_INFO(context, fmt, arg...)					\
+#define MHL_TX_EDID_INFO(context,fmt,arg...) 					\
 	print_formatted_debug_msg(DBG_MSG_LEVEL_EDID_INFO,			\
 			NULL, __func__, __LINE__,				\
 			fmt, ## arg);
@@ -75,7 +81,7 @@ void dump_i2c_transfer(void *context, u8 page, u8 offset, u16 count, u8 *values,
 			NULL, __func__, __LINE__,				\
 			fmt, ## arg);
 
-#define MHL_TX_DBG_WARN(driver_context, fmt, arg...)				\
+#define MHL_TX_DBG_WARN(driver_context, fmt, arg...) 				\
 	print_formatted_debug_msg(DBG_MSG_LEVEL_WARN,				\
 			NULL, __func__, __LINE__,				\
 			fmt, ## arg);
@@ -86,14 +92,14 @@ void dump_i2c_transfer(void *context, u8 page, u8 offset, u16 count, u8 *values,
 			fmt, ## arg);
 
 #define DUMP_I2C_TRANSFER(context, page, offset, count, values, write_flag)	\
-				/* dump_i2c_transfer(context, page, offset, count, values, write_flag); */
+	//dump_i2c_transfer(context, page, offset, count, values, write_flag);
 
 #define DEBUG_PRINT_WRAPPER(...)						\
 	print_formatted_debug_msg(DBG_MSG_LEVEL_ERR,				\
 			__FILE__, __func__,					\
 			__LINE__, __VA_ARGS__);
 
-#define APP_DEBUG_PRINT(x)			DEBUG_PRINT_WRAPPER x
+#define APP_DEBUG_PRINT(x) 			DEBUG_PRINT_WRAPPER x
 #define PP_DEBUG_PRINT(x)			DEBUG_PRINT_WRAPPER x
 #define PIXCLK_DEBUG_PRINT(x)			DEBUG_PRINT_WRAPPER x
 #define ERROR_DEBUG_PRINT(x)			DEBUG_PRINT_WRAPPER x
@@ -139,13 +145,13 @@ struct platform_signals_list {
 	int16_t		gpio_number;
 	struct platform_reg_pair	gpio_reg_PCA950x;
 	uint8_t		gpio_mask_PCA950x;
-
+	
 	bool		*param;
 };
 */
-/* int gpio_expander_init(struct mhl_dev_context *dev_context); */
+//int gpio_expander_init(struct mhl_dev_context *dev_context);
 
-/* void gpio_expander_reset(void); */
+//void gpio_expander_reset(void);
 bool is_reset_on_exit_requested(void);
 
 int mhl_tx_write_reg(void *drv_context, u8 page, u8 offset, u8 value);
@@ -154,16 +160,16 @@ int mhl_tx_write_reg_block(void *drv_context, u8 page, u8 offset, u16 count, u8 
 int mhl_tx_read_reg_block(void *drv_context, u8 page, u8 offset, u8 count, u8 *values);
 int mhl_tx_modify_reg(void *drv_context, u8 page, u8 offset, u8 mask, u8 value);
 
-/* void lcd_set_video(char *video); */
-/* void lcd_set_audio(char *audio); */
-/* void lcd_set_video_audio(char *video, char *audio); */
+//void lcd_set_video(char *video);
+//void lcd_set_audio(char *audio);
+//void lcd_set_video_audio(char *video, char *audio);
 
 int is_interrupt_asserted(void);
-/* int get_config(void *dev_context, int config_idx); */
-/* #define       GPIO_LED_ON     0 */
-/* #define       GPIO_LED_OFF    1 */
-/* void set_pin_impl(void *dev_context, int pin_idx, int value,const char *function_name,int line_num); */
-/* #define set_pin(dev_context,pin_idx,value) set_pin_impl(dev_context, pin_idx, value,__FUNCTION__,__LINE__) */
+//int get_config(void *dev_context, int config_idx);
+//#define	GPIO_LED_ON	0
+//#define	GPIO_LED_OFF	1
+//void set_pin_impl(void *dev_context, int pin_idx, int value,const char *function_name,int line_num);
+//#define set_pin(dev_context,pin_idx,value) set_pin_impl(dev_context, pin_idx, value,__FUNCTION__,__LINE__)
 /*
 typedef enum {
 
@@ -218,4 +224,4 @@ typedef enum {
 	TX_HW_RESET
 }GPIO_INDICES;
 */
-#endif				/* if !defined(PLATFORM_H) */
+#endif /* if !defined(PLATFORM_H) */

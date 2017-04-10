@@ -186,7 +186,6 @@ void musb_root_disconnect(struct musb *musb)
 	usb_hcd_poll_rh_status(musb_to_hcd(musb));
 	musb->is_active = 0;
 
-	
 	/* when UMS device is detached, khubd need to wait for usb-storage
 		  thread to stop, then it will disable all endpoints, and clean up pending
 		  URBs. But if usb-storage is waiting for some URBs, it will never stop.

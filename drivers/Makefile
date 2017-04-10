@@ -44,7 +44,7 @@ obj-$(CONFIG_RESET_CONTROLLER)	+= reset/
 # default.
 obj-y				+= tty/
 obj-y				+= char/
-
+obj-$(CONFIG_STAGING)		+= staging/
 # gpu/ comes after char for AGP vs DRM startup
 obj-y				+= gpu/
 
@@ -130,7 +130,6 @@ obj-$(CONFIG_SSB)		+= ssb/
 obj-$(CONFIG_BCMA)		+= bcma/
 obj-$(CONFIG_VHOST_RING)	+= vhost/
 obj-$(CONFIG_VLYNQ)		+= vlynq/
-obj-$(CONFIG_STAGING)		+= staging/
 obj-y				+= platform/
 #common clk code
 obj-y				+= clk/
@@ -153,3 +152,4 @@ obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_VME_BUS)		+= vme/
 obj-$(CONFIG_IPACK_BUS)		+= ipack/
 obj-$(CONFIG_NTB)		+= ntb/
+obj-$(CONFIG_ANDROID)		+= android/

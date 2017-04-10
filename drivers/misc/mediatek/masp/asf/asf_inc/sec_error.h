@@ -35,6 +35,7 @@
 #define ERR_ROM_INFO_ID_INVALID                 0x3006
 #define ERR_INFO_MTD_NUM_INVALID                0x3007
 #define ERR_INFO_PART_NOT_FOUND                 0x3008
+#define ERR_INFO_OVER_MAX_PART_COUNT            0x3009
 
 /* SW RSA */
 #define ERR_RSA_KEY_NOT_FOUND                   0x4000
@@ -111,7 +112,7 @@
 #define SEC_SUSBDL_STATUE_QUERY_FAIL            0x9008
 #define SEC_SUSBDL_NOT_ENABLED                  0x9009
 #define SEC_SBOOT_MARK_STATUS_FAIL              0x900A
-#define SEC_SBOOT_NOT_INIT_YET                  0x900B
+#define SEC_SBOOT_NOT_INIT_YET                  0x900B  
 #define SEC_SBOOT_NOTIFY_DRIVER_FAIL            0x900C
 #define SEC_SBOOT_INVALID_IMG_ATTR              0x900D
 
@@ -132,6 +133,10 @@
 #define ERR_MTD_NOT_SUPPORT_WRITE_YAFFS2        0xA00D
 #define ERR_USIF_NOT_SUPPORT_WRITE_YAFFS2       0xA00E
 #define ERR_USIF_NOT_SUPPORT_READ_YAFFS2        0xA00F
+#define ERR_GPT_PART_NAME_IS_NULL               0xA010
+#define ERR_GPT_PART_NAME_NOT_FOUND             0xA011
+
+
 
 /* SEC BOOT CHECK */
 #define ERR_SBOOT_CHECK_IMG_NOT_FOUND_IN_SECCFG 0xB000
@@ -220,4 +225,5 @@
 
 
 
-#endif				/* SEC_ERROR_H */
+#endif /* SEC_ERROR_H */
+

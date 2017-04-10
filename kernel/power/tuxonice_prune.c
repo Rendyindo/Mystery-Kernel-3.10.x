@@ -42,14 +42,14 @@ static char toi_prune_hash_algo_name[32] = "sha1";
 
 static DEFINE_MUTEX(stats_lock);
 
-struct cpu_context {
+struct toi_cpu_context {
 	struct shash_desc desc;
 	char *digest;
 };
 
 #define OUT_BUF_SIZE (2 * PAGE_SIZE)
 
-static DEFINE_PER_CPU(struct cpu_context, contexts);
+static DEFINE_PER_CPU(struct toi_cpu_context, contexts);
 
 /*
  * toi_crypto_prepare
@@ -66,7 +66,7 @@ static int toi_prune_crypto_prepare(void)
 	}
 
 	for_each_online_cpu(cpu) {
-		struct cpu_context *this = &per_cpu(contexts, cpu);
+		struct toi_cpu_context *this = &per_cpu(contexts, cpu);
 		this->desc.tfm = crypto_alloc_shash(toi_prune_hash_algo_name, 0, 0);
 		if (IS_ERR(this->desc.tfm)) {
 			printk(KERN_INFO "TuxOnIce: Failed to allocate the "
@@ -108,7 +108,7 @@ static int toi_prune_rw_cleanup(int writing)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		struct cpu_context *this = &per_cpu(contexts, cpu);
+		struct toi_cpu_context *this = &per_cpu(contexts, cpu);
 		if (this->desc.tfm) {
 			crypto_free_shash(this->desc.tfm);
 			this->desc.tfm = NULL;
@@ -176,7 +176,7 @@ static int toi_prune_write_page(unsigned long index, int buf_type,
 				void *buffer_page, unsigned int buf_size)
 {
 	int ret = 0, cpu = smp_processor_id(), write_data = 1;
-	struct cpu_context *ctx = &per_cpu(contexts, cpu);
+	struct toi_cpu_context *ctx = &per_cpu(contexts, cpu);
 	u8 *output_buffer = buffer_page;
 	int output_len = buf_size;
 	int out_buf_type = buf_type;
@@ -225,7 +225,7 @@ static int toi_prune_read_page(unsigned long *index, int buf_type,
 	int ret, cpu = smp_processor_id();
 	unsigned int len;
 	char *buffer_start;
-	struct cpu_context *ctx = &per_cpu(contexts, cpu);
+	struct toi_cpu_context *ctx = &per_cpu(contexts, cpu);
 
 	if (!ctx->desc.tfm)
 		return next_driver->read_page(index, TOI_PAGE, buffer_page, buf_size);

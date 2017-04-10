@@ -1067,7 +1067,7 @@ static ssize_t store_trace_value(struct device_driver *ddri, const char *buf, si
 	}
 	else 
 	{
-		printk(KERN_ERR "invalid content: '%s', length = %d\n", buf, count);
+		printk(KERN_ERR "invalid content: '%s', length = %zu\n", buf, count);
 	}
 	
 	return count;    
@@ -1177,10 +1177,10 @@ static long akm8963_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned 
 	int layout[3];
 	struct i2c_client *client = this_client;  
 	struct akm8963_i2c_data *data = i2c_get_clientdata(client);
-	hwm_sensor_data* osensor_data;
+	hwm_sensor_data osensor_data;
 	uint32_t enable;
 
-  	//printk(KERN_ERR"akm8963 cmd:0x%x\n", cmd);	
+  	//printk("akm8963 akm8963_unlocked_ioctl arg:0x%lx\n", arg);	
 	switch (cmd)
 	{
 		case ECS_IOCTL_WRITE:
@@ -1195,7 +1195,24 @@ static long akm8963_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned 
 				AKMDBG("copy_from_user failed.");
 				return -EFAULT;
 			}
-
+			/*printk("ECS_IOCTL_WRITE:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x.\n",
+				rwbuf[0],
+				rwbuf[1],
+				rwbuf[2],
+				rwbuf[3],
+				rwbuf[4],
+				rwbuf[5],
+				rwbuf[6],
+				rwbuf[7],
+				rwbuf[8],
+				rwbuf[9],
+				rwbuf[10],
+				rwbuf[11],
+				rwbuf[12],
+				rwbuf[13],
+				rwbuf[14],
+				rwbuf[15]);*/
+			
 			if((rwbuf[0] < 2) || (rwbuf[0] > (RWBUF_SIZE-1)))
 			{
 				AKMDBG("invalid argument.");
@@ -1236,6 +1253,25 @@ static long akm8963_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned 
 			{
 				return ret;
 			}
+
+			/*printk("ECS_IOCTL_READ:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x.\n",
+				rwbuf[0],
+				rwbuf[1],
+				rwbuf[2],
+				rwbuf[3],
+				rwbuf[4],
+				rwbuf[5],
+				rwbuf[6],
+				rwbuf[7],
+				rwbuf[8],
+				rwbuf[9],
+				rwbuf[10],
+				rwbuf[11],
+				rwbuf[12],
+				rwbuf[13],
+				rwbuf[14],
+				rwbuf[15]);*/
+
 			if(copy_to_user(argp, rwbuf, rwbuf[0]+1))
 			{
 				AKMDBG("copy_to_user failed.");
@@ -1417,20 +1453,17 @@ static long akm8963_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned 
 			}
 			
 			//AKECS_GetRawData(buff, AKM8963_BUFSIZE);
-			osensor_data = (hwm_sensor_data *)buff;
 		    mutex_lock(&sensor_data_mutex);
 				
-			osensor_data->values[0] = sensor_data[0] * CONVERT_O;
-			osensor_data->values[1] = sensor_data[1] * CONVERT_O;
-			osensor_data->values[2] = sensor_data[2] * CONVERT_O;
-			osensor_data->status = sensor_data[4];
-			osensor_data->value_divide = CONVERT_O_DIV;
+			osensor_data.values[0] = sensor_data[0] * CONVERT_O;
+			osensor_data.values[1] = sensor_data[1] * CONVERT_O;
+			osensor_data.values[2] = sensor_data[2] * CONVERT_O;
+			osensor_data.status = sensor_data[4];
+			osensor_data.value_divide = CONVERT_O_DIV;
 					
 			mutex_unlock(&sensor_data_mutex);
 
-            sprintf(buff, "%x %x %x %x %x", osensor_data->values[0], osensor_data->values[1],
-				osensor_data->values[2],osensor_data->status,osensor_data->value_divide);
-			if(copy_to_user(argp, buff, strlen(buff)+1))
+			if(copy_to_user(argp, &osensor_data, sizeof(hwm_sensor_data)))          
 			{
 				return -EFAULT;
 			} 
@@ -1445,6 +1478,223 @@ static long akm8963_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned 
 
 	return 0;    
 }
+
+#ifdef CONFIG_COMPAT
+static long akm8963_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret =0;
+
+	void __user *arg32 = compat_ptr(arg);
+	
+	if (!file->f_op || !file->f_op->unlocked_ioctl)
+		return -ENOTTY;
+	
+    //printk("akm8963_compat_ioctl arg: 0x%lx, arg32: 0x%p\n",arg, arg32);
+	
+	switch (cmd) {
+		 case COMPAT_ECS_IOCTL_WRITE:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_WRITE\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_WRITE,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_WRITE unlocked_ioctl failed.");
+				return ret;
+			 }			 
+
+			 break;
+		 case COMPAT_ECS_IOCTL_RESET:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_RESET\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_RESET,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_RESET unlocked_ioctl failed.");
+				return ret;
+			 }
+		     break;		 
+		 case COMPAT_ECS_IOCTL_READ:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_READ\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_READ,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_WRITE unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_SET_MODE:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_SET_MODE\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_SET_MODE,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_SET_MODE unlocked_ioctl failed.");
+				return ret;
+			 }
+			 break;
+		
+		 case COMPAT_ECS_IOCTL_GETDATA:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_GETDATA\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GETDATA,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GETDATA unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_SET_YPR:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_SET_YPR\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }		
+			 
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_SET_YPR,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_SET_YPR unlocked_ioctl failed.");
+				return ret;
+			 }
+			 break;
+		
+		 case COMPAT_ECS_IOCTL_GET_OPEN_STATUS:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_GET_OPEN_STATUS\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_OPEN_STATUS,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_OPEN_STATUS unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_GET_CLOSE_STATUS:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_GET_CLOSE_STATUS\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_CLOSE_STATUS,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_CLOSE_STATUS unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_GET_OSENSOR_STATUS:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_GET_OSENSOR_STATUS\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_OSENSOR_STATUS,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_OSENSOR_STATUS unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_GET_DELAY:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_GET_DELAY\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_DELAY,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_DELAY unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+		
+		 case COMPAT_ECS_IOCTL_GET_LAYOUT:
+			 //printk("akm8963 COMPAT_ECS_IOCTL_GET_LAYOUT\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_LAYOUT,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_LAYOUT unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+		
+		 case COMPAT_MSENSOR_IOCTL_READ_CHIPINFO:
+		 	 //printk("akm8963_compat_ioctl COMPAT_MSENSOR_IOCTL_READ_CHIPINFO\n");
+			 ret = file->f_op->unlocked_ioctl(file, MSENSOR_IOCTL_READ_CHIPINFO,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("MSENSOR_IOCTL_READ_CHIPINFO unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+		
+		 case COMPAT_MSENSOR_IOCTL_READ_SENSORDATA:	
+		 	 //printk("akm8963_compat_ioctl COMPAT_MSENSOR_IOCTL_READ_SENSORDATA\n");
+			 ret = file->f_op->unlocked_ioctl(file, MSENSOR_IOCTL_READ_SENSORDATA,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("MSENSOR_IOCTL_READ_SENSORDATA unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_MSENSOR_IOCTL_SENSOR_ENABLE:
+		 	 //printk("akm8963_compat_ioctl COMPAT_MSENSOR_IOCTL_SENSOR_ENABLE\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, MSENSOR_IOCTL_SENSOR_ENABLE,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("MSENSOR_IOCTL_SENSOR_ENABLE unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+			 
+		 case COMPAT_MSENSOR_IOCTL_READ_FACTORY_SENSORDATA:
+		 	 //printk("akm8963_compat_ioctl COMPAT_MSENSOR_IOCTL_READ_FACTORY_SENSORDATA\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+			 
+			 ret = file->f_op->unlocked_ioctl(file, MSENSOR_IOCTL_READ_FACTORY_SENSORDATA,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("MSENSOR_IOCTL_READ_FACTORY_SENSORDATA unlocked_ioctl failed.");
+				return ret;
+			 }	
+			 break;
+			 
+		 default:
+			 printk(KERN_ERR "%s not supported = 0x%04x", __FUNCTION__, cmd);
+			 return -ENOIOCTLCMD;
+			 break;
+	}
+    return ret;
+}
+#endif
 /*----------------------------------------------------------------------------*/
 static struct file_operations akm8963_fops = {
 	.owner = THIS_MODULE,
@@ -1452,6 +1702,9 @@ static struct file_operations akm8963_fops = {
 	.release = akm8963_release,
 	//.unlocked_ioctl = akm8963_ioctl,
 	.unlocked_ioctl = akm8963_unlocked_ioctl,
+	#ifdef CONFIG_COMPAT
+	.compat_ioctl = akm8963_compat_ioctl,
+	#endif
 };
 /*----------------------------------------------------------------------------*/
 static struct miscdevice akm8963_device = {
@@ -1783,7 +2036,7 @@ static int akm8963_m_enable(int en)
 		}
 	}
 	wake_up(&open_wq);
-	
+	return 0;
 }
 
 static int akm8963_m_set_delay(u64 ns)
@@ -1798,6 +2051,7 @@ static int akm8963_m_set_delay(u64 ns)
     else{
         akmd_delay = value;
 	}
+	return 0;
 }
 static int akm8963_m_open_report_data(int open)
 {
@@ -1837,7 +2091,7 @@ static int akm8963_o_enable(int en)
 		}									
 	}	
 	wake_up(&open_wq);
-
+    return 0;
 }
 
 static int akm8963_o_set_delay(u64 ns)
@@ -1851,6 +2105,7 @@ static int akm8963_o_set_delay(u64 ns)
 	else{
 	akmd_delay = value;
 	}
+    return 0;
 }
 static int akm8963_o_open_report_data(int open)
 {
@@ -1926,6 +2181,7 @@ static int akm8963_i2c_probe(struct i2c_client *client, const struct i2c_device_
 		AKMDBG(KERN_ERR "akm8963_device register failed\n");
 		goto exit_misc_device_register_failed;	
 	}  
+	ctl.is_use_common_factory = false;
 
 
 	ctl.m_enable = akm8963_m_enable;
@@ -1993,6 +2249,7 @@ static int akm8963_i2c_remove(struct i2c_client *client)
 	misc_deregister(&akm8963_device);    
 	return 0;
 }
+#if 0
 static int akm_gpio_rst_config(void)
 {
 	int ret = 0;	
@@ -2022,6 +2279,7 @@ static int akm_gpio_rst_config(void)
 #endif
 	return ret;
 }
+#endif
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/

@@ -35,14 +35,14 @@ static char toi_checksum_name[32] = "md4";
 
 #define CHECKSUMS_PER_PAGE ((PAGE_SIZE - sizeof(void *)) / CHECKSUM_SIZE)
 
-struct cpu_context {
+struct toi_cpu_context {
 	struct crypto_hash *transform;
 	struct hash_desc desc;
 	struct scatterlist sg[2];
 	char *buf;
 };
 
-static DEFINE_PER_CPU(struct cpu_context, contexts);
+static DEFINE_PER_CPU(struct toi_cpu_context, contexts);
 static int pages_allocated;
 static unsigned long page_list;
 
@@ -69,7 +69,7 @@ static void toi_checksum_cleanup(int ending_cycle)
 
 	if (ending_cycle) {
 		for_each_online_cpu(cpu) {
-			struct cpu_context *this = &per_cpu(contexts, cpu);
+			struct toi_cpu_context *this = &per_cpu(contexts, cpu);
 			if (this->transform) {
 				crypto_free_hash(this->transform);
 				this->transform = NULL;
@@ -104,7 +104,7 @@ static int toi_checksum_initialise(int starting_cycle)
 	}
 
 	for_each_online_cpu(cpu) {
-		struct cpu_context *this = &per_cpu(contexts, cpu);
+		struct toi_cpu_context *this = &per_cpu(contexts, cpu);
 		struct page *page;
 
 		this->transform = crypto_alloc_hash(toi_checksum_name, 0, 0);
@@ -261,7 +261,7 @@ int tuxonice_calc_checksum(struct page *page, char *checksum_locn)
 {
 	char *pa;
 	int result, cpu = smp_processor_id();
-	struct cpu_context *ctx = &per_cpu(contexts, cpu);
+	struct toi_cpu_context *ctx = &per_cpu(contexts, cpu);
 
 	if (!toi_checksum_ops.enabled)
 		return 0;
@@ -284,7 +284,7 @@ void check_checksums(void)
 {
 	int pfn, index = 0, cpu = smp_processor_id();
 	char current_checksum[CHECKSUM_SIZE];
-	struct cpu_context *ctx = &per_cpu(contexts, cpu);
+	struct toi_cpu_context *ctx = &per_cpu(contexts, cpu);
 
 	if (!toi_checksum_ops.enabled) {
 		toi_message(TOI_IO, TOI_VERBOSE, 0, "Checksumming disabled.");

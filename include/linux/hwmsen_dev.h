@@ -63,12 +63,21 @@ extern int hwmsen_attach(int sensor, struct hwmsen_object *obj);
 extern int hwmsen_detach(int sensor);
 extern int hwmsen_get_interrupt_data(int sensor, hwm_sensor_data *data);
 
+//AAL functions
+extern int hwmsen_aal_enable(int enable);
+extern int hwmsen_aal_get_data(void);
+extern int hwmsen_aal_get_status(void);
+
 #if defined(CONFIG_MTK_AUTO_DETECT_ACCELEROMETER)	/*  */
 extern int hwmsen_gsensor_add(struct sensor_init_info *obj);
 #endif
 
 #if defined(CONFIG_MTK_AUTO_DETECT_MAGNETOMETER)
 extern int hwmsen_msensor_add(struct sensor_init_info *obj);
+#endif
+
+#if defined(CONFIG_MTK_AUTO_DETECT_ALSPS)
+extern int hwmsen_alsps_sensor_add(struct sensor_init_info *obj);
 #endif
 /*----------------------------------------------------------------------------*/
 #endif

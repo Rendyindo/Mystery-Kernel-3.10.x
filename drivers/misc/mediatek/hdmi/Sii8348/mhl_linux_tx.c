@@ -9,10 +9,11 @@ modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation version 2.
 This program is distributed AS-IS WITHOUT ANY WARRANTY of any
 kind, whether express or implied; INCLUDING without the implied warranty
-of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See
-the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.
+of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See 
+the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.             
 
 */
+#include <linux/module.h>
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -49,11 +50,24 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #include <cust_gpio_usage.h>
 #include <cust_eint.h>
 #include "hdmi_drv.h"
+#include "smartbook.h"
 
 #define MHL_DRIVER_MINOR_MAX 1
 static wait_queue_head_t mhl_irq_wq;
-static struct task_struct *mhl_irq_task;
+static struct task_struct *mhl_irq_task = NULL;
 static atomic_t mhl_irq_event = ATOMIC_INIT(0);
+
+
+/************************** MHL TX User Layer To HAL****************************************/
+#ifdef CONFIG_MTK_SMARTBOOK_SUPPORT
+extern int smartbook_kthread(void *data);
+extern wait_queue_head_t smartbook_wq;
+static struct task_struct *smartbook_task = NULL;
+#endif
+
+void Notify_AP_MHL_TX_Event(unsigned int event, unsigned int event_param, void *param);
+/************************** ****************************************************/
+
 
 struct mhl_dev_context *si_dev_context;
 
@@ -63,7 +77,7 @@ static dev_t dev_num;
 
 static struct class *mhl_class;
 
-static void mhl_tx_destroy_timer_support(struct mhl_dev_context *dev_context);
+static void mhl_tx_destroy_timer_support(struct  mhl_dev_context *dev_context);
 
 /* Define SysFs attribute names */
 #define SYS_ATTR_NAME_CONN				connection_state
@@ -81,11 +95,11 @@ static void mhl_tx_destroy_timer_support(struct mhl_dev_context *dev_context);
 
 /*
  * show_connection_state() - Handle read request to the connection_state
- *							 attribute file.
+ * 							 attribute file.
  */
 ssize_t show_connection_state(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 
 	if (dev_context->mhl_flags & MHL_STATE_FLAG_CONNECTED) {
 		return scnprintf(buf, PAGE_SIZE, "connected");
@@ -106,11 +120,11 @@ ssize_t show_rcp(struct device *dev, struct device_attribute *attr, char *buf)
 	if (down_interruptible(&dev_context->isr_lock))
 		return -ERESTARTSYS;
 
-	if (dev_context->mhl_flags & (MHL_STATE_FLAG_RCP_SENT | MHL_STATE_FLAG_RCP_RECEIVED)) {
+	if (dev_context->mhl_flags &
+		(MHL_STATE_FLAG_RCP_SENT | MHL_STATE_FLAG_RCP_RECEIVED)) {
 		status = scnprintf(buf, PAGE_SIZE, "0x%02x %s",
-				   dev_context->rcp_key_code,
-				   dev_context->
-				   mhl_flags & MHL_STATE_FLAG_RCP_SENT ? "sent" : "received");
+				dev_context->rcp_key_code,
+				dev_context->mhl_flags & MHL_STATE_FLAG_RCP_SENT? "sent" : "received");
 	}
 
 	up(&dev_context->isr_lock);
@@ -124,11 +138,11 @@ ssize_t show_rcp(struct device *dev, struct device_attribute *attr, char *buf)
  */
 ssize_t send_rcp(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	unsigned long key_code;
 	int status = -EINVAL;
 
-	MHL_TX_DBG_INFO(dev_context, "send_rcp received string: " "%s" "\n", buf);
+	MHL_TX_DBG_INFO(dev_context, "send_rcp received string: ""%s""\n", buf);
 
 	if (down_interruptible(&dev_context->isr_lock))
 		return -ERESTARTSYS;
@@ -147,22 +161,22 @@ ssize_t send_rcp(struct device *dev, struct device_attribute *attr, const char *
 	}
 
 	if (key_code >= 0xFE) {
-		MHL_TX_DBG_ERR(dev_context, "key code (0x%lx) is too large to be valid\n",
-			       key_code);
+		MHL_TX_DBG_ERR(dev_context, "key code (0x%lx) is too large to be valid\n", key_code);
 		goto err_exit;
 	}
 
 	dev_context->mhl_flags &= ~(MHL_STATE_FLAG_RCP_RECEIVED |
-				    MHL_STATE_FLAG_RCP_ACK | MHL_STATE_FLAG_RCP_NAK);
+			MHL_STATE_FLAG_RCP_ACK |
+			MHL_STATE_FLAG_RCP_NAK);
 	dev_context->mhl_flags |= MHL_STATE_FLAG_RCP_SENT;
 	dev_context->rcp_send_status = 0;
-	dev_context->rcp_key_code = (u8) key_code;
-	if (!si_mhl_tx_rcp_send(dev_context, (u8) key_code))
+	dev_context->rcp_key_code = (u8)key_code;
+	if (!si_mhl_tx_rcp_send(dev_context, (u8)key_code))
 		goto err_exit;
 
 	status = count;
 
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
@@ -176,19 +190,18 @@ ssize_t send_rcp(struct device *dev, struct device_attribute *attr, const char *
  * Remote Control Protocol (RCP) key code.
  *
  * The format of the string in buf must be:
- *	"keycode=<keyvalue> errorcode=<errorvalue>
- *	where:	<keyvalue>		is replaced with value of the RCP to be ACK'd or NAK'd
- *			<errorvalue>	0 if the RCP key code is to be ACK'd
- *							non-zero error code if the RCP key code is to be NAK'd
+ * 	"keycode=<keyvalue> errorcode=<errorvalue>
+ * 	where:	<keyvalue>		is replaced with value of the RCP to be ACK'd or NAK'd
+ * 			<errorvalue>	0 if the RCP key code is to be ACK'd
+ * 							non-zero error code if the RCP key code is to be NAK'd
  */
-ssize_t send_rcp_ack(struct device *dev, struct device_attribute *attr, const char *buf,
-		     size_t count)
+ssize_t send_rcp_ack(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
-	unsigned long key_code = 0x100;	/* initialize with invalid values */
-	unsigned long err_code = 0x100;
-	char *pStr;
-	int status = -EINVAL;
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
+	unsigned long	key_code = 0x100;	/* initialize with invalid values */
+	unsigned long	err_code = 0x100;
+	char		*pStr;
+	int		status = -EINVAL;
 
 	MHL_TX_DBG_INFO(dev_context, "received string: %s\n", buf);
 
@@ -201,27 +214,25 @@ ssize_t send_rcp_ack(struct device *dev, struct device_attribute *attr, const ch
 			goto err_exit_2;
 		}
 	} else {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid string format, can't find " "keycode" " value\n");
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find ""keycode"" value\n");
 		goto err_exit_2;
 	}
 
 	pStr = strstr(buf, "errorcode=");
 	if (pStr != NULL) {
-		if (strict_strtoul(pStr + 10, 0, &err_code)) {
+		if(strict_strtoul(pStr + 10, 0, &err_code)) {
 			MHL_TX_DBG_ERR(dev_context, "Unable to convert errorcode string\n");
 			goto err_exit_2;
 		}
 	} else {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid string format, can't find " "errorcode" " value\n");
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find ""errorcode"" value\n");
 		goto err_exit_2;
 	}
 
 	if ((key_code > 0xFF) || (err_code > 0xFF)) {
-		MHL_TX_DBG_ERR(dev_context, "Invalid key code or error code "
-			       "specified, key code: 0x%02lx  error code: 0x%02lx\n",
-			       key_code, err_code);
+		MHL_TX_DBG_ERR(dev_context, "Invalid key code or error code "\
+				"specified, key code: 0x%02lx  error code: 0x%02lx\n",
+				key_code, err_code);
 		goto err_exit_2;
 	}
 
@@ -235,32 +246,33 @@ ssize_t send_rcp_ack(struct device *dev, struct device_attribute *attr, const ch
 
 	if (dev_context->mhl_flags & MHL_STATE_FLAG_CONNECTED) {
 
-		if ((key_code != dev_context->rcp_key_code)
-		    || !(dev_context->mhl_flags & MHL_STATE_FLAG_RCP_RECEIVED)) {
+		if((key_code != dev_context->rcp_key_code)
+				|| !(dev_context->mhl_flags & MHL_STATE_FLAG_RCP_RECEIVED)) {
 
-			MHL_TX_DBG_ERR(dev_context, "Attempting to ACK a key code "
-				       "that was not received! try:0x%02x(%d)\n",
-				       dev_context->rcp_key_code, dev_context->rcp_key_code);
+			MHL_TX_DBG_ERR(dev_context, "Attempting to ACK a key code "\
+					"that was not received! try:0x%02x(%d)\n"
+					,dev_context->rcp_key_code
+					,dev_context->rcp_key_code);
 			goto err_exit_1;
 		}
 
 		if (err_code == 0) {
-			if (!si_mhl_tx_rcpk_send(dev_context, (u8) key_code)) {
+			if (!si_mhl_tx_rcpk_send(dev_context, (u8)key_code)) {
 				status = -ENOMEM;
 				goto err_exit_1;
 			}
 		} else {
-			if (!si_mhl_tx_rcpe_send(dev_context, (u8) err_code))
+			if (!si_mhl_tx_rcpe_send(dev_context, (u8)err_code))
 				goto err_exit_1;
 		}
 
 		status = count;
 	}
 
- err_exit_1:
+err_exit_1:
 	up(&dev_context->isr_lock);
 
- err_exit_2:
+err_exit_2:
 	return status;
 }
 
@@ -272,15 +284,15 @@ ssize_t send_rcp_ack(struct device *dev, struct device_attribute *attr, const ch
  * ACK or NAK received by the driver.
  *
  * The format of the string returned in buf is:
- *	"keycode=<keyvalue> errorcode=<errorvalue>
- *	where:	<keyvalue>		is replaced with value of the RCP key code for which
- *							an ACK or NAK has been received.
- *			<errorvalue>	0 if the last RCP key code was ACK'd or
- *							non-zero error code if the RCP key code was NAK'd
+ * 	"keycode=<keyvalue> errorcode=<errorvalue>
+ * 	where:	<keyvalue>		is replaced with value of the RCP key code for which
+ * 							an ACK or NAK has been received.
+ * 			<errorvalue>	0 if the last RCP key code was ACK'd or
+ * 							non-zero error code if the RCP key code was NAK'd
  */
 ssize_t show_rcp_ack(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	int status = -EINVAL;
 
 	MHL_TX_DBG_INFO(dev_context, "called\n");
@@ -291,32 +303,32 @@ ssize_t show_rcp_ack(struct device *dev, struct device_attribute *attr, char *bu
 	if (dev_context->mhl_flags & (MHL_STATE_FLAG_RCP_ACK | MHL_STATE_FLAG_RCP_NAK)) {
 
 		status = scnprintf(buf, PAGE_SIZE, "keycode=0x%02x errorcode=0x%02x",
-				   dev_context->rcp_key_code, dev_context->rcp_err_code);
+				dev_context->rcp_key_code, dev_context->rcp_err_code);
 	}
 
 	up(&dev_context->isr_lock);
 
 	return status;
 }
-#endif				/* #ifndef RCP_INPUTDEV_SUPPORT */
+#endif /* #ifndef RCP_INPUTDEV_SUPPORT */
 
 /*
  * show_ucp() - Handle read request to the ucp_keycode attribute file.
  */
 ssize_t show_ucp(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	int status = 0;
 
-	MHL_TX_DBG_INFO(dev_context, "called keycode:0x%02x\n", dev_context->ucp_key_code);
+	MHL_TX_DBG_INFO(dev_context, "called keycode:0x%02x\n",dev_context->ucp_key_code);
 	if (down_interruptible(&dev_context->isr_lock))
 		return -ERESTARTSYS;
 
-	if (dev_context->mhl_flags & (MHL_STATE_FLAG_UCP_SENT | MHL_STATE_FLAG_UCP_RECEIVED)) {
+	if (dev_context->mhl_flags &
+			(MHL_STATE_FLAG_UCP_SENT | MHL_STATE_FLAG_UCP_RECEIVED)) {
 		status = scnprintf(buf, PAGE_SIZE, "0x%02x %s",
-				   dev_context->ucp_key_code,
-				   dev_context->
-				   mhl_flags & MHL_STATE_FLAG_UCP_SENT ? "sent" : "received");
+				dev_context->ucp_key_code,
+				dev_context->mhl_flags & MHL_STATE_FLAG_UCP_SENT? "sent" : "received");
 	}
 
 	up(&dev_context->isr_lock);
@@ -330,11 +342,11 @@ ssize_t show_ucp(struct device *dev, struct device_attribute *attr, char *buf)
  */
 ssize_t send_ucp(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	unsigned long key_code;
 	int status = -EINVAL;
 
-	MHL_TX_DBG_INFO(dev_context, "received string: " "%s" "\n", buf);
+	MHL_TX_DBG_INFO(dev_context, "received string: ""%s""\n", buf);
 
 	if (down_interruptible(&dev_context->isr_lock))
 		return -ERESTARTSYS;
@@ -353,21 +365,21 @@ ssize_t send_ucp(struct device *dev, struct device_attribute *attr, const char *
 	}
 
 	if (key_code > 0xFF) {
-		MHL_TX_DBG_ERR(dev_context, "ucp key code (0x%lx) is too large to be valid\n",
-			       key_code);
+		MHL_TX_DBG_ERR(dev_context, "ucp key code (0x%lx) is too large to be valid\n", key_code);
 		goto err_exit;
 	}
 
 	dev_context->mhl_flags &= ~(MHL_STATE_FLAG_UCP_RECEIVED |
-				    MHL_STATE_FLAG_UCP_ACK | MHL_STATE_FLAG_UCP_NAK);
+			MHL_STATE_FLAG_UCP_ACK |
+			MHL_STATE_FLAG_UCP_NAK);
 	dev_context->mhl_flags |= MHL_STATE_FLAG_UCP_SENT;
-	dev_context->ucp_key_code = (u8) key_code;
-	if (!si_mhl_tx_ucp_send(dev_context, (u8) key_code))
+	dev_context->ucp_key_code = (u8)key_code;
+	if (!si_mhl_tx_ucp_send(dev_context, (u8)key_code))
 		goto err_exit;
 
 	status = count;
 
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
@@ -381,19 +393,18 @@ ssize_t send_ucp(struct device *dev, struct device_attribute *attr, const char *
  * UTF-8 Control Protocol (UCP) key code.
  *
  * The format of the string in buf must be:
- *	"keycode=<keyvalue> errorcode=<errorvalue>
- *	where:	<keyvalue>		is replaced with value of the UCP to be ACK'd or NAK'd
- *			<errorvalue>	0 if the UCP key code is to be ACK'd
- *							non-zero error code if the UCP key code is to be NAK'd
+ * 	"keycode=<keyvalue> errorcode=<errorvalue>
+ * 	where:	<keyvalue>		is replaced with value of the UCP to be ACK'd or NAK'd
+ * 			<errorvalue>	0 if the UCP key code is to be ACK'd
+ * 							non-zero error code if the UCP key code is to be NAK'd
  */
-ssize_t send_ucp_ack(struct device *dev, struct device_attribute *attr, const char *buf,
-		     size_t count)
+ssize_t send_ucp_ack(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
-	unsigned long key_code = 0x100;	/* initialize with invalid values */
-	unsigned long err_code = 0x100;
-	char *pStr;
-	int status = -EINVAL;
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
+	unsigned long	key_code = 0x100;	/* initialize with invalid values */
+	unsigned long	err_code = 0x100;
+	char		*pStr;
+	int		status = -EINVAL;
 
 	MHL_TX_DBG_INFO(dev_context, "received string: %s\n", buf);
 
@@ -406,27 +417,25 @@ ssize_t send_ucp_ack(struct device *dev, struct device_attribute *attr, const ch
 			goto err_exit_2;
 		}
 	} else {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid string format, can't find " "keycode" " value\n");
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find ""keycode"" value\n");
 		goto err_exit_2;
 	}
 
 	pStr = strstr(buf, "errorcode=");
 	if (pStr != NULL) {
-		if (strict_strtoul(pStr + 10, 0, &err_code)) {
+		if(strict_strtoul(pStr + 10, 0, &err_code)) {
 			MHL_TX_DBG_ERR(dev_context, "Unable to convert errorcode string\n");
 			goto err_exit_2;
 		}
 	} else {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid string format, can't find " "errorcode" " value\n");
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find ""errorcode"" value\n");
 		goto err_exit_2;
 	}
 
 	if ((key_code > 0xFF) || (err_code > 0xFF)) {
-		MHL_TX_DBG_ERR(dev_context, "Invalid key code or error code "
-			       "specified, key code: 0x%02lx  error code: 0x%02lx\n",
-			       key_code, err_code);
+		MHL_TX_DBG_ERR(dev_context, "Invalid key code or error code "\
+				"specified, key code: 0x%02lx  error code: 0x%02lx\n",
+				key_code, err_code);
 		goto err_exit_2;
 	}
 
@@ -440,21 +449,20 @@ ssize_t send_ucp_ack(struct device *dev, struct device_attribute *attr, const ch
 
 	if (dev_context->mhl_flags & MHL_STATE_FLAG_CONNECTED) {
 
-		if ((key_code != dev_context->ucp_key_code)
-		    || !(dev_context->mhl_flags & MHL_STATE_FLAG_UCP_RECEIVED)) {
+		if((key_code != dev_context->ucp_key_code)
+			|| !(dev_context->mhl_flags & MHL_STATE_FLAG_UCP_RECEIVED)) {
 
-			MHL_TX_DBG_ERR(dev_context,
-				       "Attempting to ACK a key code that was not received!\n");
+			MHL_TX_DBG_ERR(dev_context, "Attempting to ACK a key code that was not received!\n");
 			goto err_exit_1;
 		}
 
 		if (err_code == 0) {
-			if (!si_mhl_tx_ucpk_send(dev_context, (u8) key_code)) {
+			if (!si_mhl_tx_ucpk_send(dev_context, (u8)key_code)) {
 				status = -ENOMEM;
 				goto err_exit_1;
 			}
 		} else {
-			if (!si_mhl_tx_ucpe_send(dev_context, (u8) err_code)) {
+			if (!si_mhl_tx_ucpe_send(dev_context, (u8)err_code)) {
 				status = -ENOMEM;
 				goto err_exit_1;
 			}
@@ -463,10 +471,10 @@ ssize_t send_ucp_ack(struct device *dev, struct device_attribute *attr, const ch
 		status = count;
 	}
 
- err_exit_1:
+err_exit_1:
 	up(&dev_context->isr_lock);
 
- err_exit_2:
+err_exit_2:
 	return status;
 }
 
@@ -478,15 +486,16 @@ ssize_t send_ucp_ack(struct device *dev, struct device_attribute *attr, const ch
  * ACK or NAK received by the driver.
  *
  * The format of the string returned in buf is:
- *	"keycode=<keyvalue> errorcode=<errorvalue>
- *	where:	<keyvalue>		is replaced with value of the UCP key code for which
- *							an ACK or NAK has been received.
- *			<errorvalue>	0 if the last UCP key code was ACK'd or
- *							non-zero error code if the UCP key code was NAK'd
+ * 	"keycode=<keyvalue> errorcode=<errorvalue>
+ * 	where:	<keyvalue>		is replaced with value of the UCP key code for which
+ * 							an ACK or NAK has been received.
+ * 			<errorvalue>	0 if the last UCP key code was ACK'd or
+ * 							non-zero error code if the UCP key code was NAK'd
  */
-ssize_t show_ucp_ack(struct device *dev, struct device_attribute *attr, char *buf)
+ssize_t show_ucp_ack(struct device *dev, struct device_attribute *attr,
+					char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	int status = -EINVAL;
 
 	MHL_TX_DBG_INFO(dev_context, "called\n");
@@ -497,7 +506,7 @@ ssize_t show_ucp_ack(struct device *dev, struct device_attribute *attr, char *bu
 	if (dev_context->mhl_flags & (MHL_STATE_FLAG_UCP_ACK | MHL_STATE_FLAG_UCP_NAK)) {
 
 		status = scnprintf(buf, PAGE_SIZE, "keycode=0x%02x errorcode=0x%02x",
-				   dev_context->ucp_key_code, dev_context->ucp_err_code);
+				dev_context->ucp_key_code, dev_context->ucp_err_code);
 	}
 
 	up(&dev_context->isr_lock);
@@ -518,32 +527,31 @@ ssize_t show_ucp_ack(struct device *dev, struct device_attribute *attr, char *bu
  */
 ssize_t show_rap(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	int status = -EINVAL;
 
-	MHL_TX_DBG_INFO(dev_context, "called last sub-command:0x%02x\n",
-			dev_context->rap_sub_command);
+	MHL_TX_DBG_INFO(dev_context, "called last sub-command:0x%02x\n",dev_context->rap_sub_command);
 
-	if (down_interruptible(&dev_context->isr_lock)) {
-		MHL_TX_DBG_ERR(dev_context, "-ERESTARTSYS\n");
+	if (down_interruptible(&dev_context->isr_lock)){
+		MHL_TX_DBG_ERR(dev_context,"-ERESTARTSYS\n");
 		return -ERESTARTSYS;
 	}
 
 	if (dev_context->dev_flags & DEV_FLAG_SHUTDOWN) {
-		MHL_TX_DBG_ERR(dev_context, "-ENODEV\n");
+		MHL_TX_DBG_ERR(dev_context,"-ENODEV\n");
 		status = -ENODEV;
 		goto err_exit;
 	}
 	*buf = '\0';
 	if (MHL_RAP_POLL == dev_context->rap_sub_command)
 		status = scnprintf(buf, PAGE_SIZE, "poll");
-	else if (MHL_RAP_CONTENT_ON == dev_context->rap_sub_command)
+	else if (MHL_RAP_CONTENT_ON ==  dev_context->rap_sub_command)
 		status = scnprintf(buf, PAGE_SIZE, "content_on");
-	else if (MHL_RAP_CONTENT_OFF == dev_context->rap_sub_command)
+	else if (MHL_RAP_CONTENT_OFF ==  dev_context->rap_sub_command)
 		status = scnprintf(buf, PAGE_SIZE, "content_off");
-	MHL_TX_DBG_INFO(dev_context, "buf:%c%s%c\n", '"', buf, '"');
+	MHL_TX_DBG_INFO(dev_context,"buf:%c%s%c\n",'"',buf,'"');
 
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
@@ -557,7 +565,7 @@ ssize_t show_rap(struct device *dev, struct device_attribute *attr, char *buf)
  */
 ssize_t send_rap(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	int status;
 
 	/* Assume success */
@@ -590,13 +598,12 @@ ssize_t send_rap(struct device *dev, struct device_attribute *attr, const char *
 		status = -EINVAL;
 	}
 
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
 }
-
-/* ( begin rap_status interface */
+//( begin rap_status interface
 /*
  * show_rap_status() - Handle read request to the rap_status attribute file.
  *
@@ -604,32 +611,31 @@ ssize_t send_rap(struct device *dev, struct device_attribute *attr, const char *
  */
 ssize_t show_rap_status(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	int status = -EINVAL;
 
 
-	MHL_TX_DBG_INFO(dev_context, "called last sub-command:0x%02x\n",
-			dev_context->rap_sub_command);
+	MHL_TX_DBG_INFO(dev_context, "called last sub-command:0x%02x\n",dev_context->rap_sub_command);
 
-	if (down_interruptible(&dev_context->isr_lock)) {
-		MHL_TX_DBG_ERR(dev_context, "-ERESTARTSYS\n");
+	if (down_interruptible(&dev_context->isr_lock)){
+		MHL_TX_DBG_ERR(dev_context,"-ERESTARTSYS\n");
 		return -ERESTARTSYS;
 	}
 
 	if (dev_context->dev_flags & DEV_FLAG_SHUTDOWN) {
-		MHL_TX_DBG_ERR(dev_context, "-ENODEV\n");
+		MHL_TX_DBG_ERR(dev_context,"-ENODEV\n");
 		status = -ENODEV;
 		goto err_exit;
 	}
 	*buf = '\0';
-	if (dev_context->mhl_flags & MHL_STATE_APPLICATION_RAP_BUSY) {
+	if (dev_context->mhl_flags & MHL_STATE_APPLICATION_RAP_BUSY){
 		status = scnprintf(buf, PAGE_SIZE, "busy");
-	} else {
+	}else{
 		status = scnprintf(buf, PAGE_SIZE, "ready");
 	}
-	MHL_TX_DBG_INFO(dev_context, "buf:%c%s%c\n", '"', buf, '"');
+	MHL_TX_DBG_INFO(dev_context,"buf:%c%s%c\n",'"',buf,'"');
 
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
@@ -641,10 +647,9 @@ ssize_t show_rap_status(struct device *dev, struct device_attribute *attr, char 
  * Writes to this file cause a RAP message with the specified action code
  * to be sent to the downstream device.
  */
-ssize_t set_rap_status(struct device *dev, struct device_attribute *attr, const char *buf,
-		       size_t count)
+ssize_t set_rap_status(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	int status;
 
 	/* Assume success */
@@ -669,13 +674,13 @@ ssize_t set_rap_status(struct device *dev, struct device_attribute *attr, const 
 		status = -EINVAL;
 	}
 
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
 }
 
-/* ) end rap_status interface */
+//) end rap_status interface
 
 /*
  * select_dev_cap() - Handle write request to the devcap attribute file.
@@ -687,15 +692,14 @@ ssize_t set_rap_status(struct device *dev, struct device_attribute *attr, const 
  * All we need to do is validate the specified offset and if valid
  * save it for later use.
  */
-ssize_t select_dev_cap(struct device *dev, struct device_attribute *attr, const char *buf,
-		       size_t count)
+ssize_t select_dev_cap(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
-	unsigned long offset;
-	int status = -EINVAL;
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
+	unsigned long		offset;
+	int			status = -EINVAL;
 
 
-	MHL_TX_DBG_INFO(dev_context, "received string: " "%s" "\n", buf);
+	MHL_TX_DBG_INFO(dev_context, "received string: ""%s""\n", buf);
 
 	if (strict_strtoul(buf, 0, &offset)) {
 		MHL_TX_DBG_ERR(dev_context, "Unable to convert register offset string\n");
@@ -708,10 +712,10 @@ ssize_t select_dev_cap(struct device *dev, struct device_attribute *attr, const 
 		goto err_exit;
 	}
 
-	dev_context->dev_cap_offset = (u8) offset;
+	dev_context->dev_cap_offset = (u8)offset;
 	status = count;
 
- err_exit:
+err_exit:
 	return status;
 }
 
@@ -728,17 +732,17 @@ ssize_t select_dev_cap(struct device *dev, struct device_attribute *attr, const 
  * read.
  *
  * The format of the string returned in buf is:
- *	"offset:<offset>=<regvalue>
- *	where:	<offset>	is the last Device Capability register offset
- *						written to this file
- *			<regvalue>	the currentl value of the Device Capability register
- *						specified in offset
+ * 	"offset:<offset>=<regvalue>
+ * 	where:	<offset>	is the last Device Capability register offset
+ * 						written to this file
+ * 			<regvalue>	the currentl value of the Device Capability register
+ * 						specified in offset
  */
 ssize_t show_dev_cap(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
-	uint8_t regValue;
-	int status = -EINVAL;
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
+	uint8_t			regValue;
+	int			status = -EINVAL;
 
 
 	MHL_TX_DBG_INFO(dev_context, "called\n");
@@ -754,7 +758,8 @@ ssize_t show_dev_cap(struct device *dev, struct device_attribute *attr, char *bu
 	if (dev_context->mhl_flags & MHL_STATE_FLAG_CONNECTED) {
 
 		status = si_mhl_tx_get_peer_dev_cap_entry(dev_context,
-							  dev_context->dev_cap_offset, &regValue);
+				dev_context->dev_cap_offset,
+				&regValue);
 		if (status != 0) {
 			/*
 			 * Driver is busy and cannot provide the requested DEVCAP
@@ -765,10 +770,10 @@ ssize_t show_dev_cap(struct device *dev, struct device_attribute *attr, char *bu
 			goto err_exit;
 		}
 		status = scnprintf(buf, PAGE_SIZE, "offset:0x%02x=0x%02x",
-				   dev_context->dev_cap_offset, regValue);
+				dev_context->dev_cap_offset, regValue);
 	}
 
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
@@ -783,32 +788,32 @@ ssize_t show_dev_cap(struct device *dev, struct device_attribute *attr, char *bu
  * read from the local scratch pad registers.
  *
  * The format of the string in buf must be:
- *	offset=<offset_value> length=<Length_value> \
- *	data=data_byte_0 ... data_byte_length-1
- *	where:	<offset_value>	specifies the starting register offset to begin
- *							read/writing within the scratch pad register space
- *			<length_value>	number of scratch pad registers to be written/read
- *			data_byte		space separated list of <length_value> data bytes
- *							to be written.  If no data bytes are present then
- *							the write to this file will only be used to set
- *							the offset and length for a subsequent read from
- *							this file.
+ * 	offset=<offset_value> length=<Length_value> \
+ * 	data=data_byte_0 ... data_byte_length-1
+ * 	where:	<offset_value>	specifies the starting register offset to begin
+ * 							read/writing within the scratch pad register space
+ * 			<length_value>	number of scratch pad registers to be written/read
+ * 			data_byte		space separated list of <length_value> data bytes
+ * 							to be written.  If no data bytes are present then
+ * 							the write to this file will only be used to set
+ * 							the offset and length for a subsequent read from
+ * 							this file.
  */
 ssize_t send_scratch_pad(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
+				const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
-	unsigned long offset = 0x100;	/* initialize with invalid values */
-	unsigned long length = 0x100;
-	unsigned long value;
-	u8 data[MAX_SCRATCH_PAD_TRANSFER_SIZE];
-	u8 idx;
-	char *str;
-	char *endptr;
-	enum scratch_pad_status scratch_pad_status;
-	int status = -EINVAL;
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
+	unsigned long	offset = 0x100;		/* initialize with invalid values */
+	unsigned long	length = 0x100;
+	unsigned long	value;
+	u8		data[MAX_SCRATCH_PAD_TRANSFER_SIZE];
+	u8		idx;
+	char		*str;
+	char		*endptr;
+	enum scratch_pad_status	scratch_pad_status;
+	int		status = -EINVAL;
 
-	MHL_TX_DBG_ERR(dev_context, "received string: " "%s" "\n", buf);
+	MHL_TX_DBG_ERR(dev_context, "received string: ""%s""\n", buf);
 
 	/*
 	 * Parse the input string and extract the scratch pad register selection
@@ -822,8 +827,7 @@ ssize_t send_scratch_pad(struct device *dev, struct device_attribute *attr,
 			goto err_exit_2;
 		}
 	} else {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid string format, can't find " "offset" " value\n");
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find ""offset"" value\n");
 		goto err_exit_2;
 	}
 
@@ -835,8 +839,7 @@ ssize_t send_scratch_pad(struct device *dev, struct device_attribute *attr,
 			goto err_exit_2;
 		}
 	} else {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid string format, can't find " "length" " value\n");
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find ""length"" value\n");
 		goto err_exit_2;
 	}
 
@@ -845,7 +848,7 @@ ssize_t send_scratch_pad(struct device *dev, struct device_attribute *attr,
 
 		str += 5;
 		endptr = str;
-		for (idx = 0; idx < length; idx++) {
+		for(idx = 0; idx < length; idx++) {
 
 			endptr += strspn(endptr, white_space);
 			str = endptr;
@@ -876,7 +879,7 @@ ssize_t send_scratch_pad(struct device *dev, struct device_attribute *attr,
 	dev_context->spad_xfer_length = length;
 
 	if (idx == 0) {
-		MHL_TX_DBG_INFO(dev_context, "No data specified, storing offset "
+		MHL_TX_DBG_INFO(dev_context, "No data specified, storing offset "\
 				"and length for subsequent scratch pad read\n");
 
 		goto err_exit_2;
@@ -898,9 +901,9 @@ ssize_t send_scratch_pad(struct device *dev, struct device_attribute *attr,
 	 * are only required to implement the 1st 16 bytes.
 	 */
 	if (!(dev_context->mhl_flags & MHL_STATE_FLAG_CONNECTED) ||
-	    (length < ADOPTER_ID_SIZE) ||
-	    (offset > (SCRATCH_PAD_SIZE - ADOPTER_ID_SIZE)) ||
-	    (offset + length > SCRATCH_PAD_SIZE)) {
+		(length < ADOPTER_ID_SIZE) ||
+		(offset > (SCRATCH_PAD_SIZE - ADOPTER_ID_SIZE)) ||
+		(offset + length > SCRATCH_PAD_SIZE)) {
 		status = -EINVAL;
 		goto err_exit_1;
 	}
@@ -911,24 +914,24 @@ ssize_t send_scratch_pad(struct device *dev, struct device_attribute *attr,
 	scratch_pad_status = si_mhl_tx_request_write_burst(dev_context, offset, length, data);
 
 	switch (scratch_pad_status) {
-	case SCRATCHPAD_SUCCESS:
-		/* On success return the number of bytes written to this file */
-		status = count;
-		break;
+		case SCRATCHPAD_SUCCESS:
+			/* On success return the number of bytes written to this file */
+			status = count;
+			break;
 
-	case SCRATCHPAD_BUSY:
-		status = -EAGAIN;
-		break;
+		case SCRATCHPAD_BUSY:
+			status = -EAGAIN;
+			break;
 
-	default:
-		status = -EFAULT;
-		break;
+		default:
+			status = -EFAULT;
+			break;
 	}
 
- err_exit_1:
+err_exit_1:
 	up(&dev_context->isr_lock);
 
- err_exit_2:
+err_exit_2:
 	return status;
 }
 
@@ -946,21 +949,22 @@ ssize_t send_scratch_pad(struct device *dev, struct device_attribute *attr,
  * read.
  *
  * The format of the string returned in buf is:
- *	"offset:<offset> length:<lenvalue> data:<datavalues>
- *	where:	<offset>	is the last scratch pad register offset
- *						written to this file
- *			<lenvalue>	is the last scratch pad register transfer length
- *						written to this file
- *			<datavalue>	space separated list of <lenvalue> scratch pad
- *						register values in OxXX format
+ * 	"offset:<offset> length:<lenvalue> data:<datavalues>
+ * 	where:	<offset>	is the last scratch pad register offset
+ * 						written to this file
+ * 			<lenvalue>	is the last scratch pad register transfer length
+ * 						written to this file
+ * 			<datavalue>	space separated list of <lenvalue> scratch pad
+ * 						register values in OxXX format
  */
-ssize_t show_scratch_pad(struct device *dev, struct device_attribute *attr, char *buf)
+ssize_t show_scratch_pad(struct device *dev, struct device_attribute *attr,
+					char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
-	u8 data[MAX_SCRATCH_PAD_TRANSFER_SIZE];
-	u8 idx;
-	enum scratch_pad_status scratch_pad_status;
-	int status = -EINVAL;
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
+	u8			data[MAX_SCRATCH_PAD_TRANSFER_SIZE];
+	u8			idx;
+	enum scratch_pad_status	scratch_pad_status;
+	int			status = -EINVAL;
 
 
 	MHL_TX_DBG_INFO(dev_context, "called\n");
@@ -975,32 +979,34 @@ ssize_t show_scratch_pad(struct device *dev, struct device_attribute *attr, char
 
 	if (dev_context->mhl_flags & MHL_STATE_FLAG_CONNECTED) {
 
-		scratch_pad_status = si_get_scratch_pad_vector(dev_context,
-							       dev_context->spad_offset,
-							       dev_context->spad_xfer_length, data);
+		scratch_pad_status  = si_get_scratch_pad_vector(dev_context,
+				dev_context->spad_offset,
+				dev_context->spad_xfer_length,
+				data);
 
 		switch (scratch_pad_status) {
-		case SCRATCHPAD_SUCCESS:
-			status = scnprintf(buf, PAGE_SIZE, "offset:0x%02x "
-					   "length:0x%02x data:",
-					   dev_context->spad_offset, dev_context->spad_xfer_length);
+			case SCRATCHPAD_SUCCESS:
+				status = scnprintf(buf, PAGE_SIZE, "offset:0x%02x " \
+						"length:0x%02x data:",
+						dev_context->spad_offset,
+						dev_context->spad_xfer_length);
 
-			for (idx = 0; idx < dev_context->spad_xfer_length; idx++) {
-				status += scnprintf(&buf[status], PAGE_SIZE, "0x%02x ", data[idx]);
-			}
-			break;
+				for (idx = 0; idx < dev_context->spad_xfer_length; idx++) {
+					status += scnprintf(&buf[status], PAGE_SIZE, "0x%02x ", data[idx]);
+				}
+				break;
 
-		case SCRATCHPAD_BUSY:
-			status = -EAGAIN;
-			break;
+			case SCRATCHPAD_BUSY:
+				status = -EAGAIN;
+				break;
 
-		default:
-			status = -EFAULT;
-			break;
+			default:
+				status = -EFAULT;
+				break;
 		}
 	}
 
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
@@ -1014,34 +1020,34 @@ ssize_t show_scratch_pad(struct device *dev, struct device_attribute *attr, char
  * register(s) of the transmitter.
  *
  * The format of the string in buf must be:
- *	address=<pageaddr> offset=<offset_value> length=<Length_value> \
- *	data=data_byte_0 ... data_byte_length-1
- *	where: <pageaddr>		specifies the I2C register page of the register(s)
- *							to be written/read
- *			<offset_value>	specifies the starting register offset within the
- *							register page to begin writing/reading
- *			<length_value>	number registers to be written/read
- *			data_byte		space separated list of <length_value> data bytes
- *							to be written.  If no data bytes are present then
- *							the write to this file will only be used to set
- *							the  page address, offset and length for a
- *							subsequent read from this file.
+ * 	address=<pageaddr> offset=<offset_value> length=<Length_value> \
+ * 	data=data_byte_0 ... data_byte_length-1
+ * 	where: <pageaddr>		specifies the I2C register page of the register(s)
+ * 							to be written/read
+ * 			<offset_value>	specifies the starting register offset within the
+ * 							register page to begin writing/reading
+ * 			<length_value>	number registers to be written/read
+ * 			data_byte		space separated list of <length_value> data bytes
+ * 							to be written.  If no data bytes are present then
+ * 							the write to this file will only be used to set
+ * 							the  page address, offset and length for a
+ * 							subsequent read from this file.
  */
 ssize_t send_debug(struct device *dev, struct device_attribute *attr,
-		   const char *buf, size_t count)
+				const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
-	unsigned long address = 0x100;	/* initialize with invalid values */
-	unsigned long offset = 0x100;
-	unsigned long length = 0x100;
-	unsigned long value;
-	u8 data[MAX_DEBUG_TRANSFER_SIZE];
-	u8 idx;
-	char *str;
-	char *endptr;
-	int status = -EINVAL;
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
+	unsigned long	address = 0x100;		/* initialize with invalid values */
+	unsigned long	offset = 0x100;
+	unsigned long	length = 0x100;
+	unsigned long	value;
+	u8		data[MAX_DEBUG_TRANSFER_SIZE];
+	u8		idx;
+	char		*str;
+	char		*endptr;
+	int		status = -EINVAL;
 
-	MHL_TX_DBG_INFO(dev_context, "received string: " "%s" "\n", buf);
+	MHL_TX_DBG_INFO(dev_context, "received string: ""%s""\n", buf);
 
 	/*
 	 * Parse the input string and extract the scratch pad register selection
@@ -1051,13 +1057,11 @@ ssize_t send_debug(struct device *dev, struct device_attribute *attr,
 	if (str != NULL) {
 		address = simple_strtoul(str + 8, NULL, 0);
 		if (address > 0xFF) {
-			MHL_TX_DBG_ERR(dev_context, "Invalid page address: 0x%02lx specified\n",
-				       address);
+			MHL_TX_DBG_ERR(dev_context, "Invalid page address: 0x%02lx specified\n", address);
 			goto err_exit_2;
 		}
 	} else {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid string format, can't find " "address" " parameter\n");
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find ""address"" parameter\n");
 		goto err_exit_2;
 	}
 
@@ -1065,13 +1069,11 @@ ssize_t send_debug(struct device *dev, struct device_attribute *attr,
 	if (str != NULL) {
 		offset = simple_strtoul(str + 7, NULL, 0);
 		if (offset > 0xFF) {
-			MHL_TX_DBG_ERR(dev_context, "Invalid page offset: 0x%02lx specified\n",
-				       offset);
+			MHL_TX_DBG_ERR(dev_context, "Invalid page offset: 0x%02lx specified\n", offset);
 			goto err_exit_2;
 		}
 	} else {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid string format, can't find " "offset" " value\n");
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find ""offset"" value\n");
 		goto err_exit_2;
 	}
 
@@ -1083,8 +1085,7 @@ ssize_t send_debug(struct device *dev, struct device_attribute *attr,
 			goto err_exit_2;
 		}
 	} else {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid string format, can't find " "length" " value\n");
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find ""length"" value\n");
 		goto err_exit_2;
 	}
 
@@ -1093,7 +1094,7 @@ ssize_t send_debug(struct device *dev, struct device_attribute *attr,
 
 		str += 5;
 		endptr = str;
-		for (idx = 0; idx < length; idx++) {
+		for(idx = 0; idx < length; idx++) {
 			endptr += strspn(endptr, white_space);
 			str = endptr;
 			if (*str == 0) {
@@ -1104,23 +1105,22 @@ ssize_t send_debug(struct device *dev, struct device_attribute *attr,
 			value = simple_strtoul(str, &endptr, 0);
 
 			if (value > 0xFF) {
-				MHL_TX_DBG_ERR(dev_context,
-					       "Invalid register data value detected\n");
+				MHL_TX_DBG_ERR(dev_context, "Invalid register data value detected\n");
 				goto err_exit_2;
 			}
 
 			data[idx] = value;
 		}
-
+		
 
 	} else {
 		idx = 0;
 	}
 
 	if ((offset + length) > 0x100) {
-		MHL_TX_DBG_ERR(dev_context,
-			       "Invalid offset/length combination entered 0x%02x/0x%02x", offset,
-			       length);
+		MHL_TX_DBG_ERR(dev_context
+			, "Invalid offset/length combination entered 0x%02x/0x%02x"
+			, offset, length);
 		goto err_exit_2;
 	}
 
@@ -1129,7 +1129,7 @@ ssize_t send_debug(struct device *dev, struct device_attribute *attr,
 	dev_context->debug_i2c_xfer_length = length;
 
 	if (idx == 0) {
-		MHL_TX_DBG_INFO(dev_context, "No data specified, storing address "
+		MHL_TX_DBG_INFO(dev_context, "No data specified, storing address "\
 				"offset and length for subsequent debug read\n");
 		goto err_exit_2;
 	}
@@ -1142,16 +1142,17 @@ ssize_t send_debug(struct device *dev, struct device_attribute *attr,
 		goto err_exit_1;
 	}
 
-	status = dev_context->drv_info->mhl_device_dbg_i2c_reg_xfer(&dev_context->drv_context,
-								    address, offset, length,
-								    DEBUG_I2C_WRITE, data);
+	status =  dev_context->drv_info->mhl_device_dbg_i2c_reg_xfer(
+			&dev_context->drv_context,
+			address, offset, length,
+			DEBUG_I2C_WRITE, data);
 	if (status == 0)
 		status = count;
 
- err_exit_1:
+err_exit_1:
 	up(&dev_context->isr_lock);
 
- err_exit_2:
+err_exit_2:
 	return status;
 }
 
@@ -1166,21 +1167,21 @@ ssize_t send_debug(struct device *dev, struct device_attribute *attr,
  * code if the I2C read fails.
  *
  * The format of the string returned in buf is:
- *	"address:<pageaddr> offset:<offset> length:<lenvalue> data:<datavalues>
- *	where:	<pageaddr>	is the last I2C register page address written
- *						to this file
- *			<offset>	is the last register offset written to this file
- *			<lenvalue>	is the last register transfer length written
- *						to this file
- *			<datavalue>	space separated list of <lenvalue> register
- *						values in OxXX format
+ * 	"address:<pageaddr> offset:<offset> length:<lenvalue> data:<datavalues>
+ * 	where:	<pageaddr>	is the last I2C register page address written
+ * 						to this file
+ * 			<offset>	is the last register offset written to this file
+ * 			<lenvalue>	is the last register transfer length written
+ * 						to this file
+ * 			<datavalue>	space separated list of <lenvalue> register
+ * 						values in OxXX format
  */
 ssize_t show_debug(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
-	u8 data[MAX_DEBUG_TRANSFER_SIZE];
-	u8 idx;
-	int status = -EINVAL;
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
+	u8			data[MAX_DEBUG_TRANSFER_SIZE];
+	u8			idx;
+	int			status = -EINVAL;
 
 	MHL_TX_DBG_INFO(dev_context, "called\n");
 
@@ -1192,22 +1193,22 @@ ssize_t show_debug(struct device *dev, struct device_attribute *attr, char *buf)
 		goto no_dev;
 	}
 
-	status = dev_context->drv_info->mhl_device_dbg_i2c_reg_xfer(&dev_context->drv_context,
-								    dev_context->debug_i2c_address,
-								    dev_context->debug_i2c_offset,
-								    dev_context->
-								    debug_i2c_xfer_length,
-								    DEBUG_I2C_READ, data);
- no_dev:
+	status =  dev_context->drv_info->mhl_device_dbg_i2c_reg_xfer(
+			&dev_context->drv_context,
+			dev_context->debug_i2c_address,
+			dev_context->debug_i2c_offset,
+			dev_context->debug_i2c_xfer_length,
+			DEBUG_I2C_READ, data);
+no_dev:
 	up(&dev_context->isr_lock);
 
 	if (status == 0) {
 
-		status = scnprintf(buf, PAGE_SIZE, "address:0x%02x offset:0x%02x "
-				   "length:0x%02x data:",
-				   dev_context->debug_i2c_address,
-				   dev_context->debug_i2c_offset,
-				   dev_context->debug_i2c_xfer_length);
+		status = scnprintf(buf, PAGE_SIZE, "address:0x%02x offset:0x%02x " \
+				"length:0x%02x data:",
+				dev_context->debug_i2c_address,
+				dev_context->debug_i2c_offset,
+				dev_context->debug_i2c_xfer_length);
 
 		for (idx = 0; idx < dev_context->debug_i2c_xfer_length; idx++) {
 			status += scnprintf(&buf[status], PAGE_SIZE, "0x%02x ", data[idx]);
@@ -1218,7 +1219,7 @@ ssize_t show_debug(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 
-/* ( begin trace_level API */
+//( begin trace_level API
 /*
  * show_trace_level() - Handle read request to the trace_level attribute file.
  *
@@ -1229,26 +1230,26 @@ ssize_t show_debug(struct device *dev, struct device_attribute *attr, char *buf)
  */
 ssize_t get_trace_level(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
-	int status = -EINVAL;
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
+	int	status = -EINVAL;
 	extern int debug_msgs;
 
 
-	if (down_interruptible(&dev_context->isr_lock)) {
-		MHL_TX_DBG_ERR(dev_context, "-ERESTARTSYS\n");
+	if (down_interruptible(&dev_context->isr_lock)){
+		MHL_TX_DBG_ERR(dev_context,"-ERESTARTSYS\n");
 		return -ERESTARTSYS;
 	}
 
 	if (dev_context->dev_flags & DEV_FLAG_SHUTDOWN) {
-		MHL_TX_DBG_ERR(dev_context, "-ENODEV\n");
+		MHL_TX_DBG_ERR(dev_context,"-ENODEV\n");
 		status = -ENODEV;
 		goto err_exit;
 	}
+	
+	status = scnprintf(buf, PAGE_SIZE, "level=%d",debug_msgs );
+	MHL_TX_DBG_INFO(dev_context,"buf:%c%s%c\n",'"',buf,'"');
 
-	status = scnprintf(buf, PAGE_SIZE, "level=%d", debug_msgs);
-	MHL_TX_DBG_INFO(dev_context, "buf:%c%s%c\n", '"', buf, '"');
-
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
@@ -1261,12 +1262,12 @@ ssize_t get_trace_level(struct device *dev, struct device_attribute *attr, char 
  * to be sent to the downstream device.
  */
 ssize_t set_trace_level(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+				  const char *buf, size_t count)
 {
-	struct mhl_dev_context *dev_context = dev_get_drvdata(dev);
+	struct mhl_dev_context	*dev_context = dev_get_drvdata(dev);
 	int status;
 	char *str;
-	const char *key = "level=";
+	const char *key="level=";
 	extern int debug_msgs;
 
 	/* Assume success */
@@ -1285,37 +1286,35 @@ ssize_t set_trace_level(struct device *dev, struct device_attribute *attr,
 	if (str != NULL) {
 		debug_msgs = simple_strtol(str + strlen(key), NULL, 0);
 	} else {
-		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find \"%s\" parameter\n",
-			       key);
+		MHL_TX_DBG_ERR(dev_context, "Invalid string format, can't find \"%s\" parameter\n",key);
 	}
 
- err_exit:
+err_exit:
 	up(&dev_context->isr_lock);
 
 	return status;
 }
 
-/* ) end trace_level API */
+//) end trace_level API
 
 #define MAX_EVENT_STRING_LEN 128
 /*
  * Handler for event notifications from the MhlTx layer.
  *
  */
-#define MTK_MHL_NOTIFY_SYS
-extern void hdmi_state_callback(HDMI_STATE state);
+ #define MTK_MHL_NOTIFY_SYS
 
 void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_param, void *data)
 {
-	char event_string[MAX_EVENT_STRING_LEN];
-	char *envp[] = { event_string, NULL };
-	char *buf;
-	u32 length;
-	u32 count;
-	int idx;
+	char	event_string[MAX_EVENT_STRING_LEN];
+	char	*envp[] = {event_string, NULL};
+	char	*buf;
+	u32	length;
+	u32	count;
+	int	idx;
 
-	MHL_TX_DBG_INFO(dev_context, "called, event: 0x%08x "
-			"event_param: 0x%08x\n", event, event_param);
+	MHL_TX_DBG_INFO(dev_context, "called, event: 0x%08x "\
+			 "event_param: 0x%08x\n", event, event_param);
 
 	/*
 	 * Save the info on the most recent event.  This is done to support the
@@ -1326,28 +1325,37 @@ void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_
 	dev_context->pending_event = event;
 	dev_context->pending_event_data = event_param;
 
-	switch (event) {
-
+	switch(event) {
+		
+	case MHL_TX_EVENT_SMB_DATA:
+	case MHL_TX_EVENT_HPD_CLEAR:
+	case MHL_TX_EVENT_HPD_GOT:
+	case MHL_TX_EVENT_DEV_CAP_UPDATE:
+	case MHL_TX_EVENT_EDID_UPDATE:
+	case MHL_TX_EVENT_EDID_DONE:
+		Notify_AP_MHL_TX_Event(event, event_param, data);
+		break;
+			
 	case MHL_TX_EVENT_CONNECTION:
 		dev_context->mhl_flags |= MHL_STATE_FLAG_CONNECTED;
 
 #ifdef MEDIA_DATA_TUNNEL_SUPPORT
-#if 0				/* MDT_HOT_PLUG */
-		mdt_init(dev_context);
-#endif
+//		mdt_init(dev_context);
 #endif
 #ifdef RCP_INPUTDEV_SUPPORT
-		init_rcp_input_dev(dev_context);
+		//init_rcp_input_dev(dev_context);
 #endif
 
 #ifndef MTK_MHL_NOTIFY_SYS
-		sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_CONN));
+		sysfs_notify(&dev_context->mhl_dev->kobj, NULL,
+				__stringify(SYS_ATTR_NAME_CONN));
 
 		strncpy(event_string, "MHLEVENT=connected", MAX_EVENT_STRING_LEN);
 		kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
-		hdmi_state_callback(HDMI_STATE_ACTIVE);
+
 #endif
+		Notify_AP_MHL_TX_Event(event, event_param, data);
 		break;
 
 	case MHL_TX_EVENT_DISCONNECTION:
@@ -1358,32 +1366,37 @@ void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_
 		dev_context->ucp_key_code = 0;
 		dev_context->ucp_err_code = 0;
 		dev_context->spad_send_status = 0;
+		dev_context->misc_flags.flags.have_complete_devcap = false;//SET the para to default;
 
 #ifdef MEDIA_DATA_TUNNEL_SUPPORT
-		mdt_destroy(dev_context);
+//		mdt_destroy(dev_context);
 #endif
 #ifdef RCP_INPUTDEV_SUPPORT
-		destroy_rcp_input_dev(dev_context);
+		//destroy_rcp_input_dev(dev_context);
 #endif
 
 #ifndef MTK_MHL_NOTIFY_SYS
-		sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_CONN));
+		sysfs_notify(&dev_context->mhl_dev->kobj, NULL,
+					 __stringify(SYS_ATTR_NAME_CONN));
 
 		strncpy(event_string, "MHLEVENT=disconnected", MAX_EVENT_STRING_LEN);
 		kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
-		hdmi_state_callback(HDMI_STATE_NO_DEVICE);
+
 #endif
+
+		Notify_AP_MHL_TX_Event(event, event_param, data);
 		break;
 
 	case MHL_TX_EVENT_RCP_RECEIVED:
 
 #ifdef RCP_INPUTDEV_SUPPORT
-		if (0 == generate_rcp_input_event(dev_context, (uint8_t) event_param))
-			si_mhl_tx_rcpk_send(dev_context, (uint8_t) event_param);
-		else {
+		if (0 == generate_rcp_input_event(dev_context, (uint8_t)event_param))
+			si_mhl_tx_rcpk_send(dev_context, (uint8_t)event_param);
+		else
+		{
 			si_mhl_tx_rcpe_send(dev_context, MHL_RCPE_STATUS_INEEFECTIVE_KEY_CODE);
-			si_mhl_tx_rcpk_send(dev_context, (uint8_t) event_param);
+			si_mhl_tx_rcpk_send(dev_context, (uint8_t)event_param);
 		}
 #else
 		dev_context->mhl_flags &= ~MHL_STATE_FLAG_RCP_SENT;
@@ -1393,8 +1406,7 @@ void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_
 #ifndef MTK_MHL_NOTIFY_SYS
 		sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_RCP));
 
-		snprintf(event_string, MAX_EVENT_STRING_LEN,
-			 "MHLEVENT=received_RCP key code=0x%02x", event_param);
+		snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=received_RCP key code=0x%02x", event_param);
 		kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
 
@@ -1403,30 +1415,24 @@ void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_
 
 	case MHL_TX_EVENT_RCPK_RECEIVED:
 		if ((dev_context->mhl_flags & MHL_STATE_FLAG_RCP_SENT)
-		    && (dev_context->rcp_key_code == event_param)) {
+			&& (dev_context->rcp_key_code == event_param)) {
 
 			dev_context->rcp_err_code = 0;
 			dev_context->mhl_flags |= MHL_STATE_FLAG_RCP_ACK;
 
-			MHL_TX_DBG_INFO(dev_context,
-					"Generating RCPK received event, keycode: 0x%02x\n",
-					event_param);
+			MHL_TX_DBG_INFO(dev_context, "Generating RCPK received event, keycode: 0x%02x\n", event_param);
 
 #ifndef MTK_MHL_NOTIFY_SYS
 
-			sysfs_notify(&dev_context->mhl_dev->kobj, NULL,
-				     __stringify(SYS_ATTR_NAME_RCPK));
+			sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_RCPK));
 
-			snprintf(event_string, MAX_EVENT_STRING_LEN,
-				 "MHLEVENT=received_RCPK key code=0x%02x", event_param);
+			snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=received_RCPK key code=0x%02x", event_param);
 			kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
 
 #endif
 		} else {
-			MHL_TX_DBG_ERR(dev_context,
-				       "Ignoring unexpected RCPK received event, keycode: 0x%02x\n",
-				       event_param);
+			MHL_TX_DBG_ERR(dev_context, "Ignoring unexpected RCPK received event, keycode: 0x%02x\n", event_param);
 		}
 		break;
 
@@ -1436,36 +1442,29 @@ void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_
 			dev_context->rcp_err_code = event_param;
 			dev_context->mhl_flags |= MHL_STATE_FLAG_RCP_NAK;
 
-			MHL_TX_DBG_INFO(dev_context,
-					"Generating RCPE received event, error code: 0x%02x\n",
-					event_param);
+			MHL_TX_DBG_INFO(dev_context, "Generating RCPE received event, error code: 0x%02x\n", event_param);
 #ifndef MTK_MHL_NOTIFY_SYS
-			sysfs_notify(&dev_context->mhl_dev->kobj, NULL,
-				     __stringify(SYS_ATTR_NAME_RCPK));
+			sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_RCPK));
 
-			snprintf(event_string, MAX_EVENT_STRING_LEN,
-				 "MHLEVENT=received_RCPE error code=0x%02x", event_param);
+			snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=received_RCPE error code=0x%02x", event_param);
 			kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
 
 #endif
 		} else {
-			MHL_TX_DBG_ERR(dev_context,
-				       "Ignoring unexpected RCPE received event, error code: 0x%02x\n",
-				       event_param);
+			MHL_TX_DBG_ERR(dev_context, "Ignoring unexpected RCPE received event, error code: 0x%02x\n", event_param);
 		}
 		break;
-#endif				/* #ifdef RCP_INPUTDEV_SUPPORT */
+#endif /* #ifdef RCP_INPUTDEV_SUPPORT */
 
 	case MHL_TX_EVENT_UCP_RECEIVED:
 		dev_context->mhl_flags &= ~MHL_STATE_FLAG_UCP_SENT;
 		dev_context->mhl_flags |= MHL_STATE_FLAG_UCP_RECEIVED;
 		dev_context->ucp_key_code = event_param;
-#ifndef MTK_MHL_NOTIFY_SYS
+#ifndef MTK_MHL_NOTIFY_SYS		
 		sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_UCP));
 
-		snprintf(event_string, MAX_EVENT_STRING_LEN,
-			 "MHLEVENT=received_UCP key code=0x%02x", event_param);
+		snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=received_UCP key code=0x%02x", event_param);
 		kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
 
@@ -1474,27 +1473,21 @@ void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_
 
 	case MHL_TX_EVENT_UCPK_RECEIVED:
 		if ((dev_context->mhl_flags & MHL_STATE_FLAG_UCP_SENT)
-		    && (dev_context->ucp_key_code == event_param)) {
+			&& (dev_context->ucp_key_code == event_param)) {
 
 			dev_context->mhl_flags |= MHL_STATE_FLAG_UCP_ACK;
 
-			MHL_TX_DBG_INFO(dev_context,
-					"Generating UCPK received event, keycode: 0x%02x\n",
-					event_param);
+			MHL_TX_DBG_INFO(dev_context, "Generating UCPK received event, keycode: 0x%02x\n", event_param);
 #ifndef MTK_MHL_NOTIFY_SYS
-			sysfs_notify(&dev_context->mhl_dev->kobj, NULL,
-				     __stringify(SYS_ATTR_NAME_UCPK));
+			sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_UCPK));
 
-			snprintf(event_string, MAX_EVENT_STRING_LEN,
-				 "MHLEVENT=received_UCPK key code=0x%02x", event_param);
+			snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=received_UCPK key code=0x%02x", event_param);
 			kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
 
 #endif
 		} else {
-			MHL_TX_DBG_ERR(dev_context,
-				       "Ignoring unexpected UCPK received event, keycode: 0x%02x\n",
-				       event_param);
+			MHL_TX_DBG_ERR(dev_context, "Ignoring unexpected UCPK received event, keycode: 0x%02x\n", event_param);
 		}
 		break;
 
@@ -1504,23 +1497,17 @@ void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_
 			dev_context->ucp_err_code = event_param;
 			dev_context->mhl_flags |= MHL_STATE_FLAG_UCP_NAK;
 
-			MHL_TX_DBG_INFO(dev_context,
-					"Generating UCPE received event, error code: 0x%02x\n",
-					event_param);
+			MHL_TX_DBG_INFO(dev_context, "Generating UCPE received event, error code: 0x%02x\n", event_param);
 #ifndef MTK_MHL_NOTIFY_SYS
-			sysfs_notify(&dev_context->mhl_dev->kobj, NULL,
-				     __stringify(SYS_ATTR_NAME_UCPK));
+			sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_UCPK));
 
-			snprintf(event_string, MAX_EVENT_STRING_LEN,
-				 "MHLEVENT=received_UCPE error code=0x%02x", event_param);
+			snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=received_UCPE error code=0x%02x", event_param);
 			kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
 
 #endif
 		} else {
-			MHL_TX_DBG_ERR(dev_context,
-				       "Ignoring unexpected UCPE received event, error code: 0x%02x\n",
-				       event_param);
+			MHL_TX_DBG_ERR(dev_context, "Ignoring unexpected UCPE received event, error code: 0x%02x\n", event_param);
 		}
 		break;
 
@@ -1531,39 +1518,31 @@ void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_
 #ifndef MTK_MHL_NOTIFY_SYS
 		sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_SPAD));
 
-		idx =
-		    snprintf(event_string, MAX_EVENT_STRING_LEN,
-			     "MHLEVENT=SPAD_CHG length=0x%02x data=", length);
+		idx = snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=SPAD_CHG length=0x%02x data=", length);
 
 		count = 0;
 		while (idx < MAX_EVENT_STRING_LEN) {
 			if (count >= length)
 				break;
 
-			idx +=
-			    snprintf(&event_string[idx], MAX_EVENT_STRING_LEN - idx, "0x%02x ",
-				     buf[count]);
+			idx += snprintf(&event_string[idx], MAX_EVENT_STRING_LEN - idx, "0x%02x ", buf[count]);
 			count++;
 		}
 
 		if (idx < MAX_EVENT_STRING_LEN) {
 			kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 		} else {
-			MHL_TX_DBG_ERR(dev_context,
-				       "Buffer too small to contain scratch pad data!\n");
+			MHL_TX_DBG_ERR(dev_context, "Buffer too small to contain scratch pad data!\n");
 		}
 #else
 
-#endif
+#endif		
 		break;
 
 	case MHL_TX_EVENT_POW_BIT_CHG:
-		MHL_TX_DBG_INFO(dev_context,
-				"Generating VBUS power bit change event, POW bit is %s\n",
-				event_param ? "ON" : "OFF");
-#ifndef MTK_MHL_NOTIFY_SYS
-		snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=MHL VBUS power %s",
-			 event_param ? "ON" : "OFF");
+		MHL_TX_DBG_INFO(dev_context, "Generating VBUS power bit change event, POW bit is %s\n", event_param? "ON" : "OFF");
+#ifndef MTK_MHL_NOTIFY_SYS		
+		snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=MHL VBUS power %s", event_param? "ON" : "OFF");
 		kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
 
@@ -1571,14 +1550,12 @@ void mhl_event_notify(struct mhl_dev_context *dev_context, u32 event, u32 event_
 		break;
 
 	case MHL_TX_EVENT_RAP_RECEIVED:
-		MHL_TX_DBG_INFO(dev_context, "Generating RAP received event, action code: 0x%02x\n",
-				event_param);
+		MHL_TX_DBG_INFO(dev_context, "Generating RAP received event, action code: 0x%02x\n", event_param);
 #ifndef MTK_MHL_NOTIFY_SYS
 
 		sysfs_notify(&dev_context->mhl_dev->kobj, NULL, __stringify(SYS_ATTR_NAME_RAP));
 
-		snprintf(event_string, MAX_EVENT_STRING_LEN,
-			 "MHLEVENT=received_RAP action code=0x%02x", event_param);
+		snprintf(event_string, MAX_EVENT_STRING_LEN, "MHLEVENT=received_RAP action code=0x%02x", event_param);
 		kobject_uevent_env(&dev_context->mhl_dev->kobj, KOBJ_CHANGE, envp);
 #else
 
@@ -1601,77 +1578,72 @@ static const struct file_operations mhl_fops = {
  * Sysfs attribute files supported by this driver.
  */
 struct device_attribute driver_attribs[] = {
-	__ATTR(SYS_ATTR_NAME_CONN, 0444, show_connection_state, NULL),
+	__ATTR(SYS_ATTR_NAME_CONN		,0444,show_connection_state, NULL),
 #ifndef RCP_INPUTDEV_SUPPORT
-	__ATTR(SYS_ATTR_NAME_RCP, 0666, show_rcp, send_rcp),
-	__ATTR(SYS_ATTR_NAME_RCPK, 0666, show_rcp_ack, send_rcp_ack),
+	__ATTR(SYS_ATTR_NAME_RCP		,0444,show_rcp			, send_rcp),
+	__ATTR(SYS_ATTR_NAME_RCPK		,0444,show_rcp_ack		, send_rcp_ack),
 #endif
-	__ATTR(SYS_ATTR_NAME_RAP, 0666, show_rap, send_rap),
-	__ATTR(SYS_ATTR_NAME_RAP_STATUS, 0666, show_rap_status, set_rap_status),
-	__ATTR(SYS_ATTR_NAME_DEVCAP, 0666, show_dev_cap, select_dev_cap),
-	__ATTR(SYS_ATTR_NAME_UCP, 0666, show_ucp, send_ucp),
-	__ATTR(SYS_ATTR_NAME_UCPK, 0666, show_ucp_ack, send_ucp_ack),
-	__ATTR(SYS_ATTR_NAME_SPAD, 0666, show_scratch_pad, send_scratch_pad),
-	__ATTR(SYS_ATTR_NAME_DEBUG, 0666, show_debug, send_debug),
-	__ATTR(SYS_ATTR_NAME_TRACE_LEVEL, 0666, get_trace_level, set_trace_level),
+	__ATTR(SYS_ATTR_NAME_RAP		,0444,show_rap			, send_rap),
+	__ATTR(SYS_ATTR_NAME_RAP_STATUS		,0444,show_rap_status		, set_rap_status),
+	__ATTR(SYS_ATTR_NAME_DEVCAP		,0444,show_dev_cap		, select_dev_cap),
+	__ATTR(SYS_ATTR_NAME_UCP		,0444,show_ucp			, send_ucp),
+	__ATTR(SYS_ATTR_NAME_UCPK		,0444,show_ucp_ack		, send_ucp_ack),
+	__ATTR(SYS_ATTR_NAME_SPAD		,0444,show_scratch_pad		, send_scratch_pad),
+	__ATTR(SYS_ATTR_NAME_DEBUG		,0444,show_debug		, send_debug),
+	__ATTR(SYS_ATTR_NAME_TRACE_LEVEL	,0444,get_trace_level		, set_trace_level),
 	__ATTR_NULL
 };
 
 static void mhl8338_irq_handler(void)
 {
-	atomic_set(&mhl_irq_event, 1);
-	wake_up_interruptible(&mhl_irq_wq);
-	/* mt65xx_eint_unmask(CUST_EINT_HDMI_HPD_NUM); */
+ 	atomic_set(&mhl_irq_event, 1);
+    wake_up_interruptible(&mhl_irq_wq); 
+	//mt65xx_eint_unmask(CUST_EINT_HDMI_HPD_NUM);   
 }
 
 static void mhl_irq_handler(int irq, void *data);
 
+static int irq_cnt = 0;
 static int mhl_irq_kthread(void *data)
 {
-	int i = 0;
-	struct sched_param param = {.sched_priority = RTPM_PRIO_SCRN_UPDATE };
+    int i=0;
+	struct sched_param param = { .sched_priority = RTPM_PRIO_SCRN_UPDATE };
 	sched_setscheduler(current, SCHED_RR, &param);
-
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		wait_event_interruptible(mhl_irq_wq, atomic_read(&mhl_irq_event));
-		set_current_state(TASK_RUNNING);
-		/* hdmi_update_impl(); */
+    
+    for( ;; ) {
+        set_current_state(TASK_INTERRUPTIBLE);
+        wait_event_interruptible(mhl_irq_wq, atomic_read(&mhl_irq_event));
+        set_current_state(TASK_RUNNING);
+        irq_cnt++;
+        //hdmi_update_impl();
 
 		atomic_set(&mhl_irq_event, 0);
-		/* for( i=0;i<30; i++) */
-		mhl_irq_handler(0, si_dev_context);
-
-		if (kthread_should_stop())
-			break;
+		//for( i=0;i<30; i++)
+            mhl_irq_handler(0, si_dev_context);
+        
+        if (kthread_should_stop())
+            break;
 #ifdef CUST_EINT_MHL_NUM
 		mt_eint_unmask(CUST_EINT_MHL_NUM);
 #endif
-	}
+    }
 
-	return 0;
-}
-
-/* /extern mhlTx_config_t        mhlTxConfig; */
-static int sii_mhl_connected;
-uint8_t SiiTxReadConnectionStatus(void)
-{
-	return (sii_mhl_connected >= MHL_TX_EVENT_CONNECTION) ? 1 : 0;
+    return 0;
 }
 
 /*
  * Interrupt handler for MHL transmitter interrupts.
  *
  * @irq:	The number of the asserted IRQ line that caused
- *		this handler to be called.
+ *  		this handler to be called.
  * @data:	Data pointer passed when the interrupt was enabled,
- *		which in this case is a pointer to an mhl_dev_context struct.
+ *  		which in this case is a pointer to an mhl_dev_context struct.
  *
  * Always returns IRQ_HANDLED.
  */
 static void mhl_irq_handler(int irq, void *data)
 {
-	struct mhl_dev_context *dev_context = (struct mhl_dev_context *)data;
+	struct mhl_dev_context	*dev_context = (struct mhl_dev_context *)data;
 
 
 	if (!down_interruptible(&dev_context->isr_lock)) {
@@ -1685,11 +1657,11 @@ static void mhl_irq_handler(int irq, void *data)
 		dev_context->intr_info.edid_parser_context = dev_context->edid_parser_context;
 
 		dev_context->drv_info->mhl_device_isr((struct drv_hw_context *)
-						      (&dev_context->drv_context),
-						      &dev_context->intr_info);
+				(&dev_context->drv_context),
+				&dev_context->intr_info);
 
 		/* Now post process events detected by the interrupt handler */
-		if (dev_context->intr_info.flags & DRV_INTR_FLAG_DISCONNECT) {
+		if(dev_context->intr_info.flags & DRV_INTR_FLAG_DISCONNECT) {
 			dev_context->misc_flags.flags.rap_content_on = false;
 			dev_context->misc_flags.flags.mhl_rsen = false;
 			dev_context->mhl_connection_event = true;
@@ -1713,28 +1685,26 @@ static void mhl_irq_handler(int irq, void *data)
 
 			if (dev_context->intr_info.flags & DRV_INTR_FLAG_SET_INT)
 				si_mhl_tx_got_mhl_intr(dev_context,
-						       dev_context->intr_info.int_msg[0],
-						       dev_context->intr_info.int_msg[1]);
+						dev_context->intr_info.int_msg[0],
+						dev_context->intr_info.int_msg[1]);
 
 			if (dev_context->intr_info.flags & DRV_INTR_FLAG_MSC_DONE)
 				si_mhl_tx_msc_command_done(dev_context,
-							   dev_context->intr_info.msc_done_data);
+						dev_context->intr_info.msc_done_data);
 
 			if (dev_context->intr_info.flags & DRV_INTR_FLAG_HPD_CHANGE)
 				si_mhl_tx_notify_downstream_hpd_change(dev_context,
-								       dev_context->intr_info.
-								       hpd_status);
+						dev_context->intr_info.hpd_status);
 
 			if (dev_context->intr_info.flags & DRV_INTR_FLAG_WRITE_STAT)
 				si_mhl_tx_got_mhl_status(dev_context,
-							 dev_context->intr_info.write_stat[0],
-							 dev_context->intr_info.write_stat[1]);
+						dev_context->intr_info.write_stat[0],
+						dev_context->intr_info.write_stat[1]);
 
 			if (dev_context->intr_info.flags & DRV_INTR_FLAG_MSC_RECVD) {
-				dev_context->msc_msg_arrived = true;
-				dev_context->msc_msg_sub_command =
-				    dev_context->intr_info.msc_msg[0];
-				dev_context->msc_msg_data = dev_context->intr_info.msc_msg[1];
+				dev_context->msc_msg_arrived		= true;
+				dev_context->msc_msg_sub_command	= dev_context->intr_info.msc_msg[0];
+				dev_context->msc_msg_data		= dev_context->intr_info.msc_msg[1];
 				si_mhl_tx_process_events(dev_context);
 			}
 		}
@@ -1745,12 +1715,9 @@ static void mhl_irq_handler(int irq, void *data)
 		 */
 		si_mhl_tx_drive_states(dev_context);
 
-		if (sii_mhl_connected != dev_context->mhl_connected)
-			pr_err("MHL connected status %d - %d\n", sii_mhl_connected,
-			       dev_context->mhl_connected);
-		sii_mhl_connected = dev_context->mhl_connected;
-
- irq_done:
+//		if(sii_mhl_connected != dev_context->mhl_connected)
+//    		pr_err("MHL connected status %d -> %d\n",sii_mhl_connected, dev_context->mhl_connected);
+irq_done:
 		up(&dev_context->isr_lock);
 	}
 
@@ -1760,18 +1727,24 @@ static void mhl_irq_handler(int irq, void *data)
 
 int mhl_tx_init(struct mhl_drv_info const *drv_info, struct i2c_client *client)
 {
-	/* /struct mhl_dev_context *dev_context; */
-	int ret, dummy;
+	///struct mhl_dev_context *dev_context;
+	int ret,dummy;
 
 
 	if (drv_info == NULL || client == NULL) {
-		pr_err("Null parameter passed to %s\n", __func__);
+		pr_err("Null parameter passed to %s\n",__FUNCTION__);
 		return -EINVAL;
 	}
 
-	init_waitqueue_head(&mhl_irq_wq);
-	mhl_irq_task = kthread_create(mhl_irq_kthread, NULL, "mhl_irq_kthread");
+	init_waitqueue_head(&mhl_irq_wq);	
+	mhl_irq_task = kthread_create(mhl_irq_kthread, NULL, "mhl_irq_kthread"); 
 	wake_up_process(mhl_irq_task);
+
+    #ifdef CONFIG_MTK_SMARTBOOK_SUPPORT
+    init_waitqueue_head(&smartbook_wq);	
+    smartbook_task = kthread_create(smartbook_kthread, NULL, "smartbook_kthread"); 	
+    wake_up_process(smartbook_task);
+    #endif
 
 	si_dev_context = kzalloc(sizeof(*si_dev_context) + drv_info->drv_context_size, GFP_KERNEL);
 	if (!si_dev_context) {
@@ -1790,10 +1763,10 @@ int mhl_tx_init(struct mhl_drv_info const *drv_info, struct i2c_client *client)
 		ret = -ENOMEM;
 		goto free_mem;
 	}
-
+    
 	if (mhl_class == NULL) {
 		mhl_class = class_create(THIS_MODULE, "mhl");
-		if (IS_ERR(mhl_class)) {
+		if(IS_ERR(mhl_class)) {
 			ret = PTR_ERR(mhl_class);
 			pr_info("class_create failed %d\n", ret);
 			goto err_exit;
@@ -1801,11 +1774,12 @@ int mhl_tx_init(struct mhl_drv_info const *drv_info, struct i2c_client *client)
 
 		mhl_class->dev_attrs = driver_attribs;
 
-		ret = alloc_chrdev_region(&dev_num, 0, MHL_DRIVER_MINOR_MAX, MHL_DRIVER_NAME);
+		ret = alloc_chrdev_region(&dev_num,
+				0, MHL_DRIVER_MINOR_MAX,
+				MHL_DRIVER_NAME);
 
 		if (ret) {
-			pr_info("register_chrdev %s failed, error code: %d\n", MHL_DRIVER_NAME,
-				ret);
+			pr_info("register_chrdev %s failed, error code: %d\n", MHL_DRIVER_NAME, ret);
 			goto free_class;
 		}
 
@@ -1819,17 +1793,19 @@ int mhl_tx_init(struct mhl_drv_info const *drv_info, struct i2c_client *client)
 	}
 
 	si_dev_context->mhl_dev = device_create(mhl_class, &si_dev_context->client->dev,
-						dev_num, si_dev_context, "%s", MHL_DEVICE_NAME);
+			dev_num, si_dev_context,
+			"%s", MHL_DEVICE_NAME);
 	if (IS_ERR(si_dev_context->mhl_dev)) {
 		ret = PTR_ERR(si_dev_context->mhl_dev);
 		pr_info("device_create failed %s %d\n", MHL_DEVICE_NAME, ret);
 		goto free_cdev;
 	}
+
 #ifdef CUST_EINT_MHL_NUM
-	mt_eint_registration(CUST_EINT_MHL_NUM, CUST_EINT_MHL_TYPE, &mhl8338_irq_handler, 0);
-	mt_eint_unmask(CUST_EINT_MHL_NUM);
+        mt_eint_registration(CUST_EINT_MHL_NUM, CUST_EINT_MHL_TYPE, &mhl8338_irq_handler, 0);
+        mt_eint_mask(CUST_EINT_MHL_NUM);
 #else
-	pr_debug("%s,%d Error: CUST_EINT_MHL_NUM is not defined\n", __func__, __LINE__);
+        printk("%s,%d Error: CUST_EINT_MHL_NUM is not defined\n", __func__, __LINE__);
 #endif
 	/* Initialize the MHL transmitter hardware. */
 	ret = down_interruptible(&si_dev_context->isr_lock);
@@ -1841,49 +1817,51 @@ int mhl_tx_init(struct mhl_drv_info const *drv_info, struct i2c_client *client)
 	i2c_set_clientdata(client, si_dev_context);
 
 	/* initialize the PCA 950x GPIO expander, if present */
-	/* ret = gpio_expander_init(dev_context); */
-	/* if (ret < 0) { */
-	/* dev_err(&client->dev,"failed to initialize GPIO expander, status: %d\n",ret); */
-	/* goto free_irq_handler; */
-	/* } */
+	//ret = gpio_expander_init(dev_context);
+	//if (ret < 0) {
+	//	dev_err(&client->dev,"failed to initialize GPIO expander, status: %d\n",ret);
+	//	goto free_irq_handler;
+	//}
 
 	/* Initialize EDID parser module */
-	si_dev_context->edid_parser_context =
-	    si_edid_create_context(si_dev_context, &si_dev_context->drv_context);
+	si_dev_context->edid_parser_context = si_edid_create_context(si_dev_context,&si_dev_context->drv_context);
 
 	ret = si_mhl_tx_initialize(si_dev_context, true);
 	up(&si_dev_context->isr_lock);
 
+#ifdef RCP_INPUTDEV_SUPPORT
+    init_rcp_input_dev(si_dev_context);
+#endif
 
 	MHL_TX_DBG_INFO(si_dev_context, "MHL transmitter successfully initialized\n");
 
 	return ret;
 
- free_irq_handler:
+free_irq_handler:
 	i2c_set_clientdata(client, NULL);
 	dummy = down_interruptible(&si_dev_context->isr_lock);
-	if (si_dev_context->edid_parser_context)
+	if(si_dev_context->edid_parser_context)
 		si_edid_destroy_context(si_dev_context->edid_parser_context);
 
 	free_irq(si_dev_context->client->irq, si_dev_context);
 
- free_device:
+free_device:
 	device_destroy(mhl_class, dev_num);
 
- free_cdev:
+free_cdev:
 	cdev_del(&si_dev_context->mhl_cdev);
 
- free_chrdev:
+free_chrdev:
 	unregister_chrdev_region(dev_num, MHL_DRIVER_MINOR_MAX);
 	dev_num = 0;
 
- free_class:
+free_class:
 	class_destroy(mhl_class);
 
- err_exit:
+err_exit:
 	destroy_workqueue(si_dev_context->timer_work_queue);
 
- free_mem:
+free_mem:
 	kfree(si_dev_context);
 
 	return ret;
@@ -1896,8 +1874,8 @@ int mhl_tx_remove(struct i2c_client *client)
 
 	dev_context = i2c_get_clientdata(client);
 
-	if (dev_context != NULL) {
-		MHL_TX_DBG_INFO(dev_context, "%x\n", dev_context);
+	if (dev_context != NULL){
+		MHL_TX_DBG_INFO(dev_context, "%x\n",dev_context);
 		ret = down_interruptible(&dev_context->isr_lock);
 
 		dev_context->dev_flags |= DEV_FLAG_SHUTDOWN;
@@ -1921,7 +1899,7 @@ int mhl_tx_remove(struct i2c_client *client)
 		mhl_class = NULL;
 
 #ifdef MEDIA_DATA_TUNNEL_SUPPORT
-		mdt_destroy(dev_context);
+//		mdt_destroy(dev_context);
 #endif
 #ifdef RCP_INPUTDEV_SUPPORT
 		destroy_rcp_input_dev(dev_context);
@@ -1929,24 +1907,24 @@ int mhl_tx_remove(struct i2c_client *client)
 
 		si_edid_destroy_context(dev_context->edid_parser_context);
 
-		/* mhl_tx_delete_timer(dev_context, dev_context->cbus_abort_timer);  //TB added to clean up timer object */
+		//mhl_tx_delete_timer(dev_context, dev_context->cbus_abort_timer);  //TB added to clean up timer object
 
 		kfree(dev_context);
 
-		MHL_TX_DBG_INFO(dev_context, "%x\n", dev_context);
+		MHL_TX_DBG_INFO(dev_context, "%x\n",dev_context);
 	}
 	return ret;
 }
 
-static void mhl_tx_destroy_timer_support(struct mhl_dev_context *dev_context)
+static void mhl_tx_destroy_timer_support(struct  mhl_dev_context *dev_context)
 {
-	struct timer_obj *mhl_timer;
+	struct timer_obj	*mhl_timer;
 
 	/*
 	 * Make sure all outstanding timer objects are canceled and the
 	 * memory allocated for them is freed.
 	 */
-	while (!list_empty(&dev_context->timer_list)) {
+	while(!list_empty(&dev_context->timer_list)) {
 		mhl_timer = list_first_entry(&dev_context->timer_list, struct timer_obj, list_link);
 		hrtimer_cancel(&mhl_timer->hr_timer);
 		list_del(&mhl_timer->list_link);
@@ -1959,7 +1937,7 @@ static void mhl_tx_destroy_timer_support(struct mhl_dev_context *dev_context)
 
 static void mhl_tx_timer_work_handler(struct work_struct *work)
 {
-	struct timer_obj *mhl_timer;
+	struct timer_obj	*mhl_timer;
 
 	mhl_timer = container_of(work, struct timer_obj, work_item);
 
@@ -1972,7 +1950,7 @@ static void mhl_tx_timer_work_handler(struct work_struct *work)
 	}
 	mhl_timer->flags &= ~TIMER_OBJ_FLAG_WORK_IP;
 
-	if (mhl_timer->flags & TIMER_OBJ_FLAG_DEL_REQ) {
+	if(mhl_timer->flags & TIMER_OBJ_FLAG_DEL_REQ) {
 		/*
 		 * Deletion of this timer was requested during the execution of
 		 * the callback handler so go ahead and delete it now.
@@ -1983,7 +1961,7 @@ static void mhl_tx_timer_work_handler(struct work_struct *work)
 
 static enum hrtimer_restart mhl_tx_timer_handler(struct hrtimer *timer)
 {
-	struct timer_obj *mhl_timer;
+	struct timer_obj	*mhl_timer;
 
 	mhl_timer = container_of(timer, struct timer_obj, hr_timer);
 
@@ -1994,14 +1972,14 @@ static enum hrtimer_restart mhl_tx_timer_handler(struct hrtimer *timer)
 
 static int is_timer_handle_valid(struct mhl_dev_context *dev_context, void *timer_handle)
 {
-	struct timer_obj *timer;
+	struct timer_obj	*timer;
 
 	list_for_each_entry(timer, &dev_context->timer_list, list_link) {
 		if (timer == timer_handle)
 			break;
 	}
 
-	if (timer != timer_handle) {
+	if(timer != timer_handle) {
 		MHL_TX_DBG_ERR(dev_context, "Invalid timer handle %p received\n", timer_handle);
 		return -EINVAL;
 	}
@@ -2009,11 +1987,12 @@ static int is_timer_handle_valid(struct mhl_dev_context *dev_context, void *time
 }
 
 int mhl_tx_create_timer(void *context,
-			void (*callback_handler) (void *callback_param),
-			void *callback_param, void **timer_handle)
+		void (*callback_handler)(void *callback_param),
+		void *callback_param,
+		void **timer_handle)
 {
-	struct mhl_dev_context *dev_context;
-	struct timer_obj *new_timer;
+	struct mhl_dev_context	*dev_context;
+	struct timer_obj		*new_timer;
 
 	dev_context = get_mhl_device_context(context);
 
@@ -2044,9 +2023,9 @@ int mhl_tx_create_timer(void *context,
 
 int mhl_tx_delete_timer(void *context, void *timer_handle)
 {
-	struct mhl_dev_context *dev_context;
-	struct timer_obj *timer;
-	int status;
+	struct mhl_dev_context	*dev_context;
+	struct timer_obj	*timer;
+	int			status;
 
 	dev_context = get_mhl_device_context(context);
 
@@ -2058,7 +2037,7 @@ int mhl_tx_delete_timer(void *context, void *timer_handle)
 
 		hrtimer_cancel(&timer->hr_timer);
 
-		if (timer->flags & TIMER_OBJ_FLAG_WORK_IP) {
+		if(timer->flags & TIMER_OBJ_FLAG_WORK_IP) {
 			/*
 			 * Request to delete timer object came from within the timer's
 			 * callback handler.  If we were to proceed with the timer deletion
@@ -2080,10 +2059,10 @@ int mhl_tx_delete_timer(void *context, void *timer_handle)
 
 int mhl_tx_start_timer(void *context, void *timer_handle, uint32_t time_msec)
 {
-	struct mhl_dev_context *dev_context;
-	struct timer_obj *timer;
-	ktime_t timer_period;
-	int status;
+	struct mhl_dev_context	*dev_context;
+	struct timer_obj	*timer;
+	ktime_t			timer_period;
+	int			status;
 
 	dev_context = get_mhl_device_context(context);
 
@@ -2100,9 +2079,9 @@ int mhl_tx_start_timer(void *context, void *timer_handle, uint32_t time_msec)
 
 int mhl_tx_stop_timer(void *context, void *timer_handle)
 {
-	struct mhl_dev_context *dev_context;
-	struct timer_obj *timer;
-	int status;
+	struct mhl_dev_context	*dev_context;
+	struct timer_obj	*timer;
+	int			status;
 
 	dev_context = get_mhl_device_context(context);
 

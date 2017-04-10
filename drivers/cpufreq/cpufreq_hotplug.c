@@ -43,7 +43,11 @@
 #define MIN_FREQUENCY_DOWN_DIFFERENTIAL     (5)	/* <-XXX */
 #define MAX_FREQUENCY_DOWN_DIFFERENTIAL     (20)	/* <-XXX */
 #define MICRO_FREQUENCY_UP_THRESHOLD        (85)
+#ifdef CONFIG_MTK_SDIOAUTOK_SUPPORT
+#define MICRO_FREQUENCY_MIN_SAMPLE_RATE     (27000)
+#else
 #define MICRO_FREQUENCY_MIN_SAMPLE_RATE     (30000)
+#endif
 #define MIN_FREQUENCY_UP_THRESHOLD          (21)
 #define MAX_FREQUENCY_UP_THRESHOLD          (100)
 
@@ -110,26 +114,26 @@ DEFINE_MUTEX(hp_onoff_mutex);
 int g_cpus_sum_load_current = 0;	/* set global for information purpose */
 #ifdef CONFIG_HOTPLUG_CPU
 
-long g_cpu_up_sum_load;
-int g_cpu_up_count;
-int g_cpu_up_load_index;
+static long g_cpu_up_sum_load;
+static int g_cpu_up_count;
+static int g_cpu_up_load_index;
 static long g_cpu_up_load_history[MAX_CPU_UP_AVG_TIMES] = { 0 };
 
-long g_cpu_down_sum_load;
-int g_cpu_down_count;
-int g_cpu_down_load_index;
+static long g_cpu_down_sum_load;
+static int g_cpu_down_count;
+static int g_cpu_down_load_index;
 static long g_cpu_down_load_history[MAX_CPU_DOWN_AVG_TIMES] = { 0 };
 
-cpu_hotplug_work_type_t g_trigger_hp_work;
+static cpu_hotplug_work_type_t g_trigger_hp_work;
 static unsigned int g_next_hp_action;
 static struct delayed_work hp_work;
 struct workqueue_struct *hp_wq = NULL;
 
-int g_tlp_avg_current;	/* set global for information purpose */
-int g_tlp_avg_sum;
-int g_tlp_avg_count;
-int g_tlp_avg_index;
-int g_tlp_avg_average;	/* set global for information purpose */
+static int g_tlp_avg_current;	/* set global for information purpose */
+static int g_tlp_avg_sum;
+static int g_tlp_avg_count;
+static int g_tlp_avg_index;
+static int g_tlp_avg_average;	/* set global for information purpose */
 static int g_tlp_avg_history[MAX_CPU_RUSH_TLP_TIMES] = { 0 };
 
 static int g_tlp_iowait_av;
@@ -1959,6 +1963,20 @@ struct cpufreq_governor cpufreq_gov_hotplug = {
 	.max_transition_latency = TRANSITION_LATENCY_LIMIT,
 	.owner = THIS_MODULE,
 };
+
+#ifdef CONFIG_MTK_SDIOAUTOK_SUPPORT
+void cpufreq_min_sampling_rate_change(unsigned int sample_rate)
+{
+	struct dbs_data *dbs_data = per_cpu(hp_cpu_dbs_info, 0).cdbs.cur_policy->governor_data;	/* TODO: FIXME, cpu = 0 */
+
+	if (!dbs_data)
+		return;
+
+	dbs_data->min_sampling_rate = sample_rate;
+	update_sampling_rate(dbs_data, sample_rate);
+}
+EXPORT_SYMBOL(cpufreq_min_sampling_rate_change);
+#endif
 
 static int __init cpufreq_gov_dbs_init(void)
 {

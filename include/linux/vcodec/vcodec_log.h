@@ -1,9 +1,9 @@
 #ifndef VCODEC_LOG_H
 #define VCODEC_LOG_H
 
-#include "vcodec_if.h"
+#include "vcodec_if_v2.h"
 
-#define	lmx_prt(a, b, c)
+#define lmx_prt(a, b, c)
 
 /* Add your index here */
 typedef enum {
@@ -96,12 +96,39 @@ typedef enum {
 	VCODEC_LOG_GROUP_MAX
 } VCODEC_LOG_GROUP_T;
 
-void VcodecTraceLog0(VCODEC_LOG_GROUP_T eGroup, VCODEC_LOG_INDEX_T eIndex);
-void VcodecTraceLog1(VCODEC_LOG_GROUP_T eGroup, VCODEC_LOG_INDEX_T eIndex, UINT64 arg);
-void VcodecTraceLog2(VCODEC_LOG_GROUP_T eGroup, VCODEC_LOG_INDEX_T eIndex, UINT64 arg1,
-		     UINT64 arg2);
-void VcodecTraceLog4(VCODEC_LOG_GROUP_T eGroup, VCODEC_LOG_INDEX_T eIndex, UINT64 arg1, UINT64 arg2,
-		     UINT64 arg3, UINT64 arg4);
-void VcodecTraceLog8(VCODEC_LOG_GROUP_T eGroup, VCODEC_LOG_INDEX_T eIndex, UINT64 arg1, UINT64 arg2,
-		     UINT64 arg3, UINT64 arg4, UINT64 arg5, UINT64 arg6, UINT64 arg7, UINT64 arg8);
-#endif				/* VCODEC_LOG_H */
+void VcodecTraceLog0(
+	VCODEC_LOG_GROUP_T eGroup,
+	VCODEC_LOG_INDEX_T eIndex
+);
+void VcodecTraceLog1(
+	VCODEC_LOG_GROUP_T eGroup,
+	VCODEC_LOG_INDEX_T eIndex,
+	UINT64 arg
+);
+void VcodecTraceLog2(
+	VCODEC_LOG_GROUP_T eGroup,
+	VCODEC_LOG_INDEX_T eIndex,
+	UINT64 arg1,
+	UINT64 arg2
+);
+void VcodecTraceLog4(
+	VCODEC_LOG_GROUP_T eGroup,
+	VCODEC_LOG_INDEX_T eIndex,
+	UINT64 arg1,
+	UINT64 arg2,
+	UINT64 arg3,
+	UINT64 arg4
+);
+void VcodecTraceLog8(
+	VCODEC_LOG_GROUP_T eGroup,
+	VCODEC_LOG_INDEX_T eIndex,
+	UINT64 arg1,
+	UINT64 arg2,
+	UINT64 arg3,
+	UINT64 arg4,
+	UINT64 arg5,
+	UINT64 arg6,
+	UINT64 arg7,
+	UINT64 arg8
+);
+#endif /* VCODEC_LOG_H */

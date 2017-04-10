@@ -67,7 +67,10 @@ int packet_thresh = 75; // 600 ms / 8ms/sample
 static int mpu6050_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id); 
 static int mpu6050_i2c_remove(struct i2c_client *client);
 static int mpu6050_i2c_detect(struct i2c_client *client, struct i2c_board_info *info);
-
+#if !defined(CONFIG_HAS_EARLYSUSPEND)
+static int mpu6050_suspend(struct i2c_client *client, pm_message_t msg) ;
+static int mpu6050_resume(struct i2c_client *client);
+#endif
 static int mpu6050_local_init(void);
 static int  mpu6050_remove(void);
 static int mpu6050_init_flag =-1; // 0<==>OK -1 <==> fail
@@ -152,7 +155,7 @@ static struct i2c_driver mpu6050_i2c_driver = {
     .probe              = mpu6050_i2c_probe,
     .remove             = mpu6050_i2c_remove,
     .detect             = mpu6050_i2c_detect,
-#if !defined(CONFIG_HAS_EARLYSUSPEND)    
+#if !defined(CONFIG_HAS_EARLYSUSPEND)
     .suspend            = mpu6050_suspend,
     .resume             = mpu6050_resume,
 #endif
@@ -1234,7 +1237,7 @@ static ssize_t store_trace_value(struct device_driver *ddri, const char *buf, si
     }
     else
     {
-        GYRO_ERR("invalid content: '%s', length = %d\n", buf, count);
+        GYRO_ERR("invalid content: '%s', length = %zu\n", buf, count);
     }
 
     return count;    
@@ -1526,7 +1529,7 @@ static long mpu6050_unlocked_ioctl(struct file *file, unsigned int cmd,
         memset(SMTdata, 0, sizeof(*SMTdata) * 800);
         MPU6050_SMTReadSensorData(client, SMTdata, 800);
 
-        GYRO_LOG("gyroscope read data from kernel OK: SMTdata[0]:%d, copied packet:%d!\n", SMTdata[0],
+        GYRO_LOG("gyroscope read data from kernel OK: SMTdata[0]:%d, copied packet:%zd!\n", SMTdata[0],
                  ((SMTdata[0]*MPU6050_AXES_NUM+2)*sizeof(s16)+1));
 
         smtRes = MPU6050_PROCESS_SMT_DATA(client,SMTdata);
@@ -1666,12 +1669,116 @@ static long mpu6050_unlocked_ioctl(struct file *file, unsigned int cmd,
     return err;
 }
 
+#ifdef CONFIG_COMPAT
+static long mpu6050_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret;
 
+	void __user *arg32 = compat_ptr(arg);
+	
+	if (!file->f_op || !file->f_op->unlocked_ioctl)
+		return -ENOTTY;
+	
+    //printk("akm8963_compat_ioctl arg: 0x%lx, arg32: 0x%p\n",arg, arg32);
+	
+	switch (cmd) {
+		 case COMPAT_GYROSCOPE_IOCTL_INIT:
+		 	 //printk("akm8963_compat_ioctl COMPAT_ECS_IOCTL_WRITE\n");
+			 if(arg32 == NULL)
+			 {
+				 GYRO_ERR("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, GYROSCOPE_IOCTL_INIT,
+							(unsigned long)arg32);
+			 if (ret){
+			 	GYRO_ERR("GYROSCOPE_IOCTL_INIT unlocked_ioctl failed.");
+				return ret;
+			 }			 
+
+			 break;
+
+		 case COMPAT_GYROSCOPE_IOCTL_SET_CALI:
+			 if(arg32 == NULL)
+			 {
+				 GYRO_ERR("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, GYROSCOPE_IOCTL_SET_CALI,
+							(unsigned long)arg32);
+			 if (ret){
+			 	GYRO_ERR("GYROSCOPE_IOCTL_SET_CALI unlocked_ioctl failed.");
+				return ret;
+			 }			 
+
+			 break;
+
+		 case COMPAT_GYROSCOPE_IOCTL_CLR_CALI:
+			 if(arg32 == NULL)
+			 {
+				 GYRO_ERR("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, GYROSCOPE_IOCTL_CLR_CALI,
+							(unsigned long)arg32);
+			 if (ret){
+			 	GYRO_ERR("GYROSCOPE_IOCTL_CLR_CALI unlocked_ioctl failed.");
+				return ret;
+			 }			 
+
+			 break;
+
+		 case COMPAT_GYROSCOPE_IOCTL_GET_CALI:
+			 if(arg32 == NULL)
+			 {
+				 GYRO_ERR("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, GYROSCOPE_IOCTL_GET_CALI,
+							(unsigned long)arg32);
+			 if (ret){
+			 	GYRO_ERR("GYROSCOPE_IOCTL_GET_CALI unlocked_ioctl failed.");
+				return ret;
+			 }			 
+
+			 break;
+
+		 case COMPAT_GYROSCOPE_IOCTL_READ_SENSORDATA:
+			 if(arg32 == NULL)
+			 {
+				 GYRO_ERR("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, GYROSCOPE_IOCTL_READ_SENSORDATA,
+							(unsigned long)arg32);
+			 if (ret){
+			 	GYRO_ERR("GYROSCOPE_IOCTL_READ_SENSORDATA unlocked_ioctl failed.");
+				return ret;
+			 }			 
+
+			 break;	
+			 
+		 default:
+			 printk(KERN_ERR "%s not supported = 0x%04x", __FUNCTION__, cmd);
+			 return -ENOIOCTLCMD;
+			 break;
+	}
+	return 0;
+}
+#endif
 /*----------------------------------------------------------------------------*/
 static struct file_operations mpu6050_fops = {
     .open = mpu6050_open,
     .release = mpu6050_release,
 	.unlocked_ioctl = mpu6050_unlocked_ioctl,
+#ifdef CONFIG_COMPAT
+			.compat_ioctl = mpu6050_compat_ioctl,
+#endif
 };
 /*----------------------------------------------------------------------------*/
 static struct miscdevice mpu6050_device = {
@@ -1684,6 +1791,7 @@ static struct miscdevice mpu6050_device = {
 /*----------------------------------------------------------------------------*/
 static int mpu6050_suspend(struct i2c_client *client, pm_message_t msg) 
 {
+	int err = 0;
     struct mpu6050_i2c_data *obj = i2c_get_clientdata(client);    
     GYRO_FUN();    
 
@@ -1923,6 +2031,7 @@ static int mpu6050_i2c_probe(struct i2c_client *client, const struct i2c_device_
         GYRO_ERR("mpu6050_device misc register failed!\n");
         goto exit_misc_device_register_failed;
     }
+    ctl.is_use_common_factory = false;
 
     err = mpu6050_create_attr(&(mpu6050_init_info.platform_diver_addr->driver));
     if (err)

@@ -18,8 +18,10 @@
 #include <linux/page-isolation.h>
 #include "internal.h"
 
+#if 0
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 #endif
 
 #ifdef CONFIG_COMPACTION
@@ -1238,6 +1240,7 @@ void compaction_unregister_node(struct node *node)
 
 #endif /* CONFIG_COMPACTION */
 
+#if 0
 #ifdef CONFIG_HAS_EARLYSUSPEND
 extern void drop_pagecache(void);
 //extern void kick_lmk_from_compaction(gfp_t);
@@ -1266,15 +1269,9 @@ static void kick_compaction_early_suspend(struct early_suspend *h)
 	}
 }
 
-#ifdef CONFIG_MTKPASR
-extern void shrink_mtkpasr_late_resume(void);
-#else
-#define shrink_mtkpasr_late_resume(void)	do {} while (0)
-#endif
-
 static void kick_compaction_late_resume(struct early_suspend *h)
 {
-	shrink_mtkpasr_late_resume();
+	/* Do nothing */
 }
 
 static struct early_suspend kick_compaction_early_suspend_desc = {
@@ -1286,15 +1283,20 @@ static struct early_suspend kick_compaction_early_suspend_desc = {
 static int __init compaction_init(void)
 {
 	printk("@@@@@@ [%s] Register early suspend callback @@@@@@\n",__FUNCTION__);
+ #ifdef CONFIG_EARLYSUSPEND
 	register_early_suspend(&kick_compaction_early_suspend_desc);
+ #endif
 	return 0;
 }
 static void __exit compaction_exit(void)
 {
 	printk("@@@@@@ [%s] Unregister early suspend callback @@@@@@\n",__FUNCTION__);
+  #ifdef CONFIG_EARLYSUSPEND
 	unregister_early_suspend(&kick_compaction_early_suspend_desc);
+  #endif
 }
 
 module_init(compaction_init);
 module_exit(compaction_exit);
+#endif
 #endif

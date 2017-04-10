@@ -665,9 +665,12 @@ void do_coredump(siginfo_t *siginfo)
 		put_files_struct(displaced);
 	if (!dump_interrupted()) {
 		file_start_write(cprm.file);
+		printk(KERN_WARNING "before %d core dump\n", current->pid);
 		core_dumped = binfmt->core_dump(&cprm);
 		file_end_write(cprm.file);
 	}
+	else
+		printk(KERN_WARNING "before %d core dump interrupted error\n", current->pid);
 	if (ispipe && core_pipe_limit)
 		wait_for_dump_helpers(cprm.file);
 close_fail:
@@ -694,9 +697,26 @@ fail:
  */
 int dump_write(struct file *file, const void *addr, int nr)
 {
-	return !dump_interrupted() &&
-		access_ok(VERIFY_READ, addr, nr) &&
-		file->f_op->write(file, addr, nr, &file->f_pos) == nr;
+	if (!dump_interrupted()) {
+		if (access_ok(VERIFY_READ, addr, nr)) {
+			int pipe_ret = file->f_op->write(file, addr, nr, &file->f_pos);
+			if (pipe_ret == nr) {
+				return 1;
+			}
+			if (pipe_ret == -ERESTARTSYS) {
+			}
+			else {
+				printk(KERN_WARNING "coredump(%d): pipe dump write error nr:%d, ret:%d\n", current->pid, nr, pipe_ret);
+			}
+		}
+		else {
+			printk(KERN_WARNING "coredump(%d): access verify error\n", current->pid);
+		}
+	}
+	else {
+		printk(KERN_WARNING "coredump(%d): interrupted error\n", current->pid);
+	}
+	return 0;
 }
 EXPORT_SYMBOL(dump_write);
 

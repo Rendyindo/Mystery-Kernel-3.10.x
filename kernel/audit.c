@@ -366,7 +366,6 @@ static void audit_hold_skb(struct sk_buff *skb)
  * For one reason or another this nlh isn't getting delivered to the userspace
  * audit daemon, just send it to printk.
  */
-extern void mtk_audit_hook(char *data);
 static void audit_printk_skb(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
@@ -374,11 +373,6 @@ static void audit_printk_skb(struct sk_buff *skb)
 
 	if (nlh->nlmsg_type != AUDIT_EOE) {
 		if (printk_ratelimit()){
-			#ifdef CONFIG_MTK_AEE_FEATURE
-            		if(nlh->nlmsg_type==1400){
-                   		 mtk_audit_hook(data);
-	       		}
-	       		 #endif
 			printk(KERN_NOTICE "type=%d %s\n", nlh->nlmsg_type, data);
 		}		
 		else
@@ -387,6 +381,20 @@ static void audit_printk_skb(struct sk_buff *skb)
 
 	audit_hold_skb(skb);
 }
+
+
+#ifdef CONFIG_MTK_AEE_FEATURE
+/*
+ * return skb field of audit buffer
+ */
+struct sk_buff *audit_get_skb(struct audit_buffer *ab){
+	if (ab){
+		return (struct sk_buff *)(ab->skb);
+	}else{
+		return NULL;
+	}
+}
+#endif
 
 static void kauditd_send_skb(struct sk_buff *skb)
 {

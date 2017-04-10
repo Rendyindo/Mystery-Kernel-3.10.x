@@ -7,15 +7,14 @@ int lz4k_compress(const unsigned char *src, size_t src_len,
 int lz4k_decompress_safe(const unsigned char *src, size_t src_len,
 			 unsigned char *dst, size_t *dst_len);
 
-
+#ifdef CONFIG_ZRAM
 /* Set ZRAM hooks */
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 4, 69)) && defined(CONFIG_ZRAM)
-extern void zram_set_hooks(void *compress_func, void *decompress_func);
+extern void zram_set_hooks(void *compress_func, void *decompress_func, const char *name);
 #endif
 static int __init lz4k_init(void)
 {
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 4, 69)) && defined(CONFIG_ZRAM)
-	zram_set_hooks(&lz4k_compress, &lz4k_decompress_safe);
+#ifdef CONFIG_ZRAM
+	zram_set_hooks(&lz4k_compress, &lz4k_decompress_safe, "LZ4K");
 #endif
 	return 0;
 }

@@ -1224,12 +1224,20 @@ static int vtc_remove(struct platform_device *pdev)
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+#ifdef CONFIG_OF
+static const struct of_device_id msensor_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
 static struct platform_driver vtc_sensor_driver = {
 	.probe      = vtc_probe,
 	.remove     = vtc_remove,    
 	.driver     = {
 		.name  = "msensor",
-//		.owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+		.of_match_table = msensor_of_match,
+		#endif
 	}
 };
 

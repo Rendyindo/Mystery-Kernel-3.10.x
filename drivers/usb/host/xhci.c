@@ -37,6 +37,20 @@
 #include <linux/xhci/xhci-mtk-scheduler.h>
 #include <linux/xhci/xhci-mtk-power.h>
 #include <linux/xhci/xhci-mtk.h>
+
+#ifdef CONFIG_USBIF_COMPLIANCE
+#include <linux/proc_fs.h>
+#include <asm/uaccess.h>
+#include <linux/seq_file.h>
+#include <linux/kobject.h>
+#include <linux/miscdevice.h>
+
+static struct miscdevice mu3h_uevent_device = {
+         .minor = MISC_DYNAMIC_MINOR,
+         .name = "usbif_u3h_uevent",
+         .fops = NULL,
+};
+#endif
 #endif
 
 #define DRIVER_AUTHOR "Sarah Sharp"
@@ -46,6 +60,23 @@
 static int link_quirk;
 module_param(link_quirk, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(link_quirk, "Don't clear the chain bit on a link TRB");
+
+#ifdef CONFIG_USBIF_COMPLIANCE
+int usbif_u3h_send_event(char* event)
+{
+	char udev_event[128];
+	char *envp[] = {udev_event, NULL };
+	int ret ;
+
+	snprintf(udev_event, 128, "USBIF_EVENT=%s",event);
+	printk("usbif_u3h_send_event - sending event - %s in %s\n", udev_event, kobject_get_path(&mu3h_uevent_device.this_device->kobj, GFP_KERNEL));
+	ret = kobject_uevent_env(&mu3h_uevent_device.this_device->kobj, KOBJ_CHANGE, envp);
+	if (ret < 0)
+		printk("usbif_u3h_send_event sending failed with ret = %d, \n", ret);
+
+	return ret;
+}
+#endif
 
 /* TODO: copied from ehci-hcd.c - can this be refactored? */
 /*
@@ -613,12 +644,6 @@ static int xhci_run_finished(struct xhci_hcd *xhci)
 
 	xhci_dbg(xhci, "Finished xhci_run for USB3 roothub\n");
 
-#ifdef CONFIG_MTK_XHCI
-#ifdef CONFIG_USB_MTK_DUALMODE
-    mtk_switch2device(true);
-#endif
-#endif
-
 	return 0;
 }
 
@@ -703,14 +728,6 @@ int xhci_run(struct usb_hcd *hcd)
 	if (xhci->quirks & XHCI_NEC_HOST)
 		xhci_queue_vendor_command(xhci, 0, 0, 0,
 				TRB_TYPE(TRB_NEC_GET_FW));
-
-#ifdef CONFIG_MTK_XHCI
-#ifdef CONFIG_USB_MTK_DUALMODE
-    mtk_xhci_eint_iddig_init();
-#else
-    enableXhciAllPortPower(xhci);
-#endif
-#endif
 
 	xhci_dbg(xhci, "Finished xhci_run for USB2 roothub\n");
 	return 0;
@@ -1706,6 +1723,11 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 			(unsigned int) new_drop_flags,
 			(unsigned int) new_add_flags,
 			(unsigned int) new_slot_info);
+
+	#if defined(CONFIG_MTK_XHCI) && defined(CONFIG_USB_MTK_DUALMODE)
+	mtk_ep_count_dec();
+	#endif
+
 	return 0;
 }
 
@@ -1876,6 +1898,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 			(unsigned int) new_drop_flags,
 			(unsigned int) new_add_flags,
 			(unsigned int) new_slot_info);
+
+	#if defined(CONFIG_MTK_XHCI) && defined(CONFIG_USB_MTK_DUALMODE)
+	mtk_ep_count_inc();
+	#endif
+
 	return 0;
 }
 
@@ -3612,7 +3639,9 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_virt_device *virt_dev;
+#ifndef CONFIG_USB_DEFAULT_PERSIST
 	struct device *dev = hcd->self.controller;
+#endif
 	unsigned long flags;
 	u32 state;
 	int i, ret;
@@ -3698,7 +3727,6 @@ static int xhci_reserve_host_control_ep_resources(struct xhci_hcd *xhci)
 int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	struct device *dev = hcd->self.controller;
 	unsigned long flags;
 	int timeleft;
 	int ret;
@@ -3758,7 +3786,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	 * suspend if there is a device attached.
 	 */
 	if (xhci->quirks & XHCI_RESET_ON_RESUME)
-		pm_runtime_get_noresume(dev);
+		pm_runtime_get_noresume(hcd->self.controller);
 #endif
 
 	/* Is this a LS or FS device under a HS hub? */
@@ -4802,13 +4830,6 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		 * companion controller.
 		 */
 		hcd->has_tt = 1;
-
-        #ifdef CONFIG_MTK_XHCI
-        #ifdef CONFIG_USB_MTK_DUALMODE
-        mtk_xhci_set(xhci);
-        #endif
-        #endif
-
 	} else {
 		/* xHCI private pointer was set in xhci_pci_probe for the second
 		 * registered roothub.
@@ -4823,6 +4844,12 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		}
 		return 0;
 	}
+
+#ifdef CONFIG_MTK_XHCI
+	retval = mtk_xhci_ip_init(hcd, xhci);
+	if(retval)
+		goto error;
+#endif
 
 	xhci->cap_regs = hcd->regs;
 	xhci->op_regs = hcd->regs +
@@ -4873,6 +4900,9 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	if (retval)
 		goto error;
 	xhci_dbg(xhci, "Called HCD init\n");
+
+    printk("%s(%d): do mtk_xhci_set\n", __func__, __LINE__);
+
 	return 0;
 error:
 	kfree(xhci);
@@ -4883,7 +4913,9 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
 
-static int __init xhci_hcd_init(void)
+#ifdef CONFIG_USBIF_COMPLIANCE
+#ifndef CONFIG_USB_MTK_DUALMODE
+static int xhci_hcd_driver_init(void)
 {
 	int retval;
 
@@ -4892,11 +4924,26 @@ static int __init xhci_hcd_init(void)
 		printk(KERN_DEBUG "Problem registering PCI driver.");
 		return retval;
 	}
+
+    #ifdef CONFIG_MTK_XHCI
+    mtk_xhci_ip_init();
+    #endif
+
 	retval = xhci_register_plat();
 	if (retval < 0) {
 		printk(KERN_DEBUG "Problem registering platform driver.");
 		goto unreg_pci;
 	}
+
+    #ifdef CONFIG_MTK_XHCI
+    retval = xhci_attrs_init();
+    if(retval < 0){
+        printk(KERN_DEBUG "Problem creating xhci attributes.");
+        goto unreg_plat;
+    }
+
+    mtk_xhci_wakelock_init();
+    #endif
 
 	/*
 	 * Check the compiler generated sizes of structures that must be laid
@@ -4916,6 +4963,187 @@ static int __init xhci_hcd_init(void)
 	/* xhci_run_regs has eight fields and embeds 128 xhci_intr_regs */
 	BUILD_BUG_ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
 	return 0;
+
+#ifdef CONFIG_MTK_XHCI
+unreg_plat:
+    xhci_unregister_plat();
+#endif
+unreg_pci:
+	xhci_unregister_pci();
+	return retval;
+}
+
+static void xhci_hcd_driver_cleanup(void)
+{
+	xhci_unregister_pci();
+	xhci_unregister_plat();
+    xhci_attrs_exit();
+}
+#else
+static int xhci_hcd_driver_init(void)
+{
+	// init in mt_devs.c
+	mtk_xhci_eint_iddig_init();
+	mtk_xhci_switch_init();
+	//mtk_xhci_wakelock_init();
+	return 0;
+}
+
+static void xhci_hcd_driver_cleanup(void)
+{
+	mtk_xhci_eint_iddig_deinit() ;
+}
+
+#endif
+
+static int mu3h_normal_driver_on = 0 ;
+
+static int xhci_mu3h_proc_show(struct seq_file *seq, void *v)
+{
+        seq_printf(seq, "xhci_mu3h_proc_show, mu3h is %d (on:1, off:0)\n", mu3h_normal_driver_on);
+        return 0;
+}
+
+static int xhci_mu3h_proc_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, xhci_mu3h_proc_show, inode->i_private);
+}
+
+static ssize_t xhci_mu3h_proc_write(struct file *file, const char __user *buf, size_t length, loff_t *ppos)
+{
+	int ret ;
+	char msg[32] ;
+	int result;
+
+	if (length >= sizeof(msg)) {
+		printk( "xhci_mu3h_proc_write length error, the error len is %d\n", (unsigned int)length);
+		return -EINVAL;
+	}
+	if (copy_from_user(msg, buf, length))
+		return -EFAULT;
+
+	msg[length] = 0 ;
+
+	printk("xhci_mu3h_proc_write: %s, current driver on/off: %d\n", msg, mu3h_normal_driver_on);
+
+	if ((msg[0] == '1') && (mu3h_normal_driver_on == 0)){
+		xhci_hcd_driver_init() ;
+		mu3h_normal_driver_on = 1 ;
+		printk("registe mu3h driver : m3h xhci driver\n");
+	}else if ((msg[0] == '0') && (mu3h_normal_driver_on == 1)){
+		xhci_hcd_driver_cleanup();
+		mu3h_normal_driver_on = 0 ;
+		printk("unregiste m3h xhci driver.\n");
+	}else{
+		printk("xhci_mu3h_proc_write write faile !\n");
+	}
+	return length;
+}
+
+static const struct file_operations mu3h_proc_fops = {
+	.owner = THIS_MODULE,
+	.open = xhci_mu3h_proc_open,
+	.write = xhci_mu3h_proc_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+
+};
+
+static int __init xhci_hcd_init(void)
+{
+	struct proc_dir_entry *prEntry;
+
+	printk(KERN_DEBUG "xhci_hcd_init");
+
+	// set xhci up at boot up
+	xhci_hcd_driver_init() ;
+	mtk_xhci_wakelock_init();
+	mu3h_normal_driver_on = 1;
+
+	// USBIF
+	prEntry = proc_create("mu3h_driver_init", 0666, NULL, &mu3h_proc_fops);
+	if (prEntry)
+	{
+		printk("create the mu3h init proc OK!\n") ;
+	}else{
+		printk("[ERROR] create the mu3h init proc FAIL\n") ;
+	}
+
+#ifdef CONFIG_MTK_XHCI
+
+	if (!misc_register(&mu3h_uevent_device)){
+		printk("create the mu3h_uevent_device uevent device OK!\n") ;
+
+	}else{
+		printk("[ERROR] create the mu3h_uevent_device uevent device fail\n") ;
+	}
+
+#endif
+
+	return 0 ;
+
+}
+module_init(xhci_hcd_init);
+
+static void __exit xhci_hcd_cleanup(void)
+{
+#ifdef CONFIG_MTK_XHCI
+	misc_deregister(&mu3h_uevent_device);
+#endif
+	printk(KERN_DEBUG "xhci_hcd_cleanup");
+}
+module_exit(xhci_hcd_cleanup);
+
+#else
+#ifndef CONFIG_USB_MTK_DUALMODE
+static int __init xhci_hcd_init(void)
+{
+	int retval;
+
+	retval = xhci_register_pci();
+	if (retval < 0) {
+		printk(KERN_DEBUG "Problem registering PCI driver.");
+		return retval;
+	}
+	retval = xhci_register_plat();
+	if (retval < 0) {
+		printk(KERN_DEBUG "Problem registering platform driver.");
+		goto unreg_pci;
+	}
+
+    #ifdef CONFIG_MTK_XHCI
+    retval = xhci_attrs_init();
+    if(retval < 0){
+        printk(KERN_DEBUG "Problem creating xhci attributes.");
+        goto unreg_plat;
+    }
+
+    mtk_xhci_wakelock_init();
+    #endif
+
+	/*
+	 * Check the compiler generated sizes of structures that must be laid
+	 * out in specific ways for hardware access.
+	 */
+	BUILD_BUG_ON(sizeof(struct xhci_doorbell_array) != 256*32/8);
+	BUILD_BUG_ON(sizeof(struct xhci_slot_ctx) != 8*32/8);
+	BUILD_BUG_ON(sizeof(struct xhci_ep_ctx) != 8*32/8);
+	/* xhci_device_control has eight fields, and also
+	 * embeds one xhci_slot_ctx and 31 xhci_ep_ctx
+	 */
+	BUILD_BUG_ON(sizeof(struct xhci_stream_ctx) != 4*32/8);
+	BUILD_BUG_ON(sizeof(union xhci_trb) != 4*32/8);
+	BUILD_BUG_ON(sizeof(struct xhci_erst_entry) != 4*32/8);
+	BUILD_BUG_ON(sizeof(struct xhci_cap_regs) != 7*32/8);
+	BUILD_BUG_ON(sizeof(struct xhci_intr_reg) != 8*32/8);
+	/* xhci_run_regs has eight fields and embeds 128 xhci_intr_regs */
+	BUILD_BUG_ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
+	return 0;
+
+#ifdef CONFIG_MTK_XHCI
+unreg_plat:
+    xhci_unregister_plat();
+#endif
 unreg_pci:
 	xhci_unregister_pci();
 	return retval;
@@ -4926,5 +5154,24 @@ static void __exit xhci_hcd_cleanup(void)
 {
 	xhci_unregister_pci();
 	xhci_unregister_plat();
+    xhci_attrs_exit();
 }
 module_exit(xhci_hcd_cleanup);
+#else
+static int __init xhci_hcd_init(void)
+{
+    mtk_xhci_eint_iddig_init();
+    mtk_xhci_switch_init();
+    mtk_xhci_wakelock_init();
+	return 0;
+}
+//module_init(xhci_hcd_init);
+late_initcall(xhci_hcd_init);
+
+static void __exit xhci_hcd_cleanup(void)
+{
+}
+module_exit(xhci_hcd_cleanup);
+
+#endif
+#endif

@@ -44,10 +44,10 @@ enum buffer_map_state {
 };
 
 struct musb_request {
-	struct usb_request request;
-	struct list_head list;
-	struct musb_ep *ep;
-	struct musb *musb;
+	struct usb_request	request;
+	struct list_head	list;
+	struct musb_ep		*ep;
+	struct musb		*musb;
 	u8 tx;			/* endpoint direction */
 	u8 epnum;
 	enum buffer_map_state map_state;
@@ -58,7 +58,8 @@ static inline struct musb_request *to_musb_request(struct usb_request *req)
 	return req ? container_of(req, struct musb_request, request) : NULL;
 }
 
-extern struct usb_request *musb_alloc_request(struct usb_ep *ep, gfp_t gfp_flags);
+extern struct usb_request *
+musb_alloc_request(struct usb_ep *ep, gfp_t gfp_flags);
 extern void musb_free_request(struct usb_ep *ep, struct usb_request *req);
 
 
@@ -67,28 +68,28 @@ extern void musb_free_request(struct usb_ep *ep, struct usb_request *req);
  */
 struct musb_ep {
 	/* stuff towards the head is basically write-once. */
-	struct usb_ep end_point;
-	char name[12];
-	struct musb_hw_ep *hw_ep;
-	struct musb *musb;
-	u8 current_epnum;
+	struct usb_ep			end_point;
+	char				name[12];
+	struct musb_hw_ep		*hw_ep;
+	struct musb			*musb;
+	u8				current_epnum;
 
 	/* ... when enabled/disabled ... */
-	u8 type;
-	u8 is_in;
-	u16 packet_sz;
-	const struct usb_endpoint_descriptor *desc;
-	struct dma_channel *dma;
+	u8				type;
+	u8				is_in;
+	u16				packet_sz;
+	const struct usb_endpoint_descriptor	*desc;
+	struct dma_channel		*dma;
 
 	/* later things are modified based on usage */
-	struct list_head req_list;
+	struct list_head		req_list;
 
-	u8 wedged;
+	u8				wedged;
 
 	/* true if lock must be dropped but req_list may not be advanced */
-	u8 busy;
+	u8				busy;
 
-	u8 hb_mult;
+	u8				hb_mult;
 };
 
 static inline struct musb_ep *to_musb_ep(struct usb_ep *ep)
@@ -98,7 +99,7 @@ static inline struct musb_ep *to_musb_ep(struct usb_ep *ep)
 
 static inline struct musb_request *next_request(struct musb_ep *ep)
 {
-	struct list_head *queue = &ep->req_list;
+	struct list_head	*queue = &ep->req_list;
 
 	if (list_empty(queue))
 		return NULL;
@@ -119,4 +120,4 @@ extern void musb_g_giveback(struct musb_ep *, struct usb_request *, int);
 
 extern void musb_ep_restart(struct musb *, struct musb_request *);
 
-#endif				/* __MUSB_GADGET_H */
+#endif		/* __MUSB_GADGET_H */

@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 /*****************************************************************************
  *
  * Filename:
@@ -50,14 +36,14 @@
 
 typedef enum
 {
-	VSIM_1_3V = 0,
-	VSIM_1_5V,
-	VSIM_1_8V,
-	VSIM_2_5V,
-	VSIM_2_8V,
-	VSIM_3_0V,
-	VSIM_3_3V,
-	VSIM_1_2V
+    VSIM_1_3V = 0,
+    VSIM_1_5V,
+    VSIM_1_8V,
+    VSIM_2_5V,
+    VSIM_2_8V,
+    VSIM_3_0V,
+    VSIM_3_3V,
+    VSIM_1_2V
 }vsim_sel_enum;
 
 
@@ -92,7 +78,7 @@ static void ccci_pmic_read(struct work_struct *ws)
     // mt6326_check_power();
     
     /*
-     *	0. Start Timer
+     *    0. Start Timer
      */
     // exec_time_1 = sampletrigger(0, 0, 0);
     exec_time_1 = 0;
@@ -103,24 +89,24 @@ static void ccci_pmic_read(struct work_struct *ws)
     //#endif
     
     /*
-     *	1. Parsing CCCI Message Format which received from MD site
+     *    1. Parsing CCCI Message Format which received from MD site
      */
     spin_lock_irqsave(&pmic_spinlock,flag);
     if (kfifo_out(&pmic_fifo, (unsigned char *) &arg, sizeof(unsigned long)) != sizeof(unsigned long))
     {
-	spin_unlock_irqrestore(&pmic_spinlock,flag);
+    spin_unlock_irqrestore(&pmic_spinlock,flag);
         CCCI_MSG("<pmic>Unable to get new request from fifo\n");
         return;
     }
     spin_unlock_irqrestore(&pmic_spinlock,flag);
-    ccci_pmic_shared_mem->ccci_msg.pmic6326_op 		=  arg & 0x000000FF;		
-    ccci_pmic_shared_mem->ccci_msg.pmic6326_type 	= (arg & 0x0000FF00) >> 8; 
-    ccci_pmic_shared_mem->ccci_msg.pmic6326_param1	= (arg & 0x00FF0000) >> 16;
-    ccci_pmic_shared_mem->ccci_msg.pmic6326_param2	= (arg & 0xFF000000) >> 24;
+    ccci_pmic_shared_mem->ccci_msg.pmic6326_op         =  arg & 0x000000FF;        
+    ccci_pmic_shared_mem->ccci_msg.pmic6326_type     = (arg & 0x0000FF00) >> 8; 
+    ccci_pmic_shared_mem->ccci_msg.pmic6326_param1    = (arg & 0x00FF0000) >> 16;
+    ccci_pmic_shared_mem->ccci_msg.pmic6326_param2    = (arg & 0xFF000000) >> 24;
     
     /*
-     *	2. Execute the operation (API) that MD site called
-     */		
+     *    2. Execute the operation (API) that MD site called
+     */        
     switch(ccci_pmic_shared_mem->ccci_msg.pmic6326_op) 
     {
         case PMIC6326_VSIM_ENABLE :
@@ -129,7 +115,7 @@ static void ccci_pmic_read(struct work_struct *ws)
         CCCI_PMIC_MSG("PMIC6326_VSIM_ENABLE\n");
         //#endif
             //pmic_vsim_enable(ccci_pmic_shared_mem->ccci_msg.pmic6326_param1);
-			
+            
             break;
 
         case PMIC6326_VSIM_SET_AND_ENABLE :
@@ -164,7 +150,7 @@ static void ccci_pmic_read(struct work_struct *ws)
         //#endif
             //pmic_vsim2_enable(ccci_pmic_shared_mem->ccci_msg.pmic6326_param1);
 
-            break;	
+            break;    
 
     case PMIC6326_VSIM2_SET_AND_ENABLE :
         //#ifdef CONFIG_CCCI_PMIC_DEBUG_MSG
@@ -174,7 +160,7 @@ static void ccci_pmic_read(struct work_struct *ws)
         //pmic_vsim2_sel(ccci_pmic_shared_mem->ccci_msg.pmic6326_param1);
         //pmic_vsim2_enable(KAL_TRUE);
 
-            break;		
+            break;        
 
     default :
         //#ifdef CONFIG_CCCI_PMIC_DEBUG_MSG
@@ -199,16 +185,16 @@ static void ccci_pmic_read(struct work_struct *ws)
     //#endif
     
     /*
-     *	3. AP site write Message to share memory "ccci_pmic_shared_mem"
-     */		
+     *    3. AP site write Message to share memory "ccci_pmic_shared_mem"
+     */        
     ccci_pmic_shared_mem->ccci_msg.pmic6326_type = (kal_uint8)PMIC6326_RES;
     ccci_pmic_shared_mem->ccci_msg_info.pmic6326_exec_time = exec_time_2;
     
     ccci_pmic_shared_mem->ccci_msg = ccci_pmic_shared_mem->ccci_msg;
-    ccci_pmic_shared_mem->ccci_msg_info = ccci_pmic_shared_mem->ccci_msg_info;		
+    ccci_pmic_shared_mem->ccci_msg_info = ccci_pmic_shared_mem->ccci_msg_info;        
     
     /*
-     *	4. Inform AP CCCI driver 
+     *    4. Inform AP CCCI driver 
      */
     //ccci_write_mailbox(CCCI_PMIC_TX, 0);  
 }
@@ -223,11 +209,11 @@ static void ccci_pmic_callback(CCCI_BUFF_T *buff, void *private_data)
     //#endif
    
     spin_lock_irqsave(&pmic_spinlock,flag);
-    if (buff->channel == CCCI_PMIC_RX)		
+    if (buff->channel == CCCI_PMIC_RX)        
     {
         if (kfifo_in(&pmic_fifo, (unsigned char *) &buff->data[1], sizeof(unsigned long)) != sizeof(unsigned long))
         {
-	    spin_unlock_irqrestore(&pmic_spinlock,flag);
+        spin_unlock_irqrestore(&pmic_spinlock,flag);
             //CCCI_LOGE("CCCI_PMIC: Unable to put new request into fifo\n");
             CCCI_PMIC_MSG("callback--0\n");
             return;
@@ -241,31 +227,31 @@ static void ccci_pmic_callback(CCCI_BUFF_T *buff, void *private_data)
 
 static int ccci_pmic_start(void)
 {
-	int size;
-	#if 0
-	unsigned int i=0;
-	unsigned long exec_time_1=0, exec_time_2=0;
-	
-	/* Test Timer*/
-	exec_time_1 = sampletrigger(0, 0, 0);
-	printk("************* ccci_pmic_callback : exec_time_1 = %ld ms\r\n", exec_time_1);
+    int size;
+    #if 0
+    unsigned int i=0;
+    unsigned long exec_time_1=0, exec_time_2=0;
+    
+    /* Test Timer*/
+    exec_time_1 = sampletrigger(0, 0, 0);
+    printk("************* ccci_pmic_callback : exec_time_1 = %ld ms\r\n", exec_time_1);
 
-	for(i=0;i<1000;i++)
-	{
-		printk("************* ");
-	}
+    for(i=0;i<1000;i++)
+    {
+        printk("************* ");
+    }
 
-	exec_time_2 = sampletrigger(0, 0, 1);
-	printk("************* ccci_pmic_callback : exec_time_2 = %ld ms\r\n", exec_time_2);
-		
-	exec_time_2 = (exec_time_2 - exec_time_1)/1000;
-	printk("************* ccci_pmic_callback : exec_time = %ld ms\r\n", exec_time_2);
-	#endif
-	
-	//#ifdef CONFIG_CCCI_PMIC_DEBUG_MSG
-	//printk("CCCI_PMIC: ccci_pmic_start ****************************\n");
-	CCCI_PMIC_MSG("ccci_pmic_start\n");
-	//#endif
+    exec_time_2 = sampletrigger(0, 0, 1);
+    printk("************* ccci_pmic_callback : exec_time_2 = %ld ms\r\n", exec_time_2);
+        
+    exec_time_2 = (exec_time_2 - exec_time_1)/1000;
+    printk("************* ccci_pmic_callback : exec_time = %ld ms\r\n", exec_time_2);
+    #endif
+    
+    //#ifdef CONFIG_CCCI_PMIC_DEBUG_MSG
+    //printk("CCCI_PMIC: ccci_pmic_start ****************************\n");
+    CCCI_PMIC_MSG("ccci_pmic_start\n");
+    //#endif
 
      if (0!= kfifo_alloc(&pmic_fifo,sizeof(unsigned long) * CCCI_PMIC_QSIZE, GFP_KERNEL))
      {
@@ -274,7 +260,7 @@ static int ccci_pmic_start(void)
         return -EFAULT;
      }
  
-    //ASSERT(ccci_pmic_setup((int*)&ccci_pmic_shared_mem, &ccci_pmic_shared_mem_phys_addr, &size) == CCCI_SUCCESS);	
+    //ASSERT(ccci_pmic_setup((int*)&ccci_pmic_shared_mem, &ccci_pmic_shared_mem_phys_addr, &size) == CCCI_SUCCESS);    
     //printk("CCCI PMIC %x:%x:%d\n", (unsigned int)ccci_pmic_shared_mem, (unsigned int)ccci_pmic_shared_mem_phys_addr, size);
     CCCI_PMIC_MSG("%x:%x:%d\n", (unsigned int)ccci_pmic_shared_mem, (unsigned int)ccci_pmic_shared_mem_phys_addr, size);
     //ASSERT(ccci_register(CCCI_PMIC_RX, ccci_pmic_callback, NULL) == CCCI_SUCCESS);
@@ -308,7 +294,7 @@ static struct file_operations pmic_fops =
  int __init ccci_pmic_init(void)
 {
     int ret;
-	
+    
     if (alloc_chrdev_region(&pmic_dev_num, 0, 1, CCCI_PMIC_DEVNAME))
     {
         //printk(KERN_ERR "CCCI_PMIC: Device major number allocation failed\n");

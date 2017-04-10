@@ -9,6 +9,7 @@
 #include <linux/pid.h>
 
 #include <linux/irq.h>
+#include <linux/irqnr.h>
 #include <linux/interrupt.h>
 
 #include <linux/mt_sched_mon.h>
@@ -255,7 +256,7 @@ void mt_aee_dump_sched_traces(void)
 #include <linux/kernel_stat.h>
 #include <asm/hardirq.h>
 
-extern int mt_irq_count[NR_CPUS][NR_IRQS];
+extern int mt_irq_count[NR_CPUS][MAX_NR_IRQS];
 #ifdef CONFIG_SMP
 extern int mt_local_irq_count[NR_CPUS][NR_IPI];
 #endif
@@ -270,7 +271,7 @@ void mt_show_last_irq_counts(void)
 	pr_err("Last irq counts record at [%llu] ns\n", mt_save_irq_count_time);
 	for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
 		pr_err("CPU#%d:\n", cpu);
-		for (irq = 0; irq < NR_IRQS; irq++) {
+		for (irq = 0; irq < nr_irqs && irq < MAX_NR_IRQS; irq++) {
 			if (mt_irq_count[cpu][irq] != 0)
 				pr_err("[%3d] = %8d\n", irq, mt_irq_count[cpu][irq]);
 		}
@@ -302,7 +303,7 @@ void mt_show_current_irq_counts(void)
 	       mt_save_irq_count_time, t_diff);
 	for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
 		pr_err(" --CPU%d--\n", cpu);
-		for (irq = 0; irq < NR_IRQS; irq++) {
+		for (irq = 0; irq < nr_irqs && irq < MAX_NR_IRQS; irq++) {
 			count = kstat_irqs_cpu(irq, cpu);
 			if (count != 0)
 				pr_err(" IRQ[%3d:%14s] = %8d, (+%d times in %lld us)\n", irq,
@@ -348,7 +349,7 @@ static void mt_aee_show_current_irq_counts(void)
 		       mt_save_irq_count_time);
 	for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
 		aee_wdt_printf(" CPU%d\n", cpu);
-		for (irq = 0; irq < NR_IRQS; irq++) {
+		for (irq = 0; irq < nr_irqs && irq < MAX_NR_IRQS; irq++) {
 			count = kstat_irqs_cpu(irq, cpu);
 			if (count != 0)
 				aee_wdt_printf(" %d:%s +%d(%d)\n", irq, isr_name(irq),

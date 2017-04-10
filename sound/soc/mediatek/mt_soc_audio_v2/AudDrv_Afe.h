@@ -413,6 +413,7 @@ typedef struct
 #define AUDIO_CLKCFG_PHYSICAL_BASE  (0x10000000L)
 // need enable this register before access all register
 #define AUDIO_POWER_TOP (0x1000629cL)
+#define AUDIO_INFRA_BASE (0x10001000L)
 #define AUDIO_HW_VIRTUAL_BASE   (0xF1220000L)
 
 #ifdef AUDIO_MEM_IOREMAP
@@ -440,17 +441,16 @@ typedef struct
 #define AUD_GPIO_MODE39 (0x860)
 #define AUD_DRV_SEL4 (0xB40)
 
-#define APLL_BASE (0xF0209000L)
+#define APLL_PHYSICAL_BASE (0x10209000L)
 #define AP_PLL_CON5 (0x0014)
-
-#define APLL1_CON0 (0x02A0)
-#define APLL1_CON1 (0x02A4)
-#define APLL1_CON2 (0x02A8)
-#define APLL1_CON3 (0x02AC)
 
 #define AUDIO_CLK_CFG_4 (0x0080)
 #define AUDIO_CLK_CFG_6 (0x00A0)
 #define AUDIO_CLK_CFG_7 (0x00B0)
+#define AUDIO_CG_SET (0x88)
+#define AUDIO_CG_CLR (0x8c)
+#define AUDIO_CG_STATUS (0x94)
+
 
 #ifdef AUDIO_TOP_CON0
 #undef AUDIO_TOP_CON0
@@ -482,7 +482,7 @@ typedef struct
 #define AFE_DL1_END     (AFE_BASE + 0x0048)
 #define AFE_DL1_D2_BASE (AFE_BASE + 0x0340)
 #define AFE_DL1_D2_CUR  (AFE_BASE + 0x0344)
-//#define AFE_DL1_D2_END  (AFE_BASE + 0x0348)//K2 early porting removed
+#define AFE_DL1_D2_END  (AFE_BASE + 0x0348)
 #define AFE_VUL_D2_BASE (AFE_BASE + 0x0350)
 #define AFE_VUL_D2_END  (AFE_BASE + 0x0358)
 #define AFE_VUL_D2_CUR  (AFE_BASE + 0x035C)
@@ -571,9 +571,7 @@ typedef struct
 #define AFE_SIDETONE_GAIN   (AFE_BASE + 0x01EC)
 
 #define AFE_SGEN_CON0   (AFE_BASE + 0x01F0)
-//#define AFE_SGEN_CON1   (AFE_BASE + 0x01F4) //K2 early porting removed
 #define AFE_TOP_CON0    (AFE_BASE + 0x0200)
-//#define AFE_VAGC_CON0   (AFE_BASE + 0x020C)   //93 w/o
 
 #define AFE_ADDA_PREDIS_CON0    (AFE_BASE+0x00260)
 #define AFE_ADDA_PREDIS_CON1    (AFE_BASE+0x00264)
@@ -609,15 +607,6 @@ typedef struct
 #define AFE_MOD_DAI_END  (AFE_BASE + 0x0338)
 //#define AFE_MOD_PCM_CUR  (AFE_BASE + 0x033C)  //93 rename
 #define AFE_MOD_DAI_CUR  (AFE_BASE + 0x033C)
-
-#if 0//K2 early porting removed
-//HDMI Memory interface
-#define AFE_HDMI_OUT_CON0           (AFE_BASE + 0x0370)
-#define AFE_HDMI_BASE               (AFE_BASE + 0x0374)
-#define AFE_HDMI_CUR                (AFE_BASE + 0x0378)
-#define AFE_HDMI_END                (AFE_BASE + 0x037C)
-#define AFE_HDMI_CONN0                  (AFE_BASE + 0x0390)
-#endif
 
 //#define AFE_SPDIF_OUT_CON0 (AFE_BASE + 0x0380)
 //#define AFE_SPDIF_BASE     (AFE_BASE + 0x0384)
@@ -657,7 +646,7 @@ typedef struct
 #define AFE_MEMIF_MAXLEN                (AFE_BASE + 0x03D4)
 //#define AFE_IEC_PREFETCH_SIZE   (AFE_BASE + 0x03D8)
 #define AFE_MEMIF_PBUF_SIZE         (AFE_BASE + 0x03D8)
-#define AFE_IRQ_MCU_CNT7         (AFE_BASE + 0x03DC) // K2 early porting
+#define AFE_IRQ_MCU_CNT7         (AFE_BASE + 0x03DC)
 
 #define AFE_APLL1_TUNER_CFG             (AFE_BASE + 0x03f0)
 #define AFE_APLL2_TUNER_CFG           (AFE_BASE + 0x03f4)
@@ -682,7 +671,7 @@ typedef struct
 #define AFE_CONN7              (AFE_BASE + 0x0460)
 #define AFE_CONN8              (AFE_BASE + 0x0464)
 #define AFE_CONN9              (AFE_BASE + 0x0468)
-#define AFE_CONN10             (AFE_BASE + 0x046C) // K2 early porting
+#define AFE_CONN10             (AFE_BASE + 0x046C)
 
 //93 w/o
 //#define AFE_IEC_CFG         (AFE_BASE + 0x0480)
@@ -718,10 +707,6 @@ typedef struct
 #define PCM_INTF_CON    (AFE_BASE + 0x530)
 #define PCM_INTF_CON2   (AFE_BASE + 0x538)
 #define PCM2_INTF_CON   (AFE_BASE + 0x53C)
-#if 0// K2 early porting removed
-#define AFE_TDM_CON1    (AFE_BASE + 0x548)
-#define AFE_TDM_CON2    (AFE_BASE + 0x54C)
-#endif
 
 //6582 Add
 #define AFE_ASRC_CON13  (AFE_BASE+0x00550)
@@ -734,7 +719,7 @@ typedef struct
 #define AFE_ASRC_CON20  (AFE_BASE+0x0056C)
 #define AFE_ASRC_CON21  (AFE_BASE+0x00570)
 
-#if 1 // K2 early porting
+// 6752 add
 #define AUDIO_CLK_AUDDIV_0 (AFE_BASE+0x005A0)
 #define AUDIO_CLK_AUDDIV_1 (AFE_BASE+0x005A4)
 #define AUDIO_CLK_AUDDIV_2 (AFE_BASE+0x005A8)
@@ -754,52 +739,6 @@ typedef struct
 #define AFE_ASRC4_CON12         (AFE_BASE+0x06F0)
 #define AFE_ASRC4_CON13         (AFE_BASE+0x06F4)
 #define AFE_ASRC4_CON14         (AFE_BASE+0x06F8)
-#endif
-
-#if 0// K2 early porting removed
-#define AFE_ADDA2_TOP_CON0  (AFE_BASE+0x0600)
-#define AFE_ADDA2_UL_SRC_CON0   (AFE_BASE+0x0604)
-#define AFE_ADDA2_UL_SRC_CON1   (AFE_BASE+0x0608)
-#define AFE_ADDA2_SRC_DEBUG (AFE_BASE+0x060C)
-#define AFE_ADDA2_SRC_DEBUG_MON0    (AFE_BASE+0x0610)
-#define AFE_ADDA2_SRC_DEBUG_MON1    (AFE_BASE+0x0614)
-#define AFE_ADDA2_NEWIF_CFG0        (AFE_BASE+0x0618)
-#define AFE_ADDA2_NEWIF_CFG1        (AFE_BASE+0x061C)
-#define AFE_ADDA2_ULCF_CFG_02_01    (AFE_BASE+0x0620)
-#define AFE_ADDA2_ULCF_CFG_04_03    (AFE_BASE+0x0624)
-#define AFE_ADDA2_ULCF_CFG_06_05    (AFE_BASE+0x0628)
-#define AFE_ADDA2_ULCF_CFG_08_07   (AFE_BASE+0x062C)
-#define AFE_ADDA2_ULCF_CFG_10_09    (AFE_BASE+0x0630)
-#define AFE_ADDA2_ULCF_CFG_12_11    (AFE_BASE+0x0634)
-#define AFE_ADDA2_ULCF_CFG_14_13    (AFE_BASE+0x0638)
-#define AFE_ADDA2_ULCF_CFG_16_15    (AFE_BASE+0x063C)
-#define AFE_ADDA2_ULCF_CFG_18_17    (AFE_BASE+0x0640)
-#define AFE_ADDA2_ULCF_CFG_20_19    (AFE_BASE+0x0644)
-#define AFE_ADDA2_ULCF_CFG_22_21    (AFE_BASE+0x0648)
-#define AFE_ADDA2_ULCF_CFG_24_23    (AFE_BASE+0x064C)
-#define AFE_ADDA2_ULCF_CFG_26_25    (AFE_BASE+0x0650)
-#define AFE_ADDA2_ULCF_CFG_28_27    (AFE_BASE+0x0654)
-#define AFE_ADDA2_ULCF_CFG_30_29    (AFE_BASE+0x0658)
-#define AFE_ADDA3_UL_SRC_CON0       (AFE_BASE+0x065C)
-#define AFE_ADDA3_UL_SRC_CON1       (AFE_BASE+0x0660)
-#define AFE_ADDA3_SRC_DEBUG     (AFE_BASE+0x0664)
-#define AFE_ADDA3_SRC_DEBUG_MON0    (AFE_BASE+0x0668)
-#define AFE_ADDA3_ULCF_CFG_02_01    (AFE_BASE+0x066C)
-#define AFE_ADDA3_ULCF_CFG_04_03    (AFE_BASE+0x0670)
-#define AFE_ADDA3_ULCF_CFG_06_05    (AFE_BASE+0x0674)
-#define AFE_ADDA3_ULCF_CFG_08_07    (AFE_BASE+0x0678)
-#define AFE_ADDA3_ULCF_CFG_10_09    (AFE_BASE+0x067C)
-#define AFE_ADDA3_ULCF_CFG_12_11    (AFE_BASE+0x0680)
-#define AFE_ADDA3_ULCF_CFG_14_13    (AFE_BASE+0x0684)
-#define AFE_ADDA3_ULCF_CFG_16_15    (AFE_BASE+0x0688)
-#define AFE_ADDA3_ULCF_CFG_18_17    (AFE_BASE+0x068C)
-#define AFE_ADDA3_ULCF_CFG_20_19    (AFE_BASE+0x0690)
-#define AFE_ADDA3_ULCF_CFG_22_21    (AFE_BASE+0x0694)
-#define AFE_ADDA3_ULCF_CFG_24_23    (AFE_BASE+0x0698)
-#define AFE_ADDA3_ULCF_CFG_26_25    (AFE_BASE+0x069C)
-#define AFE_ADDA3_ULCF_CFG_28_27    (AFE_BASE+0x06a0)
-#define AFE_ADDA3_ULCF_CFG_30_29    (AFE_BASE+0x06a4)
-#endif
 
 #define AFE_ASRC2_CON0          (AFE_BASE+0x0700)
 #define AFE_ASRC2_CON1          (AFE_BASE+0x0704)
@@ -832,7 +771,7 @@ typedef struct
 #define AFE_ASRC3_CON13         (AFE_BASE+0x0774)
 #define AFE_ASRC3_CON14         (AFE_BASE+0x0778)
 
-#if 1// K2 early porting
+// 6752 add
 #define AFE_ADDA4_TOP_CON0          (AFE_BASE+0x0780)
 #define AFE_ADDA4_UL_SRC_CON0       (AFE_BASE+0x0784)
 #define AFE_ADDA4_UL_SRC_CON1       (AFE_BASE+0x0788)
@@ -856,7 +795,6 @@ typedef struct
 #define AFE_ADDA4_ULCF_CFG_26_25    (AFE_BASE+0x07D0)
 #define AFE_ADDA4_ULCF_CFG_28_27    (AFE_BASE+0x07D4)
 #define AFE_ADDA4_ULCF_CFG_30_29    (AFE_BASE+0x07D8)
-#endif
 
 #define AFE_MAXLENGTH           (AFE_BASE+0x07D8)
 
@@ -869,6 +807,10 @@ uint32  Afe_Get_Reg(uint32 offset);
 // function to Set Cfg
 uint32  GetClkCfg(uint32 offset);
 void SetClkCfg(uint32 offset, uint32 value, uint32 mask);
+
+// function to Set Infra Cfg
+uint32  GetInfraCfg(uint32 offset);
+void SetInfraCfg(uint32 offset, uint32 value, uint32 mask);
 
 // function to Set pll
 uint32 GetpllCfg(uint32 offset);
@@ -886,7 +828,7 @@ void *Get_Afe_SramCaptureBase_Pointer(void);
 
 void *Get_Afe_Powertop_Pointer(void);
 void *Get_AudClk_Pointer(void);
-
+void *Get_Afe_Infra_Pointer(void);
 
 #endif
 

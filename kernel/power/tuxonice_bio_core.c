@@ -98,7 +98,7 @@ unsigned long raw_pages_allocd, header_pages_reserved;
  **/
 static void set_free_mem_throttle(void)
 {
-	int new_throttle = nr_free_buffer_pages() + 256;
+	int new_throttle = nr_unallocated_buffer_pages() + 256;
 
 	if (new_throttle > free_mem_throttle)
 		free_mem_throttle = new_throttle;
@@ -215,8 +215,8 @@ static void do_bio_wait(int reason)
 		atomic_inc(&reasons[reason]);
 
 		wait_event(num_in_progress_wait,
-			   !atomic_read(&toi_io_in_progress) ||
-			   nr_free_buffer_pages() > free_mem_throttle);
+			!atomic_read(&toi_io_in_progress) ||
+			nr_unallocated_buffer_pages() > free_mem_throttle);
 	}
 }
 
@@ -230,7 +230,7 @@ static void do_bio_wait(int reason)
  **/
 static int throttle_if_needed(int flags)
 {
-	int free_pages = nr_free_buffer_pages();
+	int free_pages = nr_unallocated_buffer_pages();
 
 	/* Getting low on memory and I/O is in progress? */
 	while (unlikely(free_pages < free_mem_throttle) &&
@@ -238,7 +238,7 @@ static int throttle_if_needed(int flags)
 		if (!(flags & THROTTLE_WAIT))
 			return -ENOMEM;
 		do_bio_wait(4);
-		free_pages = nr_free_buffer_pages();
+		free_pages = nr_unallocated_buffer_pages();
 	}
 
 	while (!(flags & MEMORY_ONLY) && throughput_throttle &&
@@ -672,6 +672,32 @@ static int toi_rw_cleanup(int writing)
 	return result;
 }
 
+#ifdef CONFIG_TOI_FIXUP
+static void check_mem_status(void)
+{
+	return; // supress messages, unless we need it!!
+	hib_warn("%d: free/throttle: %lu/%d, no_readahead/target_oustanding_io:%d/%d io_in/io_done:%d/%d\n", __LINE__,
+			nr_unallocated_buffer_pages(), free_mem_throttle ,
+			test_action_state(TOI_NO_READAHEAD), target_outstanding_io,
+			atomic_read(&toi_io_in_progress), atomic_read(&toi_io_done));
+	HIB_SHOW_MEMINFO();
+}
+
+static int hit_lowmem_barrier(void)
+{
+	unsigned long free_pages;
+    struct zone *zone;
+
+    for_each_populated_zone(zone) {
+        if (!strcmp(zone->name, "Normal")) {
+            free_pages = zone_page_state(zone, NR_FREE_PAGES);
+			return (free_pages < min_wmark_pages(zone)) ? 1 : 0;
+		}
+    }
+	return 0;
+}
+#endif
+
 /**
  * toi_start_one_readahead - start one page of readahead
  * @dedicated_thread: Is this a thread dedicated to doing readahead?
@@ -692,7 +718,11 @@ static int toi_start_one_readahead(int dedicated_thread)
 	mutex_lock(&toi_bio_readahead_mutex);
 
 	while (!buffer) {
-		buffer = (char *)toi_get_zeroed_page(12, TOI_ATOMIC_GFP);
+#ifdef CONFIG_TOI_FIXUP
+		buffer = likely(hit_lowmem_barrier()) ? NULL : (char *) toi_get_zeroed_page(12, TOI_ATOMIC_GFP);
+#else
+		buffer = (char *) toi_get_zeroed_page(12, TOI_ATOMIC_GFP);
+#endif
 		if (!buffer) {
 			if (oom && !dedicated_thread) {
 				mutex_unlock(&toi_bio_readahead_mutex);
@@ -700,6 +730,9 @@ static int toi_start_one_readahead(int dedicated_thread)
 			}
 
 			oom = 1;
+#ifdef CONFIG_TOI_FIXUP
+			check_mem_status();
+#endif
 			set_free_mem_throttle();
 			do_bio_wait(5);
 		}
@@ -792,10 +825,13 @@ static int toi_bio_get_next_page_read(int no_readahead)
 	 * delay submitting the read until after we've gotten the
 	 * extents out of the first page.
 	 */
-	if (unlikely(no_readahead && toi_start_one_readahead(0))) {
-		printk(KERN_EMERG "No readahead and toi_start_one_readahead "
-		       "returned non-zero.\n");
-		return -EIO;
+	if (unlikely(no_readahead)) {
+		int result = toi_start_one_readahead(0);
+		if (result) {
+			printk(KERN_EMERG "%d:No readahead and toi_start_one_readahead "
+				   "returned non-zero.\n", __LINE__);
+			return -EIO;
+		}
 	}
 
 	if (unlikely(!readahead_list_head)) {
@@ -810,8 +846,8 @@ static int toi_bio_get_next_page_read(int no_readahead)
 			return -ENOSPC;
 		}
 		if (unlikely(toi_start_one_readahead(0))) {
-			printk(KERN_EMERG "No readahead and "
-			       "toi_start_one_readahead returned non-zero.\n");
+			printk(KERN_EMERG "%d:No readahead and "
+			       "toi_start_one_readahead returned non-zero.\n", __LINE__);
 			return -EIO;
 		}
 	}
@@ -1322,7 +1358,11 @@ static void toi_bio_cleanup(int finishing_cycle)
 
 	header_block_device = NULL;
 
+#ifdef CONFIG_TOI_FIXUP
+	close_resume_dev_t(1);
+#else
 	close_resume_dev_t(0);
+#endif
 }
 
 static int toi_bio_write_header_init(void)
@@ -1373,6 +1413,10 @@ static int toi_bio_write_header_cleanup(void)
 	if (!result)
 		result = toi_bio_mark_have_image();
 
+#ifdef CONFIG_MTK_MTD_NAND
+	/* FIXME: mtdblock doesn't sync without this */
+	blkdev_ioctl(resume_block_device, 0, BLKFLSBUF, 0);
+#endif
 	return result;
 }
 
@@ -1549,7 +1593,7 @@ static int try_to_open_resume_device(char *commandline, int quiet)
 	resume_dev_t = MKDEV(0, 0);
 
 	if (!strlen(commandline)) {
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 		hib_warn("skip scanning for image...\n");
 #else
 		retry_if_fails(toi_bio_scan_for_image(quiet));
@@ -1703,14 +1747,6 @@ static int toi_bio_remove_image(void)
 	toi_message(TOI_BIO, TOI_VERBOSE, 0, "toi_bio_remove_image.");
 
 	result = toi_bio_restore_original_signature();
-
-#ifdef CONFIG_MTK_HIBERNATION
-	/* from lk */
-	if (get_env("hibboot") != NULL) {
-		hib_log("hibboot = %s\n", get_env("hibboot"));
-		set_env("hibboot", "0");
-	}
-#endif
 
 	/*
 	 * We don't do a sanity check here: we want to restore the swap

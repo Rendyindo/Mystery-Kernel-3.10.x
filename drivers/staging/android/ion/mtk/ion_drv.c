@@ -26,6 +26,7 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/mmprofile.h>
+#include <linux/vmalloc.h>
 #include "ion_profile.h"
 #include <linux/debugfs.h>
 #include "ion_drv_priv.h"
@@ -71,22 +72,82 @@ void smp_inner_dcache_flush_all(void);
 #endif
 
 #define __ION_CACHE_SYNC_USER_VA_EN__
+
+static int __ion_cache_sync_kernel(unsigned long start, size_t size, ION_CACHE_SYNC_TYPE sync_type)
+{
+    unsigned long end = start + size;
+    start = (start / L1_CACHE_BYTES * L1_CACHE_BYTES);
+    size = (end - start + L1_CACHE_BYTES - 1) / L1_CACHE_BYTES * L1_CACHE_BYTES;
+    // L1 cache sync
+    if((sync_type==ION_CACHE_CLEAN_BY_RANGE) || (sync_type==ION_CACHE_CLEAN_BY_RANGE_USE_VA))
+    {
+        MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_CLEAN_RANGE], MMProfileFlagStart, size, 0);
+        //printk("[ion_sys_cache_sync]: ION cache clean by range. start=0x%08X size=0x%08X\n", start, size);
+        dmac_map_area((void*)start, size, DMA_TO_DEVICE);
+    }
+    else if ((sync_type == ION_CACHE_INVALID_BY_RANGE)||(sync_type == ION_CACHE_INVALID_BY_RANGE_USE_VA))
+    {
+        MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_INVALID_RANGE], MMProfileFlagStart, size, 0);
+        //printk("[ion_sys_cache_sync]: ION cache invalid by range. start=0x%08X size=0x%08X\n", start, size);
+        dmac_unmap_area((void*)start, size, DMA_FROM_DEVICE);
+    }
+    else if ((sync_type == ION_CACHE_FLUSH_BY_RANGE)||(sync_type == ION_CACHE_FLUSH_BY_RANGE_USE_VA))
+    {
+        MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_FLUSH_RANGE], MMProfileFlagStart, size, 0);
+        //printk("[ion_sys_cache_sync]: ION cache flush by range. start=0x%08X size=0x%08X\n", start, size);
+        dmac_flush_range((void*)start, (void*)(start+size-1));
+    }
+
+    return 0;
+}
+
+static struct vm_struct *cache_map_vm_struct = NULL;
+static int ion_cache_sync_init(void)
+{
+    cache_map_vm_struct = get_vm_area(PAGE_SIZE, VM_ALLOC);
+    if (!cache_map_vm_struct)
+        return -ENOMEM;
+
+    return 0;
+}
+
+static void* ion_cache_map_page_va(struct page* page)
+{
+    int ret;
+    struct page** ppPage = &page;
+
+    ret = map_vm_area(cache_map_vm_struct, PAGE_KERNEL, &ppPage);
+    if(ret)
+    {
+        IONMSG("error to map page\n");
+        return NULL;
+    }
+    return cache_map_vm_struct->addr;
+}
+
+static void ion_cache_unmap_page_va(unsigned long va)
+{
+    unmap_kernel_range((unsigned long)cache_map_vm_struct->addr,  PAGE_SIZE);
+}
+
+//lock to protect cache_map_vm_struct
+static DEFINE_MUTEX(gIon_cache_sync_user_lock);
+
 static long ion_sys_cache_sync(struct ion_client *client, ion_sys_cache_sync_param_t* pParam, int from_kernel)
 {
     ION_FUNC_ENTER;
     if (pParam->sync_type < ION_CACHE_CLEAN_ALL)
     {
         // By range operation
-        unsigned int start;
-        size_t size;
-        unsigned int end, page_num, page_start;
+        unsigned long start = -1;
+        size_t size = 0;
+        unsigned long end, page_num, page_start;
         struct ion_handle *kernel_handle;   
 
-        kernel_handle = ion_drv_get_kernel_handle(client, 
-                        pParam->handle, from_kernel);
+        kernel_handle = ion_drv_get_handle(client, pParam->handle, pParam->kernel_handle, from_kernel);
         if(IS_ERR(kernel_handle))
         {
-            IONMSG("ion cache sync fail! \n");
+            pr_err("ion cache sync fail! \n");
             return -EINVAL;
         }
 
@@ -94,48 +155,86 @@ static long ion_sys_cache_sync(struct ion_client *client, ion_sys_cache_sync_par
         if(pParam->sync_type < ION_CACHE_CLEAN_BY_RANGE_USE_VA)
 #endif
         {
-            start = (unsigned int) ion_map_kernel(client, kernel_handle);
-            if(IS_ERR_OR_NULL((void*)start))
-            {
-                IONMSG("cannot do cachesync, unable to map_kernel: ret=%d\n", start);
-                ion_drv_put_kernel_handle(kernel_handle);
-                return -EFAULT;
-            }
-            size = ion_handle_buffer(kernel_handle)->size;
+        	struct ion_buffer *buffer;
+        	struct scatterlist *sg;
+        	int i, j;
+        	struct sg_table *table = NULL;
+        	int npages = 0;
+
+        	mutex_lock(&client->lock);
+        	/*if (!ion_handle_validate(client, kernel_handle)) {
+        		pr_err("%s: invalid handle.\n", __func__);
+        		mutex_unlock(&client->lock);
+        		return -EINVAL;
+        	}
+*/
+        	buffer = kernel_handle->buffer;
+
+        	table = buffer->sg_table;
+        	npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
+
+            mutex_lock(&gIon_cache_sync_user_lock);
+
+			if (!cache_map_vm_struct) {
+				IONMSG(" error: cache_map_vm_struct is NULL, retry\n");
+				ion_cache_sync_init();
+			}
+
+			if (!cache_map_vm_struct) {
+				IONMSG("error: cache_map_vm_struct is NULL, no vmalloc area\n");
+			    mutex_unlock(&gIon_cache_sync_user_lock);
+        		mutex_unlock(&client->lock);
+				return -ENOMEM;
+			}
+
+			for_each_sg(table->sgl, sg, table->nents, i)
+			{
+				int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;
+				struct page *page = sg_page(sg);
+				BUG_ON(i >= npages);
+				for (j = 0; j < npages_this_entry; j++) {
+					start = (unsigned long) ion_cache_map_page_va(page++);
+
+					if (IS_ERR_OR_NULL((void*) start)) {
+						IONMSG("cannot do cache sync: ret=%lu\n", start);
+						mutex_unlock(&gIon_cache_sync_user_lock);
+						mutex_unlock(&client->lock);
+						return -EFAULT;
+					}
+
+					__ion_cache_sync_kernel(start, PAGE_SIZE, pParam->sync_type);
+
+					ion_cache_unmap_page_va(start);
+				}
+			}
+
+		    mutex_unlock(&gIon_cache_sync_user_lock);
+        	mutex_unlock(&client->lock);
         }
         else
         {
-            start = pParam->va;
+            start = (unsigned long)pParam->va;
             size = pParam->size;
+
+            __ion_cache_sync_kernel(start, size, pParam->sync_type);
+
+#ifdef __ION_CACHE_SYNC_USER_VA_EN__
+			if (pParam->sync_type < ION_CACHE_CLEAN_BY_RANGE_USE_VA)
+#endif
+			{
+				ion_unmap_kernel(client, kernel_handle);
+			}
         }
-        
+
+#if 0
         // Cache line align
         end = start + size;
         start = (start / L1_CACHE_BYTES * L1_CACHE_BYTES);
         size = (end - start + L1_CACHE_BYTES - 1) / L1_CACHE_BYTES * L1_CACHE_BYTES;
         page_num = ((start&(~PAGE_MASK))+size+(~PAGE_MASK))>>PAGE_ORDER;
         page_start = start & PAGE_MASK;
-        // L1 cache sync
-        if((pParam->sync_type==ION_CACHE_CLEAN_BY_RANGE) || (pParam->sync_type==ION_CACHE_CLEAN_BY_RANGE_USE_VA))
-        {
-            MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_CLEAN_RANGE], MMProfileFlagStart, size, 0);
-            //printk("[ion_sys_cache_sync]: ION cache clean by range. start=0x%08X size=0x%08X\n", start, size);
-            dmac_map_area((void*)start, size, DMA_TO_DEVICE);
-        }
-        else if ((pParam->sync_type == ION_CACHE_INVALID_BY_RANGE)||(pParam->sync_type == ION_CACHE_INVALID_BY_RANGE_USE_VA))
-        {
-            MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_INVALID_RANGE], MMProfileFlagStart, size, 0);
-            //printk("[ion_sys_cache_sync]: ION cache invalid by range. start=0x%08X size=0x%08X\n", start, size);
-            dmac_unmap_area((void*)start, size, DMA_FROM_DEVICE);
-        }
-        else if ((pParam->sync_type == ION_CACHE_FLUSH_BY_RANGE)||(pParam->sync_type == ION_CACHE_FLUSH_BY_RANGE_USE_VA))
-        {
-            MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_FLUSH_RANGE], MMProfileFlagStart, size, 0);
-            //printk("[ion_sys_cache_sync]: ION cache flush by range. start=0x%08X size=0x%08X\n", start, size);
-            dmac_flush_range((void*)start, (void*)(start+size-1));
-        }
 
-#if 0
+
         // L2 cache sync
         //printk("[ion_sys_cache_sync]: page_start=0x%08X, page_num=%d\n", page_start, page_num);
         for (i=0; i<page_num; i++, page_start+=DEFAULT_PAGE_SIZE)
@@ -164,13 +263,6 @@ static long ion_sys_cache_sync(struct ion_client *client, ion_sys_cache_sync_par
         }
 #endif
 
-#ifdef __ION_CACHE_SYNC_USER_VA_EN__
-        if(pParam->sync_type < ION_CACHE_CLEAN_BY_RANGE_USE_VA)
-#endif
-        {
-            ion_unmap_kernel(client, kernel_handle);
-        }
-
         ion_drv_put_kernel_handle(kernel_handle);
         
         if (pParam->sync_type == ION_CACHE_CLEAN_BY_RANGE)
@@ -189,7 +281,7 @@ static long ion_sys_cache_sync(struct ion_client *client, ion_sys_cache_sync_par
             MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_CLEAN_ALL], MMProfileFlagStart, 1, 1);
             //printk("[ion_sys_cache_sync]: ION cache clean all.\n");
             smp_inner_dcache_flush_all();
-            outer_clean_all();
+            //outer_clean_all();
             MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_CLEAN_ALL], MMProfileFlagEnd, 1, 1);
         }
         else if (pParam->sync_type == ION_CACHE_INVALID_ALL)
@@ -197,7 +289,7 @@ static long ion_sys_cache_sync(struct ion_client *client, ion_sys_cache_sync_par
             MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_INVALID_ALL], MMProfileFlagStart, 1, 1);
             //printk("[ion_sys_cache_sync]: ION cache invalid all.\n");
             smp_inner_dcache_flush_all();
-            outer_inv_all();
+            //outer_inv_all();
             //outer_flush_all();
             MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_INVALID_ALL], MMProfileFlagEnd, 1, 1);
         }
@@ -206,7 +298,7 @@ static long ion_sys_cache_sync(struct ion_client *client, ion_sys_cache_sync_par
             MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_FLUSH_ALL], MMProfileFlagStart, 1, 1);
             //printk("[ion_sys_cache_sync]: ION cache flush all.\n");
             smp_inner_dcache_flush_all();
-            outer_flush_all();
+            //outer_flush_all();
             MMProfileLogEx(ION_MMP_Events[PROFILE_DMA_FLUSH_ALL], MMProfileFlagEnd, 1, 1);
         }
     }
@@ -247,27 +339,26 @@ static long ion_sys_ioctl(struct ion_client *client, unsigned int cmd, unsigned 
         {
             struct ion_handle *kernel_handle;  
 
-            kernel_handle = ion_drv_get_kernel_handle(client, 
-                            Param.get_phys_param.handle, from_kernel);
+            kernel_handle = ion_drv_get_handle(client, Param.get_phys_param.handle, Param.get_phys_param.kernel_handle, from_kernel);
             if(IS_ERR(kernel_handle))
             {
-                IONMSG("ion_get_phys fail!\n");
+            	pr_err("ion_get_phys fail!\n");
                 ret = -EINVAL;
                 break;
             }
-                
+
             if (ion_phys(client, kernel_handle, (ion_phys_addr_t*)&(Param.get_phys_param.phy_addr), &(Param.get_phys_param.len)) < 0)
             {
                 Param.get_phys_param.phy_addr = 0;
                 Param.get_phys_param.len = 0;
-                IONMSG("[ion_sys_ioctl]: Error. Cannot get physical address.\n");
+                pr_err("[ion_sys_ioctl]: Error. Cannot get physical address.\n");
                 ret = -EFAULT;
             }
             ion_drv_put_kernel_handle(kernel_handle);
         }
         break;
     case ION_SYS_GET_CLIENT:
-        Param.get_client_param.client = (unsigned int) client;
+        Param.get_client_param.client = (unsigned long) client;
         break;
     case ION_SYS_SET_CLIENT_NAME:
         ion_sys_copy_client_name(Param.client_name_param.name, client->dbg_name);
@@ -321,7 +412,7 @@ static long ion_sys_ioctl(struct ion_client *client, unsigned int cmd, unsigned 
 			if(Param.record_param.handle != NULL)
 			{
 				struct ion_handle *kernel_handle;  
-				kernel_handle = ion_drv_get_kernel_handle(client,Param.record_param.handle, from_kernel); 
+				kernel_handle = ion_drv_get_handle(client,Param.record_param.handle, NULL, from_kernel); 
 				if(IS_ERR(kernel_handle))
 				{
 					printk("ion_sys_record fail!\n");
@@ -354,11 +445,11 @@ static long ion_sys_ioctl(struct ion_client *client, unsigned int cmd, unsigned 
 	}
     case ION_SYS_SET_HANDLE_BACKTRACE:
     {
-#if ION_RUNTIME_DEBUGGER
+#if  ION_RUNTIME_DEBUGGER
 	     unsigned int i;
         struct ion_handle *kernel_handle;  
-        kernel_handle = ion_drv_get_kernel_handle(client, 
-                        Param.record_param.handle, from_kernel);
+        kernel_handle = ion_drv_get_handle(client, 
+                        Param.record_param.handle, NULL, from_kernel);
         if(IS_ERR(kernel_handle))
         {
             IONMSG("ion_set_handle_bt fail!\n");
@@ -422,7 +513,7 @@ static long ion_custom_ioctl(struct ion_client *client, unsigned int cmd, unsign
     return _ion_ioctl(client, cmd, arg, 0);
 }
 
-static int debug_profile_get(void *data, u64 *val)
+/*static int debug_profile_get(void *data, u64 *val)
 {
     *val = -1;
     return 0;
@@ -436,27 +527,38 @@ static int debug_profile_set(void *data, u64 val)
 
 
 DEFINE_SIMPLE_ATTRIBUTE(debug_profile_fops, debug_profile_get,
-                        debug_profile_set, "%llu\n");
+                        debug_profile_set, "%llu\n");*/
 
 
+int ion_drv_create_heap(struct ion_platform_heap *heap_data)
+{
+	struct ion_heap *heap;
 
-static int num_heaps;
-static struct ion_heap **heaps;
+	heap = ion_heap_create(heap_data);
+	if (IS_ERR_OR_NULL(heap)) {
+        IONMSG("%s: %d heap is err or null.\n", __func__, heap_data->id);
+		return PTR_ERR(heap);
+	}
+	heap->name = heap_data->name;
+	heap->id = heap_data->id;        
+	ion_device_add_heap(g_ion_device, heap);
 
-int ion_drv_probe(struct platform_device *pdev)
+	IONMSG("%s: create heap: %s\n", __func__, heap->name);
+	return 0;
+}
+
+static int ion_drv_probe(struct platform_device *pdev)
 {
 	int ret,i;
 	struct ion_platform_data *pdata = pdev->dev.platform_data;
-    
+    unsigned int num_heaps = pdata->nr;
+
 	IONMSG("ion_drv_probe() heap_nr=%d\n", pdata->nr);
-	num_heaps = pdata->nr;
-
-	heaps = kzalloc(sizeof(struct ion_heap *) * pdata->nr, GFP_KERNEL);
-
+	printk("cui:heap_nr=%d\n",pdata->nr);
 	g_ion_device = ion_device_create(ion_custom_ioctl);
 	if (IS_ERR_OR_NULL(g_ion_device))
 	{
-		printk("ion_device_create() error! device=%x\n", (unsigned int)g_ion_device);
+		printk("ion_device_create() error! device=%p\n", g_ion_device);
 		return PTR_ERR(g_ion_device);
 	}
 
@@ -468,37 +570,28 @@ int ion_drv_probe(struct platform_device *pdev)
 			&& heap_data->base == 0) {
 			//reserve for carveout heap failed
 			heap_data->size = 0;
-			heaps[i] = NULL;
 			continue;
 		}
-
-		heaps[i] = ion_heap_create(heap_data);
-		if (IS_ERR_OR_NULL(heaps[i])) {
-			ret = PTR_ERR(heaps[i]);
+		
+		ret = ion_drv_create_heap(heap_data);
+		if( IS_ERR(ret))
 			goto err;
-		}
-		heaps[i]->name = heap_data->name;
-		heaps[i]->id = heap_data->id;        
-		ion_device_add_heap(g_ion_device, heaps[i]);
 	}
     
 	platform_set_drvdata(pdev, g_ion_device);
 
-	debugfs_create_file("ion_profile", 0644, g_ion_device->debug_root, NULL,
-			&debug_profile_fops);
+	//debugfs_create_file("ion_profile", 0644, g_ion_device->debug_root, NULL,
+	//		&debug_profile_fops);
 	debugfs_create_symlink("ion_mm_heap", g_ion_device->debug_root, "./heaps/ion_mm_heap");
 
 	ion_history_init();
 
+        ion_profile_init();
+
 	return 0;
 
 err:
-
-	for (i = 0; i < num_heaps; i++) {
-		if (heaps[i])
-			ion_heap_destroy(heaps[i]);
-	}
-	kfree(heaps);
+	ion_device_destory_heaps(g_ion_device, 1);
 	return ret;
     
 }
@@ -507,22 +600,12 @@ int ion_drv_remove(struct platform_device *pdev)
 {
     unsigned int i;
 	struct ion_device *idev = platform_get_drvdata(pdev);
-	for (i = 0; i < num_heaps; i++)
-		ion_heap_destroy(heaps[i]);
+
+	ion_device_destory_heaps(idev, 1);
     ion_device_destroy(idev);
-    kfree(heaps);
 	return 0;
 }
 
-struct ion_heap * ion_drv_get_heap(int heap_id)
-{
-	int i;
-	for(i = 0; i < num_heaps; i++) {
-		if(heaps[i]->id == heap_id)
-			return heaps[i];
-	}
-	return NULL;
-}
 
 static struct ion_platform_heap ion_drv_platform_heaps[] = 
 {
@@ -553,16 +636,14 @@ static struct ion_platform_heap ion_drv_platform_heaps[] =
         .align = 0x1000,    //this must not be 0. (or ion_reserve wiil fail)
         .priv = NULL,
     },
-    
+  
 };
-
 
 struct ion_platform_data ion_drv_platform_data = 
 {
-    .nr = 3,
+    .nr = ARRAY_SIZE(ion_drv_platform_heaps),
     .heaps = ion_drv_platform_heaps,
 };
-
 
 static struct platform_driver ion_driver = {
 	.probe = ion_drv_probe,
@@ -584,11 +665,13 @@ static int __init ion_init(void)
     printk("ion_init()\n");
 	if (platform_device_register(&ion_device))
 	{
+                IONMSG("%s platform device register failed.\n", __func__);
 		return -ENODEV;
 	}
 	if (platform_driver_register(&ion_driver))
 	{
 		platform_device_unregister(&ion_device);
+                IONMSG("%s platform driver register failed.\n", __func__);
 		return -ENODEV;
 	}
 	return 0;

@@ -55,7 +55,7 @@ typedef enum {
  *  Security Module Export API
  **************************************************************************/
 extern int masp_boot_init(void);
-extern void masp_secure_algo(unsigned char Direction, unsigned int ContentAddr,
+extern void masp_secure_algo(unsigned char Direction, unsigned char *ContentAddr,
 			     unsigned int ContentLen, unsigned char *CustomSeed,
 			     unsigned char *ResText);
 extern unsigned char masp_secure_algo_init(void);

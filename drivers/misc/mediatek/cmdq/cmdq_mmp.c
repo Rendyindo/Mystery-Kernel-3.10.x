@@ -1,16 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
 #include "cmdq_mmp.h"
 
 static CMDQ_MMP_Events_t CMDQ_MMP_Events;
@@ -32,7 +19,7 @@ void cmdq_mmp_init(void)
 		    MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "thread_en");
 		CMDQ_MMP_Events.CMDQ_IRQ = MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "CMDQ_IRQ");
 		CMDQ_MMP_Events.warning = MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "warning");
-		CMDQ_MMP_Events.loopBeat = MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "loopBeat");
+		CMDQ_MMP_Events.loopBeat = MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "loopIRQ");
 
 		CMDQ_MMP_Events.autoRelease_add =
 		    MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "autoRelease_add");
@@ -50,7 +37,11 @@ void cmdq_mmp_init(void)
 		    MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "wait_thread");
 		CMDQ_MMP_Events.MDP_reset =
 		    MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "MDP_reset");
-
+		CMDQ_MMP_Events.thread_suspend =
+		    MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "thread_suspend");
+		CMDQ_MMP_Events.thread_resume =
+		    MMProfileRegisterEvent(CMDQ_MMP_Events.CMDQ, "thread_resume");
+	
 		MMProfileEnableEventRecursive(CMDQ_MMP_Events.CMDQ, 1);
 	}
 	MMProfileStart(1);

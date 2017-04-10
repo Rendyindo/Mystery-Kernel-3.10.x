@@ -848,7 +848,11 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		SetPageUptodate(page);
 	}
 
+#ifndef CONFIG_MEMCG_ZNDSWAP
 	swap = get_swap_page();
+#else
+	swap = get_swap_page_by_memcg(page);
+#endif
 	if (!swap.val)
 		goto redirty;
 
@@ -1439,6 +1443,8 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 
 	inode = new_inode(sb);
 	if (inode) {
+		/* We don't let shmem use __GFP_SLOWHIGHMEM */
+		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER_MOVABLE);
 		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
 		inode->i_blocks = 0;

@@ -39,9 +39,9 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 		return NULL;
 	}
 
-	if (IS_ENABLED(CONFIG_ZONE_DMA32) &&
+	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
 	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
-		flags |= GFP_DMA32;
+		flags |= GFP_DMA;
 	if (IS_ENABLED(CONFIG_DMA_CMA)) {
 		struct page *page;
 
@@ -92,7 +92,8 @@ static void *__dma_alloc_noncoherent(struct device *dev, size_t size,
 	ptr = __dma_alloc_coherent(dev, size, dma_handle, flags, attrs);
 	if (!ptr)
 		goto no_mem;
-	map = kmalloc(sizeof(struct page *) << order, flags & ~GFP_DMA);
+	map = kmalloc(sizeof(struct page *) << order, 
+			flags & ~(GFP_DMA | GFP_DMA32));
 	if (!map)
 		goto no_map;
 

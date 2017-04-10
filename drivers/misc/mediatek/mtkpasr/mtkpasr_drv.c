@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/swap.h>
 #include <linux/suspend.h>
+#include <linux/earlysuspend.h>
 #include <linux/migrate.h>
 #include "mtkpasr_drv.h"
 
@@ -26,7 +27,7 @@
 /* MTKPASR Information */
 static struct zs_pool *mtkpasr_mem_pool;
 static struct table *mtkpasr_table;
-static u64 mtkpasr_disksize;	/* bytes */
+static u64 mtkpasr_disksize;		/* bytes */
 static u32 mtkpasr_total_slots;
 static u32 mtkpasr_free_slots;
 
@@ -103,6 +104,7 @@ extern int mtkpasr_drop_page(struct page *page);
 extern unsigned char mtkpasr_log_buf[4096];
 #endif
 
+#define MTKPASR_EXHAUSTED	(low_wmark_pages(MTKPASR_ZONE) + pageblock_nr_pages)
 /* Show mem banks */
 int mtkpasr_show_banks(char *buf)
 {
@@ -111,26 +113,19 @@ int mtkpasr_show_banks(char *buf)
 	if (mtkpasr_device->init_done == 0)
 		return sprintf(buf, "MTKPASR is not initialized!\n");
 
-	tmp =
-	    sprintf(buf,
-		    "num_banks[%d] num_ranks[%d] mtkpasr_start_pfn[%ld] mtkpasr_end_pfn[%ld] mtkpasr_total_pfns[%ld]\n",
-		    num_banks, num_ranks, mtkpasr_start_pfn, mtkpasr_end_pfn, mtkpasr_total_pfns);
+	/* Overview */
+	tmp = sprintf(buf, "num_banks[%d] num_ranks[%d] mtkpasr_start_pfn[%ld] mtkpasr_end_pfn[%ld] mtkpasr_total_pfns[%ld]\n",
+			num_banks, num_ranks, mtkpasr_start_pfn, mtkpasr_end_pfn, mtkpasr_total_pfns);
 	buf += tmp;
 	len += tmp;
 
 	/* Show ranks & banks */
 	for (i = 0; i < num_ranks; i++) {
-		tmp =
-		    sprintf(buf, "Rank[%d] - start_bank[%d] end_bank[%d]\n", i,
-			    mtkpasr_ranks[i].start_bank, mtkpasr_ranks[i].end_bank);
+		tmp = sprintf(buf, "Rank[%d] - start_bank[%d] end_bank[%d]\n", i, mtkpasr_ranks[i].start_bank, mtkpasr_ranks[i].end_bank);
 		buf += tmp;
 		len += tmp;
 		for (j = mtkpasr_ranks[i].start_bank; j <= mtkpasr_ranks[i].end_bank; j++) {
-			tmp =
-			    sprintf(buf,
-				    "  Bank[%d] - start_pfn[0x%lx] end_pfn[0x%lx] segment[%d]\n", j,
-				    mtkpasr_banks[j].start_pfn, mtkpasr_banks[j].end_pfn - 1,
-				    mtkpasr_banks[j].segment);
+			tmp = sprintf(buf, "  Bank[%d] - start_pfn[0x%lx] end_pfn[0x%lx] inmafl[%d] segment[%d]\n", j, mtkpasr_banks[j].start_pfn, mtkpasr_banks[j].end_pfn-1, mtkpasr_banks[j].inmafl, mtkpasr_banks[j].segment);
 			buf += tmp;
 			len += tmp;
 		}
@@ -139,18 +134,20 @@ int mtkpasr_show_banks(char *buf)
 	/* Show remaining banks */
 	for (i = 0; i < num_banks; i++) {
 		if (mtkpasr_banks[i].rank == NULL) {
-			tmp =
-			    sprintf(buf, "Bank[%d] - start_pfn[0x%lx] end_pfn[0x%lx] segment[%d]\n",
-				    i, mtkpasr_banks[i].start_pfn, mtkpasr_banks[i].end_pfn - 1,
-				    mtkpasr_banks[i].segment);
+			tmp = sprintf(buf, "Bank[%d] - start_pfn[0x%lx] end_pfn[0x%lx] inmafl[%d] segment[%d]\n", i, mtkpasr_banks[i].start_pfn, mtkpasr_banks[i].end_pfn-1, mtkpasr_banks[i].inmafl, mtkpasr_banks[i].segment);
 			buf += tmp;
 			len += tmp;
 		}
 	}
 
+	/* Others */
+	tmp = sprintf(buf, "Exhausted level[%ld]\n", (unsigned long)MTKPASR_EXHAUSTED);
+	buf += tmp;
+	len += tmp;
+
 #ifdef NO_UART_CONSOLE
-	memcpy(buf, mtkpasr_log_buf, 359);
-	len += 359;
+	memcpy(buf, mtkpasr_log_buf, 1024);
+	len += 1024;
 #endif
 
 	return len;
@@ -225,14 +222,13 @@ static int mtkpasr_read(struct mtkpasr *mtkpasr, u32 index, struct page *page)
 
 	/* Should NEVER happen. Return bio error if it does. */
 	if (unlikely(ret != LZO_E_OK)) {
-		mtkpasr_err("Decompression failed! err=%d, page=%u, pfn=%lu\n", ret, index,
-			    page_to_pfn(page));
+		mtkpasr_err("Decompression failed! err=%d, page=%u, pfn=%lu\n", ret, index, page_to_pfn(page));
 		/* Should be zero! */
-		/* return 0; */ /* to free this slot */
+		/* return 0; */	/* to free this slot */
 	}
 
 	/* Can't use it because maybe some pages w/o actual mapping
-	   flush_dcache_page(page); */
+	flush_dcache_page(page); */
 
 	/* Free this object */
 	mtkpasr_free_page(mtkpasr, index);
@@ -274,7 +270,7 @@ static int mtkpasr_write(struct mtkpasr *mtkpasr, u32 index, struct page *page)
 	handle = zs_malloc(mtkpasr_mem_pool, clen);
 	if (!handle) {
 		mtkpasr_err("Error allocating memory for compressed "
-			    "page: %u, size=%zu\n", index, clen);
+			"page: %u, size=%zu\n", index, clen);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -295,7 +291,7 @@ static int mtkpasr_write(struct mtkpasr *mtkpasr, u32 index, struct page *page)
 
 	return 0;
 
- out:
+out:
 	return ret;
 }
 
@@ -375,10 +371,10 @@ void mtkpasr_reset_slots(void)
 /* To avoid fragmentation through mtkpasr_admit_order */
 static struct page *mtkpasr_alloc(struct page *migratepage, unsigned long data, int **result)
 {
-#if 1				/* FAST PATH */
+#if 1	/* FAST PATH */
 	struct page *page = NULL, *end_page;
 	struct zone *z;
-	/*unsigned long flags; */
+	/*unsigned long flags;*/
 	int found;
 	int order;
 
@@ -386,7 +382,7 @@ static struct page *mtkpasr_alloc(struct page *migratepage, unsigned long data, 
 	if (unlikely(mtkpasr_admit_order < 0)) {
 		return NULL;
 	}
- retry:
+retry:
 	/* We still have some free pages */
 	if (!list_empty(&tolist)) {
 		page = list_entry(tolist.next, struct page, lru);
@@ -398,6 +394,8 @@ static struct page *mtkpasr_alloc(struct page *migratepage, unsigned long data, 
 		/* Check whether mtkpasr_last_scan meets the end */
 		if (mtkpasr_last_scan < mtkpasr_migration_end) {
 			mtkpasr_last_scan = mtkpasr_start_pfn - pageblock_nr_pages;
+			/* Need to update allocation status to avoid HWT */
+			mtkpasr_admit_order = -1;
 			return NULL;
 		}
 		/* To collect free pages */
@@ -430,7 +428,7 @@ static struct page *mtkpasr_alloc(struct page *migratepage, unsigned long data, 
 #endif
 			page += found;
 		}
-		/* Update mtkpasr_last_scan */
+		/* Update mtkpasr_last_scan*/
 		mtkpasr_last_scan -= pageblock_nr_pages;
 
 		/* Retry */
@@ -440,7 +438,7 @@ static struct page *mtkpasr_alloc(struct page *migratepage, unsigned long data, 
 	return page;
 #else
 	/* With __GFP_HIGHMEM? */
-	return alloc_pages(__GFP_HIGHMEM | GFP_ATOMIC, 0);
+	return alloc_pages(__GFP_HIGHMEM|GFP_ATOMIC, 0);
 #endif
 }
 
@@ -452,6 +450,10 @@ static int pasr_check_free_safe(void)
 {
 	unsigned long free = zone_page_state(nz, NR_FREE_PAGES);
 
+	/* Subtract order:0 and order:1 from total free number */
+	free = free - MTKPASR_ZONE->free_area[0].nr_free - (MTKPASR_ZONE->free_area[1].nr_free << 1);
+
+	/* Judgement */
 	if (free > safe_level) {
 		return 0;
 	}
@@ -478,7 +480,6 @@ unsigned long mtkpasr_show_page_reserved(void)
 {
 	return mafl_total_count;
 }
-
 bool mtkpasr_no_phaseone_ops(void)
 {
 	int safe_mtkpasr_pfns;
@@ -486,11 +487,9 @@ bool mtkpasr_no_phaseone_ops(void)
 	safe_mtkpasr_pfns = mtkpasr_total_pfns >> 1;
 	return ((prev_mafl_count == mafl_total_count) || (mafl_total_count > safe_mtkpasr_pfns));
 }
-
 bool mtkpasr_no_ops(void)
 {
-	return ((mafl_total_count == mtkpasr_total_pfns)
-		|| (mtkpasr_ops_invariant > MAX_OPS_INVARIANT));
+	return ((mafl_total_count == mtkpasr_total_pfns) || (mtkpasr_ops_invariant > MAX_OPS_INVARIANT));
 }
 #endif
 
@@ -530,8 +529,7 @@ enum mtkpasr_phase mtkpasr_enablingSR(void)
 				/* Clear rank */
 				mtkpasr_ranks[i].inused = 0;
 				/* Clear all related banks */
-				for (j = mtkpasr_ranks[i].start_bank;
-				     j <= mtkpasr_ranks[i].end_bank; j++) {
+				for (j = mtkpasr_ranks[i].start_bank; j <= mtkpasr_ranks[i].end_bank; j++) {
 					mtkpasr_banks[j].inused = 0;
 				}
 				mtkpasr_info("Call DPDOFF API!\n");
@@ -714,8 +712,7 @@ static void compute_bank_inused(int all)
 				mtkpasr_banks[i].inused = 0;
 			} else {
 				/* Rough estimation */
-				mtkpasr_banks[i].inused =
-				    mtkpasr_banks[i].valid_pages - mtkpasr_banks[i].inmafl;
+				mtkpasr_banks[i].inused = mtkpasr_banks[i].valid_pages - mtkpasr_banks[i].inmafl;
 			}
 		}
 		goto fast_path;
@@ -735,26 +732,22 @@ static void compute_bank_inused(int all)
 	/* Scan banks */
 	for (i = 0; i < num_banks; i++) {
 #ifdef CONFIG_MTKPASR_MAFL
-		mtkpasr_banks[i].inused =
-		    check_inused(mtkpasr_banks[i].start_pfn + mtkpasr_banks[i].inmafl,
-				 mtkpasr_banks[i].end_pfn, mtkpasr_banks[i].comp_start,
-				 mtkpasr_banks[i].comp_end);
+		mtkpasr_banks[i].inused = check_inused(mtkpasr_banks[i].start_pfn + mtkpasr_banks[i].inmafl, mtkpasr_banks[i].end_pfn,
+				mtkpasr_banks[i].comp_start, mtkpasr_banks[i].comp_end);
 #else
-		mtkpasr_banks[i].inused =
-		    check_inused(mtkpasr_banks[i].start_pfn, mtkpasr_banks[i].end_pfn,
-				 mtkpasr_banks[i].comp_start, mtkpasr_banks[i].comp_end);
+		mtkpasr_banks[i].inused = check_inused(mtkpasr_banks[i].start_pfn, mtkpasr_banks[i].end_pfn,
+				mtkpasr_banks[i].comp_start, mtkpasr_banks[i].comp_end);
 #endif
 	}
 
 #ifdef CONFIG_MTKPASR_MAFL
- fast_path:
+fast_path:
 #endif
 	/* Should we compute no-PASR-imposed banks? */
 	if (all != 0) {
-		/* Excluding 1st nopasr_banks (Kernel resides here.) */
+		/* Excluding 1st nopasr_banks (Kernel resides here.)*/
 		for (i = 1; i < num_nopasr_banks; i++) {
-			nopasr_banks[i].inused =
-			    check_inused(nopasr_banks[i].start_pfn, nopasr_banks[i].end_pfn, 0, 0);
+			nopasr_banks[i].inused = check_inused(nopasr_banks[i].start_pfn, nopasr_banks[i].end_pfn, 0, 0);
 		}
 	}
 }
@@ -784,7 +777,6 @@ static void remove_bank_from_buddy(int bank)
 	}
 
 	spage = pfn_to_page(mtkpasr_banks[bank].start_pfn);
-	spage += *inmafl;
 	epage = pfn_to_page(mtkpasr_banks[bank].end_pfn);
 	z = page_zone(spage);
 
@@ -792,6 +784,7 @@ static void remove_bank_from_buddy(int bank)
 	spin_lock_irqsave(&z->lock, flags);
 
 	/* Check whether remaining pages are in buddy */
+	spage += *inmafl;
 	while (spage < epage) {
 		/* Not in buddy, exit */
 		if (!PageBuddy(spage)) {
@@ -805,8 +798,7 @@ static void remove_bank_from_buddy(int bank)
 
 	/* Remove it from buddy to bank's mafl */
 	mafl = &mtkpasr_banks[bank].mafl;
-	spage = pfn_to_page(mtkpasr_banks[bank].start_pfn);
-	spage += *inmafl;
+	spage = pfn_to_page(mtkpasr_banks[bank].start_pfn) + *inmafl;
 	while (spage < epage) {
 		/* Delete it from buddy */
 		list_del(&spage->lru);
@@ -834,34 +826,26 @@ static void remove_bank_from_buddy(int bank)
 #endif
 }
 
-#define MTKPASR_EXHAUSTED	0x4	/* # * 2^(MAX_ORDER-1) : 16MB */
-static bool mtkpasr_no_exhausted(void)
+static bool mtkpasr_no_exhausted(int request_order)
 {
-	int order = MAX_ORDER - 1;
-	unsigned long free = 0, exhausted_level = MTKPASR_EXHAUSTED;
-	struct free_area *area;
+	long free, exhausted_level = MTKPASR_EXHAUSTED;
+	int order;
 
-	for (; order >= 0; --order) {
-		/* Go through MTKPASR range */
-		area = &(MTKPASR_ZONE->free_area[order]);
-		free += area->nr_free;
-		/* Early check for whether it is exhausted */
-		if (free > exhausted_level) {
-			return true;
+	free = zone_page_state(MTKPASR_ZONE, NR_FREE_PAGES);
+	if (request_order > 0) {
+		for (order = 0; order < request_order; ++order) {
+			free -= MTKPASR_ZONE->free_area[order].nr_free << order;
 		}
-		/* Shift order */
-		free <<= 1;
-		exhausted_level <<= 1;
+		exhausted_level >>= order;
 	}
 
-	return false;
+	return (free >= exhausted_level);
 }
 
-static struct shrinker mtkpasr_shrinker;
-/* Shrinker callback */
-static int shrink_mtkpasr_memory(struct shrinker *shrink, struct shrink_control *sc)
+/* Early path to release mtkpasr reserved pages */
+void try_to_release_mtkpasr_page(int request_order)
 {
-	int current_bank;
+	int current_bank = 0;
 	struct list_head *mafl = NULL;
 	struct page *page;
 	struct zone *z;
@@ -869,71 +853,47 @@ static int shrink_mtkpasr_memory(struct shrinker *shrink, struct shrink_control 
 	unsigned int order;
 	int free_count;
 
-	/* Don't apply shrink if it is ZONE_NORMAL - TO CHECK */
-	if (gfp_zone(sc->gfp_mask) == ZONE_NORMAL) {
-		return 0;
+	/* We are in MTKPASR stage! */
+	if (unlikely(current->flags & PF_MTKPASR)) {
+		return;
 	}
 
-	/* How many pages we can shrink */
-	if (sc->nr_to_scan <= 0) {
-		/* No pending objs */
-		atomic_long_set(&mtkpasr_shrinker.nr_in_batch, 0);
-		return mafl_total_count;
+	/* Check whether it is empty */
+	if (mafl_total_count <= 0) {
+		return;
 	}
 
-	/* Find a non-empty bank */
-#ifndef CONFIG_MTKPASR_RDIRECT
-	current_bank = num_banks - 1;
-#else
-	current_bank = 0;
-#endif
+	/* Test whether mtkpasr is under suitable level */
+	if (mtkpasr_no_exhausted(request_order)) {
+		return;
+	}
 
-#ifndef CONFIG_MTKPASR_RDIRECT
-	while (current_bank >= 0) {
-#else
+	/* Try to release one page block */
 	while (current_bank < num_banks) {
-#endif
 		mafl = &mtkpasr_banks[current_bank].mafl;
 		if (!list_empty(mafl)) {
 			break;
 		}
-#ifndef CONFIG_MTKPASR_RDIRECT
-		--current_bank;
-#else
 		++current_bank;
-#endif
-		/* Clear mafl */
 		mafl = NULL;
 	}
 
 	/* Avoid uninitialized */
-	if (mafl == NULL)
-		return -1;
+	if (mafl == NULL) {
+		return;
+	}
 
-	/* Putback page blocks to buddy */
+	/* Lock this zone */
 	z = page_zone(pfn_to_page(mtkpasr_banks[current_bank].start_pfn));
+	spin_lock_irqsave(&z->lock, flags);
 
-	/* Try lock this zone */
-	if (!spin_trylock_irqsave(&z->lock, flags)) {
-		return -1;
-	}
-
-	/* Test whether mtkpasr is under suitable level */
-	if (mtkpasr_no_exhausted()) {
-		/* UnLock this zone */
-		spin_unlock_irqrestore(&z->lock, flags);
-		return -1;
-	}
-
-	/* It may be empty here due to page reclaiming! */
+	/* It may be empty here due to another release operation! */
 	if (list_empty(mafl)) {
-		/* UnLock this zone */
 		spin_unlock_irqrestore(&z->lock, flags);
-		/* Only put one bank to buddy a time! Someone has done it. */
-		return -1;
+		return;
 	}
 
-	/* Put the last page block back */
+	/* Put the last page block back - (Should be paired with remove_bank_from_buddy) */
 	page = list_entry(mafl->prev, struct page, lru);
 	list_del(&page->lru);
 	order = PAGE_ORDER(page);
@@ -953,30 +913,8 @@ static int shrink_mtkpasr_memory(struct shrinker *shrink, struct shrink_control 
 
 	/* Sanity check */
 	if (mtkpasr_banks[current_bank].inmafl < 0) {
-		BUG();
+		mtkpasr_info("BUG: Negative inmafl in bank[%d] Remaining MAFL [%ld]!\n", current_bank, mafl_total_count);
 	}
-#ifdef CONFIG_MTKPASR_DEBUG
-	if (mafl_total_count >= 0) {
-		mtkpasr_info("Remaining MAFL [%ld]!\n", mafl_total_count);
-	} else {
-		mtkpasr_err("Error : Remaining MAFL [%ld]!\n", mafl_total_count);
-	}
-#endif
-
-	/* Only put one page block to buddy a time */
-	return -1;
-}
-
-static struct shrinker mtkpasr_shrinker = {
-	.shrink = shrink_mtkpasr_memory,
-	.seeks = DEFAULT_SEEKS,
-	/* .batch = 0, // by default */
-};
-
-/* Register shrinker callback */
-void mtkpasr_register_shrinker(void)
-{
-	register_shrinker(&mtkpasr_shrinker);
 }
 
 /* Shrinking mtkpasr_banks[bank]'s mafl totally */
@@ -1002,16 +940,17 @@ static void shrink_mafl_all(int bank)
 		return;
 	}
 
-	inmafl = &mtkpasr_banks[bank].inmafl;
 	z = page_zone(pfn_to_page(mtkpasr_banks[bank].start_pfn));
 
 	/* Lock this zone */
 	spin_lock_irqsave(&z->lock, flags);
 
+	/* Current number in mafl */
 	if (list_empty(mafl)) {
 		spin_unlock_irqrestore(&z->lock, flags);
 		return;
 	}
+	inmafl = &mtkpasr_banks[bank].inmafl;
 
 	/* Put them back */
 	list_for_each_entry_safe(page, next, mafl, lru) {
@@ -1029,6 +968,7 @@ static void shrink_mafl_all(int bank)
 #ifdef CONFIG_MTKPASR_DEBUG
 	/* Test whether they are equal */
 	if (free_count != *inmafl) {
+		mtkpasr_err("\n\n BANK[%d] free_count[%d] inmafl[%d]\n\n\n", bank, free_count, *inmafl);
 		BUG();
 	}
 #endif
@@ -1041,90 +981,101 @@ static void shrink_mafl_all(int bank)
 	spin_unlock_irqrestore(&z->lock, flags);
 }
 
+static int collect_free_pages_for_compacting_banks(struct mtkpasr_bank_cc *bcc);
+static struct page *compacting_alloc(struct page *migratepage, unsigned long data, int **result);
+static unsigned long putback_free_pages(struct list_head *freelist);
 /* Shrink all mtkpasr memory */
 void shrink_mtkpasr_all(void)
 {
 	int i;
+	struct page *page, *end_page;
+	int to_be_migrated = 1;
+	struct mtkpasr_bank_cc bank_cc;
+
+	/* No valid PASR range */
+	if (num_banks <= 0) {
+		return;
+	}
 
 	/* Go through all banks */
 	for (i = 0; i < num_banks; i++) {
 		shrink_mafl_all(i);
 	}
+
+	/* Move all LRU pages from normal to high */
+	bank_cc.to_bank = i = 0;
+	bank_cc.to_cursor = mtkpasr_banks[i].start_pfn;
+	page = pfn_to_page(mtkpasr_start_pfn);
+	end_page = pfn_to_page(mtkpasr_migration_end);
+	while (page > end_page) {
+		/* To isolate */
+		if (page_count(page) != 0) {
+			if (!mtkpasr_isolate_page(page)) {
+				list_add(&page->lru, &fromlist);
+				++fromlist_count;
+				++to_be_migrated;
+			}
+			/* To migrate */
+			if ((to_be_migrated % MTKPASR_CHECK_MIGRATE) == 0) {
+				/* Collect free pages */
+				while (collect_free_pages_for_compacting_banks(&bank_cc) < fromlist_count) {
+					if (bank_cc.to_cursor == 0) {
+						if (++i == num_banks) {
+							goto done;
+						}
+						bank_cc.to_bank = i;
+						bank_cc.to_cursor = mtkpasr_banks[i].start_pfn;
+					} else {
+						mtkpasr_err("Failed to collect free pages!\n");
+						BUG();
+					}
+				}
+				/* Start migration */
+				if (migrate_pages(&fromlist, compacting_alloc, 0, false, MIGRATE_ASYNC) != 0) {
+					putback_lru_pages(&fromlist);
+				}
+				fromlist_count = 0;
+			}
+		}
+		/* Next one */
+		page--;
+	}
+
+done:
+	/* Clear fromlist */
+	if (fromlist_count != 0) {
+		putback_lru_pages(&fromlist);
+		fromlist_count = 0;
+	}
+
+	/* Clear tolist */
+	if (tolist_count != 0) {
+		if (putback_free_pages(&tolist) != tolist_count) {
+			mtkpasr_err("Should be the same!\n");
+		}
+		tolist_count = 0;
+	}
 }
 
-/* Shrink mtkpasr memory from late resume */
 void shrink_mtkpasr_late_resume(void)
 {
-	unsigned long start_bank;
-	unsigned long shrink_banks;
-	struct list_head *mafl = NULL;
-
 	/* Check whether it is an early resume (No MTKPASR is triggered) */
 	if (!is_mtkpasr_triggered()) {
 		return;
 	}
 
-	/* Clear triggered */
-	clear_mtkpasr_triggered();
-
 	/* Reset ops invariant */
 	mtkpasr_ops_invariant = 0;
 
-	/* Check whether it is empty */
-	if (!mafl_total_count) {
-		return;
-	}
-
-	/* Compute start */
-	start_bank = 0;
-	while (start_bank < num_banks) {
-		mafl = &mtkpasr_banks[start_bank].mafl;
-		if (!list_empty(mafl)) {
-			break;
-		}
-		++start_bank;
-		mafl = NULL;
-	}
-
-	/* Sanity check */
-	if (mafl == NULL) {
-		return;
-	}
-
-	/* Compute amount */
-	shrink_banks = (mafl_total_count >> 2) / pages_per_bank;
-
-	/* We should shrink at least 1 bank */
-	if (!shrink_banks)
-		shrink_banks = 1;
-
-	shrink_banks = start_bank + shrink_banks - 1;
-
-	/* Sanity check */
-	if (shrink_banks >= num_banks) {
-		shrink_banks = num_banks - 1;
-	}
-
-	/* Start shrinking */
-	for (; start_bank <= shrink_banks; start_bank++) {
-		shrink_mafl_all(start_bank);
-	}
+	/* Clear triggered */
+	clear_mtkpasr_triggered();
 }
-#else				/* CONFIG_MTKPASR_MAFL */
+#else /* CONFIG_MTKPASR_MAFL */
 
-void shrink_mtkpasr_all(void)
-{
-	do {
-	} while (0);
-}
+void shrink_mtkpasr_all(void) { do {} while (0); }
+void shrink_mtkpasr_late_resume(void) { do {} while (0); }
 
-void shrink_mtkpasr_late_resume(void)
-{
-	do {
-	} while (0);
-}
-
-#endif				/* CONFIG_MTKPASR_MAFL */
+#endif /* CONFIG_MTKPASR_MAFL */
 
 /*
  * Scan Bank Information & disable its SR or DPD full rank if possible. It should be called after syscore_suspend
@@ -1178,12 +1129,13 @@ enum mtkpasr_phase mtkpasr_disablingSR(u32 *sr, u32 *dpd)
 			mtkpasr_ranks[i].inused = MTKPASR_DPDON;
 			/* Set all related banks as MTKPASR_RDPDON */
 			for (j = mtkpasr_ranks[i].start_bank; j <= mtkpasr_ranks[i].end_bank; j++) {
+#ifdef CONFIG_MTKPASR_MAFL
+				/* Test whether it can be removed from buddy temporarily */
+				remove_bank_from_buddy(j);
+#endif
 				mtkpasr_banks[j].inused = MTKPASR_RDPDON;
 				/* Disable its SR */
-				banksr =
-				    banksr | (0x1 <<
-					      (mtkpasr_banks[j].
-					       segment /*& MTKPASR_SEGMENT_CH0 */));
+				banksr = banksr | (0x1 << (mtkpasr_banks[j].segment /*& MTKPASR_SEGMENT_CH0*/));
 			}
 			enter_dpd = 1;
 		}
@@ -1195,19 +1147,14 @@ enum mtkpasr_phase mtkpasr_disablingSR(u32 *sr, u32 *dpd)
 			/* Set MTKPASR_SROFF */
 			mtkpasr_banks[i].inused = MTKPASR_SROFF;
 			/* Disable its SR */
-			banksr =
-			    banksr | (0x1 <<
-				      (mtkpasr_banks[i].segment /*& MTKPASR_SEGMENT_CH0 */));
+			banksr = banksr | (0x1 << (mtkpasr_banks[i].segment /*& MTKPASR_SEGMENT_CH0*/));
 #ifdef CONFIG_MTKPASR_MAFL
 			/* Test whether it can be removed from buddy temporarily */
 			remove_bank_from_buddy(i);
 #endif
 			mtkpasr_info("SPM SR/OFF[%d]!\n", i);
 		} else {
-			mtkpasr_log("Bank[%d] %s[%d]!\n", i,
-				    (mtkpasr_banks[i].inused ==
-				     MTKPASR_RDPDON) ? "RDPDON" : "inused",
-				    mtkpasr_banks[i].inused);
+			mtkpasr_log("Bank[%d] %s[%d]!\n", i, (mtkpasr_banks[i].inused == MTKPASR_RDPDON) ? "RDPDON":"inused", mtkpasr_banks[i].inused);
 		}
 
 		/* To check whether we should do aggressive PASR SW in the future(no external compression) */
@@ -1223,6 +1170,7 @@ enum mtkpasr_phase mtkpasr_disablingSR(u32 *sr, u32 *dpd)
 		mtkpasr_status = enter_dpd ? MTKPASR_DPD_ON : MTKPASR_ON;
 		*sr = banksr;
 	}
+
 #ifdef CONFIG_MTKPASR_MAFL
 	/* Update strategy control */
 	if (before_mafl_count == mafl_total_count) {	/* Ops-invariant */
@@ -1244,8 +1192,8 @@ enum mtkpasr_phase mtkpasr_disablingSR(u32 *sr, u32 *dpd)
 #endif
 
 	mtkpasr_log("Ops_invariant[%u] result [%s] mtkpasr_status [%s]\n", mtkpasr_ops_invariant,
-		    (result == MTKPASR_SUCCESS) ? "MTKPASR_SUCCESS" : "MTKPASR_FAIL",
-		    (enter_dpd == 1) ? "MTKPASR_DPD_ON" : "MTKPASR_ON");
+			(result == MTKPASR_SUCCESS) ? "MTKPASR_SUCCESS" : "MTKPASR_FAIL",
+			(enter_dpd == 1) ? "MTKPASR_DPD_ON" : "MTKPASR_ON");
 
 	return result;
 }
@@ -1339,7 +1287,7 @@ static unsigned long putback_free_pages(struct list_head *freelist)
 
 #define COMPACTING_COLLECT()										\
 	{												\
-		if (collect_free_pages_for_compacting_banks(&bank_cc) >= fromlist_count) {					\
+		if (collect_free_pages_for_compacting_banks(&bank_cc) >= fromlist_count) {		\
 			if (migrate_pages(&fromlist, compacting_alloc, 0, false, MIGRATE_ASYNC) != 0) {	\
 				mtkpasr_log("Bank[%d] can't be cleared!\n", from);			\
 				ret = -1;								\
@@ -1400,8 +1348,7 @@ static int compacting_banks(int from, int to, unsigned long *from_cursor, unsign
 		page = pfn_to_page(fc);
 		if (page_count(page) != 0) {
 			/* Check whether this page is compressed */
-			if (check_if_compressed
-			    (mtkpasr_banks[from].comp_start, mtkpasr_banks[from].comp_end, fc)) {
+			if (check_if_compressed(mtkpasr_banks[from].comp_start, mtkpasr_banks[from].comp_end, fc)) {
 				++fc;
 				continue;
 			}
@@ -1463,12 +1410,12 @@ static int compacting_banks(int from, int to, unsigned long *from_cursor, unsign
 		COMPACTING_COLLECT();
 	}
 
- next:
+next:
 	/* Should we put all pages in fromlist back */
 	if (ret == -1) {
 		/* We should put all pages from fromlist back */
 		putback_lru_pages(&fromlist);
-		fromlist_count = 0;
+		fromlist_count = 0;								\
 		/* We can't clear this bank. Go to the next one! */
 		fc = 0;
 		ret = 1;
@@ -1503,24 +1450,23 @@ static enum mtkpasr_phase mtkpasr_compact_banks(int toget)
 
 	/* Sorting banks */
 	for (i = to_be_sorted; i > 1; --i) {
-		for (j = 0; j < i - 1; ++j) {
+		for (j = 0; j < i-1; ++j) {
 			/* By rank (descending) */
-			if (BANK_RANK(dsort_banks[j]) < BANK_RANK(dsort_banks[j + 1])) {
+			if (BANK_RANK(dsort_banks[j]) < BANK_RANK(dsort_banks[j+1])) {
 				continue;
 			}
 			/* By inused (descending) */
-			if (BANK_INUSED(dsort_banks[j]) < BANK_INUSED(dsort_banks[j + 1])) {
+			if (BANK_INUSED(dsort_banks[j]) < BANK_INUSED(dsort_banks[j+1])) {
 				tmp = dsort_banks[j];
-				dsort_banks[j] = dsort_banks[j + 1];
-				dsort_banks[j + 1] = tmp;
+				dsort_banks[j] = dsort_banks[j+1];
+				dsort_banks[j+1] = tmp;
 			}
 		}
 	}
 
 #ifdef CONFIG_MTKPASR_DEBUG
 	for (i = 0; i < to_be_sorted; ++i) {
-		mtkpasr_log("[%d] - (%d) - inused(%d) - rank(%p)\n", i, dsort_banks[i],
-			    BANK_INUSED(dsort_banks[i]), BANK_RANK(dsort_banks[i]));
+		mtkpasr_info("[%d] - (%d) - inused(%d) - rank(%p)\n", i, dsort_banks[i], BANK_INUSED(dsort_banks[i]), BANK_RANK(dsort_banks[i]));
 	}
 #endif
 
@@ -1587,6 +1533,7 @@ static enum mtkpasr_phase mtkpasr_compact_banks(int toget)
 
 	/* Putback & release pages if needed */
 	putback_lru_pages(&fromlist);
+	fromlist_count = 0;
 	if (putback_free_pages(&tolist) != tolist_count) {
 		mtkpasr_err("Should be the same!\n");
 	}
@@ -1640,8 +1587,7 @@ static enum mtkpasr_phase mtkpasr_compact(void)
  * end		- End PFN of current scanned bank
  * sorted	- Buffer for recording which bank(by offset) is externally compressed.
  */
-static int pasr_scan_memory(void *src_map, unsigned long start, unsigned long end,
-			    unsigned long *sorted)
+static int pasr_scan_memory(void *src_map, unsigned long start, unsigned long end, unsigned long *sorted)
 {
 	unsigned long start_pfn;
 	unsigned long end_pfn;
@@ -1667,11 +1613,10 @@ static int pasr_scan_memory(void *src_map, unsigned long start, unsigned long en
 		}
 	} while (++start_pfn < end_pfn);
 
-	/* Clear sorted (we only need to clear (end-start) entries.) */
-	memset(sorted, 0, (end - start) * sizeof(unsigned long));
+	/* Clear sorted (we only need to clear (end-start) entries.)*/
+	memset(sorted, 0, (end-start)*sizeof(unsigned long));
 
-	mtkpasr_info("@@@ start_pfn[0x%lx] end_pfn[0x%lx] - to process[%d] @@@\n", start, end,
-		     need_compressed);
+	mtkpasr_info("@@@ start_pfn[0x%lx] end_pfn[0x%lx] - to process[%d] @@@\n", start, end, need_compressed);
 
 	return need_compressed;
 }
@@ -1723,6 +1668,12 @@ enum mtkpasr_phase mtkpasr_entering(void)
 		/* Check whether current system is safe! */							\
 		if (unlikely(pasr_check_free_safe())) {								\
 			mtkpasr_log("Unsafe System Status!\n");							\
+			ret = -1;										\
+			break;											\
+		}												\
+		/* Check whether mtkpasr_admit_order is not negative! */					\
+		if (mtkpasr_admit_order < 0) {									\
+			mtkpasr_log("mtkpasr_admit_order is negative!\n");					\
 			ret = -1;										\
 			break;											\
 		}												\
@@ -1779,7 +1730,7 @@ enum mtkpasr_phase mtkpasr_entering(void)
 			goto fast_path;
 		}
 	} else {
-		/* Transition is variant. Clear ops-invariant to proceed it. */
+		/* Transition is variant. Clear ops-invariant to proceed it.*/
 		mtkpasr_ops_invariant = 0;
 	}
 #endif
@@ -1823,9 +1774,9 @@ enum mtkpasr_phase mtkpasr_entering(void)
 	/* Indicate mtkpasr_last_scan */
 	mtkpasr_last_scan = mtkpasr_start_pfn - pageblock_nr_pages;
 
- next_bank:
+next_bank:
 	/* Set start pos at extcomp */
-	mtkpasr_banks[current_bank].comp_start = (s16) compressed;
+	mtkpasr_banks[current_bank].comp_start = (s16)compressed;
 
 	/* Scan MTKPASR-imposed pages */
 #ifdef CONFIG_MTKPASR_MAFL
@@ -1883,7 +1834,7 @@ enum mtkpasr_phase mtkpasr_entering(void)
 				}
 			}
 		}
- next_page:
+next_page:
 		current_pos = ++pgmi;
 	}
 
@@ -1937,20 +1888,10 @@ enum mtkpasr_phase mtkpasr_entering(void)
 	putback_lru_pages(&batch_to_migrate);
 	putback_lru_pages(&to_migrate);
 
-#ifdef CONFIG_MTKPASR_DEBUG
-	if (putback_free_pages(&tolist) != tolist_count) {
-		mtkpasr_err("Should be the same!\n");
-	}
-	tolist_count = 0;
-#else
-	putback_free_pages(&tolist);
-#endif
-
 	/* Set pos next to the last one at extcomp */
-	mtkpasr_banks[current_bank].comp_end = (s16) compressed;
+	mtkpasr_banks[current_bank].comp_end = (s16)compressed;
 	mtkpasr_info("bank[%d] - comp_start[%d] comp_end[%d]\n",
-		     current_bank, mtkpasr_banks[current_bank].comp_start,
-		     mtkpasr_banks[current_bank].comp_end);
+			current_bank, mtkpasr_banks[current_bank].comp_start, mtkpasr_banks[current_bank].comp_end);
 
 	/* Update extcomp if needed */
 	if (mtkpasr_banks[current_bank].comp_start < mtkpasr_banks[current_bank].comp_end) {
@@ -1984,17 +1925,26 @@ enum mtkpasr_phase mtkpasr_entering(void)
 	/* Updated to be the position next to the last occupied slot */
 	atomic_inc(&sloti);
 
+	/* Put remaining destination pages back! */
+#ifdef CONFIG_MTKPASR_DEBUG
+	if (putback_free_pages(&tolist) != tolist_count) {
+		mtkpasr_err("Should be the same!\n");
+	}
+	tolist_count = 0;
+#else
+	putback_free_pages(&tolist);
+#endif
+
 	/* Check MTKPASR result */
 	if (ret == -EBUSY) {
 		mtkpasr_log("Failed MTKPASR due to pending wakeup source!\n");
 		/* Some error handling: It means failed to enter PASR! - Need to enter MTKPASR_RESTORING */
 		result = MTKPASR_GET_WAKEUP;
 	} else if (ret == -1) {
-		mtkpasr_log
-		    ("Failed compression or no safe amount of free space! Go ahead to SPM!\n");
+		mtkpasr_log("Failed compression or no safe amount of free space! Go ahead to SPM!\n");
 	}
 
- no_safe:
+no_safe:
 	/* Go to MTKPASR_DISABLINGSR state if success */
 	if (result == MTKPASR_SUCCESS) {
 		/* Compaction on banks */
@@ -2020,23 +1970,38 @@ enum mtkpasr_phase mtkpasr_entering(void)
 	mod_zone_page_state(zone, NR_ISOLATED_ANON, bias_anon);
 
 #ifdef CONFIG_MTKPASR_DEBUG
-	mtkpasr_info
-	    ("dropped [%d] - compressed [%d] - to_be_migrated [%d] - splitting [%d] - no_migrated [%d]\n",
-	     drop_cnt, compressed, to_be_migrated, splitting, no_migrated);
+	mtkpasr_info("dropped [%d] - compressed [%d] - to_be_migrated [%d] - splitting [%d] - no_migrated [%d]\n"
+			, drop_cnt, compressed, to_be_migrated, splitting, no_migrated);
 #endif
 
 #ifdef CONFIG_MTKPASR_MAFL
- fast_path:
+fast_path:
 #endif
 
-	mtkpasr_log("result [%s]\n\n",
-		    (result ==
-		     MTKPASR_SUCCESS) ? "MTKPASR_SUCCESS" : ((result ==
-							      MTKPASR_FAIL) ? "MTKPASR_FAIL" :
-							     "MTKPASR_GET_WAKEUP"));
+	mtkpasr_log("result [%s]\n\n", (result == MTKPASR_SUCCESS) ? "MTKPASR_SUCCESS" : ((result == MTKPASR_FAIL) ? "MTKPASR_FAIL" : "MTKPASR_GET_WAKEUP"));
 
 	return result;
 }
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+/* Early suspend/resume callbacks & descriptor */
+static void mtkpasr_early_suspend(struct early_suspend *h)
+{
+	mtkpasr_info("\n");
+}
+
+static void mtkpasr_late_resume(struct early_suspend *h)
+{
+	mtkpasr_info("\n");
+	shrink_mtkpasr_late_resume();
+}
+
+static struct early_suspend mtkpasr_early_suspend_desc = {
+	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1,
+	.suspend = mtkpasr_early_suspend,
+	.resume = mtkpasr_late_resume,
+};
+#endif
 
 /* Reset */
 void __mtkpasr_reset_device(struct mtkpasr *mtkpasr)
@@ -2106,7 +2071,7 @@ int mtkpasr_init_device(struct mtkpasr *mtkpasr)
 	pr_debug("Initialization done!\n");
 	return 0;
 
- fail:
+fail:
 	__mtkpasr_reset_device(mtkpasr);
 	up_write(&mtkpasr->init_lock);
 	pr_err("Initialization failed: err=%d\n", ret);
@@ -2139,15 +2104,15 @@ static void __init mtkpasr_construct_bankrank(void)
 			if (prev != hwrank) {
 				++rank;
 				/* Update rank */
-				mtkpasr_ranks[rank].start_bank = (u16) bank;
+				mtkpasr_ranks[rank].start_bank = (u16)bank;
 				mtkpasr_ranks[rank].hw_rank = hwrank;
 				mtkpasr_ranks[rank].inused = 0;
 			}
 			mtkpasr_banks[bank].rank = &mtkpasr_ranks[rank];
-			mtkpasr_ranks[rank].end_bank = (u16) bank;	/* Update rank */
+			mtkpasr_ranks[rank].end_bank = (u16)bank;		/* Update rank */
 			prev = hwrank;
 		} else {
-			mtkpasr_banks[bank].rank = NULL;	/* No related rank! */
+			mtkpasr_banks[bank].rank = NULL;			/* No related rank! */
 		}
 
 #ifdef CONFIG_MTKPASR_MAFL
@@ -2180,16 +2145,14 @@ static void __init mtkpasr_construct_bankrank(void)
 		}
 
 		/* Update valid_pages */
-		mtkpasr_banks[bank].valid_pages =
-		    mtkpasr_banks[bank].end_pfn - mtkpasr_banks[bank].start_pfn;
+		mtkpasr_banks[bank].valid_pages = mtkpasr_banks[bank].end_pfn - mtkpasr_banks[bank].start_pfn;
 
 		/* To fix mtkpasr_total_pfns(only contain valid pages) */
 		mtkpasr_total_pfns += mtkpasr_banks[bank].valid_pages;
 
-		mtkpasr_info
-		    ("Bank[%d] - start_pfn[0x%lx] end_pfn[0x%lx] valid_pages[%u] rank[%p]\n", bank,
-		     mtkpasr_banks[bank].start_pfn, mtkpasr_banks[bank].end_pfn,
-		     mtkpasr_banks[bank].valid_pages, mtkpasr_banks[bank].rank);
+		mtkpasr_info("Bank[%d] - start_pfn[0x%lx] end_pfn[0x%lx] valid_pages[%u] rank[%p]\n",
+				bank, mtkpasr_banks[bank].start_pfn, mtkpasr_banks[bank].end_pfn,
+				mtkpasr_banks[bank].valid_pages, mtkpasr_banks[bank].rank);
 	}
 
 	/* To compute average pages per bank */
@@ -2208,11 +2171,6 @@ static void __init mtkpasr_construct_bankrank(void)
 		if (mtkpasr_banks[bank].inused == 0) {
 			remove_bank_from_buddy(bank);
 		}
-	}
-
-	/* Put half back */
-	for (bank = 0; bank < (num_banks >> 1); bank++) {
-		shrink_mafl_all(bank);
 	}
 
 	prev_mafl_count = mafl_total_count;
@@ -2236,7 +2194,7 @@ static int __init mtkpasr_init(void)
 	}
 
 	/* Create MTKPASR mempool. */
-	mtkpasr_mem_pool = ZS_CREATE_POOL("mtkpasr", GFP_ATOMIC | __GFP_HIGHMEM);
+	mtkpasr_mem_pool = ZS_CREATE_POOL("mtkpasr", GFP_ATOMIC|__GFP_HIGHMEM);
 	if (!mtkpasr_mem_pool) {
 		mtkpasr_err("Error creating memory pool\n");
 		ret = -ENOMEM;
@@ -2253,11 +2211,9 @@ static int __init mtkpasr_init(void)
 
 	/* To allocate memory for src_pgmap if needed (corresponding to one bank size) */
 	if (src_pgmap == NULL) {
-		src_pgmap =
-		    (void *)__get_free_pages(GFP_KERNEL,
-					     get_order(pasrbank_pfns * sizeof(unsigned long)));
+		src_pgmap = (void *)__get_free_pages(GFP_KERNEL, get_order(pasrbank_pfns * sizeof(unsigned long)));
 		if (src_pgmap == NULL) {
-			mtkpasr_err("Failed to allocate (order:?) memory!\n");
+			mtkpasr_err("Failed to allocate (order:%d)(%ld) memory!\n", get_order(pasrbank_pfns * sizeof(unsigned long)), pasrbank_pfns);
 			ret = -ENOMEM;
 			goto free_devices;
 		}
@@ -2265,22 +2221,15 @@ static int __init mtkpasr_init(void)
 
 	/* To allocate memory for keeping external compression information */
 	if (extcomp == NULL) {
-		extcomp =
-		    (unsigned long *)__get_free_pages(GFP_KERNEL,
-						      get_order(MTKPASR_MAX_EXTCOMP *
-								sizeof(unsigned long)));
+		extcomp = (unsigned long *)__get_free_pages(GFP_KERNEL, get_order(MTKPASR_MAX_EXTCOMP * sizeof(unsigned long)));
 		if (extcomp == NULL) {
 			mtkpasr_err("Failed to allocate memory for extcomp!\n");
 			ret = -ENOMEM;
 			goto no_memory;
 		}
-		sorted_for_extcomp =
-		    (unsigned long *)__get_free_pages(GFP_KERNEL,
-						      get_order(pasrbank_pfns *
-								sizeof(unsigned long)));
+		sorted_for_extcomp = (unsigned long *)__get_free_pages(GFP_KERNEL, get_order(pasrbank_pfns * sizeof(unsigned long)));
 		if (sorted_for_extcomp == NULL) {
-			free_pages((unsigned long)extcomp,
-				   get_order(MTKPASR_MAX_EXTCOMP * sizeof(unsigned long)));
+			free_pages((unsigned long)extcomp, get_order(MTKPASR_MAX_EXTCOMP * sizeof(unsigned long)));
 			mtkpasr_err("Failed to allocate memory for extcomp!\n");
 			ret = -ENOMEM;
 			goto no_memory;
@@ -2331,13 +2280,11 @@ static int __init mtkpasr_init(void)
 	/* Indicate migration end */
 	mtkpasr_migration_end = NODE_DATA(0)->node_start_pfn + pasrbank_pfns;
 
-#if defined(CONFIG_MTKPASR_MAFL)
-	mtkpasr_register_shrinker();
-#endif
+	mtkpasr_info("num_banks[%d] num_ranks[%d] mtkpasr_start_pfn[%ld] mtkpasr_end_pfn[%ld] mtkpasr_total_pfns[%ld]\n",
+			num_banks, num_ranks, mtkpasr_start_pfn, mtkpasr_end_pfn, mtkpasr_total_pfns);
 
-	mtkpasr_info
-	    ("num_banks[%d] num_ranks[%d] mtkpasr_start_pfn[%ld] mtkpasr_end_pfn[%ld] mtkpasr_total_pfns[%ld]\n",
-	     num_banks, num_ranks, mtkpasr_start_pfn, mtkpasr_end_pfn, mtkpasr_total_pfns);
+	/* Register early suspend/resume desc */
+	register_early_suspend(&mtkpasr_early_suspend_desc);
 
 	/* Setup others */
 	nz = &NODE_DATA(0)->node_zones[ZONE_NORMAL];
@@ -2345,10 +2292,11 @@ static int __init mtkpasr_init(void)
 #ifdef CONFIG_HIGHMEM
 	safe_level += nz->lowmem_reserve[ZONE_HIGHMEM];
 #endif
+	safe_level = safe_level >> 2;
 
 	return 0;
 
- free_banks_ranks:
+free_banks_ranks:
 	if (mtkpasr_banks != NULL) {
 		kfree(mtkpasr_banks);
 		mtkpasr_banks = NULL;
@@ -2359,27 +2307,26 @@ static int __init mtkpasr_init(void)
 	}
 	sysfs_remove_group(power_kobj, &mtkpasr_attr_group);
 
- reset_devices:
+reset_devices:
 	mtkpasr_reset_device(mtkpasr_device);
 	free_pages((unsigned long)extcomp, get_order(MTKPASR_MAX_EXTCOMP * sizeof(unsigned long)));
-	free_pages((unsigned long)sorted_for_extcomp,
-		   get_order(pasrbank_pfns * sizeof(unsigned long)));
+	free_pages((unsigned long)sorted_for_extcomp, get_order(pasrbank_pfns * sizeof(unsigned long)));
 
- no_memory:
+no_memory:
 	free_pages((unsigned long)src_pgmap, get_order(pasrbank_pfns * sizeof(unsigned long)));
 
- free_devices:
+free_devices:
 	kfree(mtkpasr_device);
 
- out:
+out:
 	zs_destroy_pool(mtkpasr_mem_pool);
 
- no_mem_pool:
+no_mem_pool:
 	kfree(mtkpasr_table);
 	mtkpasr_table = NULL;
 	mtkpasr_disksize = 0;
 
- fail:
+fail:
 	/* Disable MTKPASR */
 	mtkpasr_enable = 0;
 	mtkpasr_enable_sr = 0;
@@ -2397,12 +2344,13 @@ static void __exit mtkpasr_exit(void)
 	mtkpasr_reset_global();
 
 	kfree(mtkpasr_device);
+
+	unregister_early_suspend(&mtkpasr_early_suspend_desc);
+
 	pr_debug("Cleanup done!\n");
 }
-
-/* module_init(mtkpasr_init); */
 subsys_initcall_sync(mtkpasr_init);
 module_exit(mtkpasr_exit);
 
-MODULE_AUTHOR("Chinwen Change <chinwen.chang@mediatek.com>");
+MODULE_AUTHOR("MTK");
 MODULE_DESCRIPTION("MTK proprietary PASR driver");

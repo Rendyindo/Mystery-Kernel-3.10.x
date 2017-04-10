@@ -51,7 +51,7 @@ static int ion_test_open(struct inode *inode, struct file *file)
             printk("ion_test_drv: Cannot map buffer to kernel. pBuf=0x%08X\n", (unsigned int) pBuf);
             return 0;
         }
-        mm_data.config_buffer_param.handle = handle;
+        mm_data.config_buffer_param.kernel_handle = handle;
         mm_data.config_buffer_param.eModuleID = 2;
         mm_data.config_buffer_param.security = 1;
         mm_data.config_buffer_param.coherent = 0;

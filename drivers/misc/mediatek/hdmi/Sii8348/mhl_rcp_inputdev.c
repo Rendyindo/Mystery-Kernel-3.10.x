@@ -9,8 +9,8 @@ modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation version 2.
 This program is distributed AS-IS WITHOUT ANY WARRANTY of any
 kind, whether express or implied; INCLUDING without the implied warranty
-of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See
-the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.
+of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See 
+the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.             
 
 */
 
@@ -38,21 +38,21 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #include "platform.h"
 
 static u16 rcp_def_keymap[] = {
-	KEY_SELECT,
+	KEY_OK,
 	KEY_UP,
 	KEY_DOWN,
 	KEY_LEFT,
 	KEY_RIGHT,
-	KEY_UNKNOWN,		/* right-up */
-	KEY_UNKNOWN,		/* right-down */
-	KEY_UNKNOWN,		/* left-up */
-	KEY_UNKNOWN,		/* left-down */
+	KEY_UNKNOWN,	/* right-up */
+	KEY_UNKNOWN,	/* right-down */
+	KEY_UNKNOWN,	/* left-up */
+	KEY_UNKNOWN,	/* left-down */
 	KEY_MENU,
-	KEY_UNKNOWN,		/* setup */
-	KEY_UNKNOWN,		/* contents */
-	KEY_UNKNOWN,		/* favorite */
-	KEY_EXIT,
-	KEY_RESERVED,		/* 0x0e */
+	KEY_UNKNOWN,	/* setup */
+	KEY_UNKNOWN,	/* contents */
+	KEY_UNKNOWN,	/* favorite */
+	KEY_BACK,
+	KEY_RESERVED,	/* 0x0e */
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -69,60 +69,58 @@ static u16 rcp_def_keymap[] = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
-	KEY_RESERVED,		/* 0x1F */
-	KEY_NUMERIC_0,
-	KEY_NUMERIC_1,
-	KEY_NUMERIC_2,
-	KEY_NUMERIC_3,
-	KEY_NUMERIC_4,
-	KEY_NUMERIC_5,
-	KEY_NUMERIC_6,
-	KEY_NUMERIC_7,
-	KEY_NUMERIC_8,
-	KEY_NUMERIC_9,
+	KEY_RESERVED,	/* 0x1F */
+	KEY_0,
+	KEY_1,
+	KEY_2,
+	KEY_3,
+	KEY_4,
+	KEY_5,
+	KEY_6,
+	KEY_7,
+	KEY_8,
+	KEY_9,
 	KEY_DOT,
 	KEY_ENTER,
 	KEY_CLEAR,
-	KEY_RESERVED,		/* 0x2D */
+	KEY_RESERVED,	/* 0x2D */
 	KEY_RESERVED,
-	KEY_RESERVED,		/* 0x2F */
-	KEY_UNKNOWN,		/* channel up */
-	KEY_UNKNOWN,		/* channel down */
-	KEY_UNKNOWN,		/* previous channel */
-	KEY_UNKNOWN,		/* sound select */
-	KEY_UNKNOWN,		/* input select */
-	KEY_UNKNOWN,		/* show information */
-	KEY_UNKNOWN,		/* help */
-	KEY_UNKNOWN,		/* page up */
-	KEY_UNKNOWN,		/* page down */
-	KEY_RESERVED,		/* 0x39 */
-	KEY_RESERVED,
-	KEY_RESERVED,
+	KEY_RESERVED,	/* 0x2F */
+	KEY_UNKNOWN,	/* channel up */
+	KEY_UNKNOWN,	/* channel down */
+	KEY_UNKNOWN,	/* previous channel */
+	KEY_SOUND,	    /* sound select */
+	KEY_UNKNOWN,	/* input select */
+	KEY_UNKNOWN,	/* show information */
+	KEY_UNKNOWN,	/* help */
+	KEY_UNKNOWN,	/* page up */
+	KEY_UNKNOWN,	/* page down */
+	KEY_RESERVED,	/* 0x39 */
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
-	KEY_RESERVED,		/* 0x3F */
-	KEY_RESERVED,		/* 0x40 */
-	KEY_UNKNOWN,		/* volume up */
-	KEY_UNKNOWN,		/* volume down */
-	KEY_UNKNOWN,		/* mute */
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,	/* 0x3F */
+	KEY_RESERVED,	/* 0x40 */
+	KEY_UNKNOWN,	/* volume up */
+	KEY_UNKNOWN,	/* volume down */
+	KEY_UNKNOWN,	/* mute */
 	KEY_PLAY,
 	KEY_STOP,
-	KEY_PLAYPAUSE,
-	KEY_UNKNOWN,		/* record */
+	KEY_PAUSECD,
+	KEY_UNKNOWN,	/* record */
 	KEY_REWIND,
 	KEY_FASTFORWARD,
-	KEY_UNKNOWN,		/* eject */
+	KEY_EJECTCD,	/* eject */
 	KEY_NEXTSONG,
 	KEY_PREVIOUSSONG,
-	KEY_RESERVED,		/* 0x4D */
+	KEY_RESERVED,	/* 0x4D */
 	KEY_RESERVED,
-	KEY_RESERVED,		/* 0x4F */
-	KEY_UNKNOWN,		/* angle */
-	KEY_UNKNOWN,		/* subtitle */
-	KEY_RESERVED,		/* 0x52 */
-	KEY_RESERVED,
-	KEY_RESERVED,
+	KEY_RESERVED,	/* 0x4F */
+	KEY_UNKNOWN,	/* angle */
+	KEY_UNKNOWN,	/* subtitle */
+	KEY_RESERVED,	/* 0x52 */
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -133,60 +131,66 @@ static u16 rcp_def_keymap[] = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
-	KEY_RESERVED,		/* 0x5F */
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,	/* 0x5F */
 	KEY_PLAY,
 	KEY_PAUSE,
-	KEY_UNKNOWN,		/* record_function */
-	KEY_UNKNOWN,		/* pause_record_function */
+	KEY_UNKNOWN,	/* record_function */
+	KEY_UNKNOWN,	/* pause_record_function */
 	KEY_STOP,
-	KEY_UNKNOWN,		/* mute_function */
-	KEY_UNKNOWN,		/* restore_volume_function */
-	KEY_UNKNOWN,		/* tune_function */
-	KEY_UNKNOWN,		/* select_media_function */
-	KEY_RESERVED,		/* 0x69 */
+	KEY_UNKNOWN,	/* mute_function */
+	KEY_UNKNOWN,	/* restore_volume_function */
+	KEY_UNKNOWN,	/* tune_function */
+	KEY_UNKNOWN,	/* select_media_function */
+	KEY_RESERVED,	/* 0x69 */
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
-	KEY_RESERVED,		/* 0x70 */
-	KEY_UNKNOWN,		/* F1 */
-	KEY_UNKNOWN,		/* F2 */
-	KEY_UNKNOWN,		/* F3 */
-	KEY_UNKNOWN,		/* F4 */
-	KEY_UNKNOWN,		/* F5 */
-	KEY_RESERVED,		/* 0x76 */
+	KEY_RESERVED,	/* 0x70 */
+	KEY_F1,	/* F1 */
+	KEY_F2,	/* F2 */
+	KEY_F3,	/* F3 */
+	KEY_F4,	/* F4 */
+	KEY_F5,	/* F5 */
+	KEY_RESERVED,	/* 0x76 */
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
-	KEY_RESERVED,		/* 0x7D */
+	KEY_RESERVED,	/* 0x7D */
 	KEY_VENDOR,
-	KEY_RESERVED,		/* 0x7F */
+	KEY_RESERVED,	/* 0x7F */
 };
 
-int generate_rcp_input_event(struct mhl_dev_context *dev_context, uint8_t rcp_keycode)
+int generate_rcp_input_event(struct mhl_dev_context *dev_context,
+							 uint8_t rcp_keycode)
 {
-	int status = -EINVAL;
+	int	status = -EINVAL;
 
 	if (dev_context->rcp_input_dev == NULL)
-		goto exit;
+	{
+	    MHL_TX_DBG_ERR(dev_context, "RCP input device not exists!\n");
+	    goto exit;
+    }
 
 	if (rcp_keycode < ARRAY_SIZE(rcp_def_keymap) &&
-	    rcp_def_keymap[rcp_keycode] != KEY_UNKNOWN &&
-	    rcp_def_keymap[rcp_keycode] != KEY_RESERVED) {
+			rcp_def_keymap[rcp_keycode] != KEY_UNKNOWN &&
+			rcp_def_keymap[rcp_keycode] != KEY_RESERVED) {
 
-		input_report_key(dev_context->rcp_input_dev, rcp_keycode, 1);
-		input_report_key(dev_context->rcp_input_dev, rcp_keycode, 0);
+		input_report_key(dev_context->rcp_input_dev, rcp_def_keymap[rcp_keycode], 1);
+		input_report_key(dev_context->rcp_input_dev, rcp_def_keymap[rcp_keycode], 0);
 		input_sync(dev_context->rcp_input_dev);
 
 		status = 0;
 	}
 
- exit:
+exit:
 	return status;
 }
 
@@ -194,7 +198,7 @@ uint8_t init_rcp_input_dev(struct mhl_dev_context *dev_context)
 {
 	int i;
 	uint8_t error;
-	struct input_dev *rcp_input_dev;
+	struct input_dev	*rcp_input_dev;
 
 	if (dev_context->rcp_input_dev != NULL) {
 		MHL_TX_DBG_INFO(dev_context, "RCP input device already exists!\n");
@@ -209,21 +213,21 @@ uint8_t init_rcp_input_dev(struct mhl_dev_context *dev_context)
 
 	set_bit(EV_KEY, rcp_input_dev->evbit);
 
-/* rcp_input_dev->phys                     = "mdt_kbd/input0"; */
-	rcp_input_dev->name = "MHL Remote Control";
-	rcp_input_dev->keycode = rcp_def_keymap;
-	rcp_input_dev->keycodesize = sizeof(u16);
-	rcp_input_dev->keycodemax = ARRAY_SIZE(rcp_def_keymap);
+//	rcp_input_dev->phys			= "mdt_kbd/input0";
+	rcp_input_dev->name			= "MHL Remote Control";
+	rcp_input_dev->keycode		= rcp_def_keymap;
+	rcp_input_dev->keycodesize	= sizeof(u16);
+	rcp_input_dev->keycodemax	= ARRAY_SIZE(rcp_def_keymap);
 
 	for (i = 1; i < ARRAY_SIZE(rcp_def_keymap); i++) {
-		u16 keycode = rcp_def_keymap[i];
+		u16	keycode = rcp_def_keymap[i];
 		if (keycode != KEY_UNKNOWN && keycode != KEY_RESERVED)
 			set_bit(keycode, rcp_input_dev->keybit);
 	}
 
 	rcp_input_dev->id.bustype = BUS_VIRTUAL;
-/* rcp_input_dev->id.vendor  = 0x1095; */
-/* rcp_input_dev->id.product = 0x8348; */
+//	rcp_input_dev->id.vendor  = 0x1095;
+//	rcp_input_dev->id.product = 0x8348;
 
 	error = input_register_device(rcp_input_dev);
 	if (error) {
@@ -247,4 +251,4 @@ void destroy_rcp_input_dev(struct mhl_dev_context *dev_context)
 	}
 }
 
-#endif				/* #ifdef RCP_INPUTDEV_SUPPORT */
+#endif /* #ifdef RCP_INPUTDEV_SUPPORT */

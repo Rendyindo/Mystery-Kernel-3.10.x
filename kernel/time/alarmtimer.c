@@ -15,6 +15,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#ifdef pr_fmt
+#undef pr_fmt 
+#endif
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/time.h>
 #include <linux/hrtimer.h>
 #include <linux/timerqueue.h>
@@ -25,11 +30,10 @@
 #include <linux/posix-timers.h>
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
-#include <linux/xlog.h>
 #include <linux/module.h>
 #include <mach/mtk_rtc.h>
 
-#define XLOG_MYTAG	"Power/Alarm"
+#define TIME_MYTAG	"Power/Time"
 
 #define ANDROID_ALARM_PRINT_INFO (1U << 0)
 #define ANDROID_ALARM_PRINT_IO (1U << 1)
@@ -41,7 +45,7 @@ module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define alarm_dbg(debug_level_mask, fmt, args...)				\
 do {									\
 	if (debug_mask & ANDROID_ALARM_PRINT_##debug_level_mask)	\
-		xlog_printk(ANDROID_LOG_INFO, XLOG_MYTAG, fmt, ##args); \
+			pr_debug(TIME_MYTAG fmt, ##args); \
 } while (0)
 
 /**
@@ -179,13 +183,15 @@ void alarm_set_power_on(struct timespec new_pwron_time, bool logo)
 	rtc_set_alarm_poweron(alarm_rtc_dev, &alm);
 }
 
-void alarm_get_power_on(struct timespec *new_pwron_time)
+void alarm_get_power_on(struct rtc_wkalrm *alm)
 {
-	struct rtc_wkalrm pwron_alm;
+	if (!alm)
+		return;
 
-	memset(&pwron_alm, 0, sizeof(struct rtc_wkalrm));
-	rtc_read_pwron_alarm(&pwron_alm);
-	rtc_tm_to_time(&pwron_alm.time, &new_pwron_time->tv_sec);
+	memset(alm, 0, sizeof(struct rtc_wkalrm));
+#ifndef CONFIG_MTK_FPGA
+	rtc_read_pwron_alarm(alm);
+#endif
 }
 
 /**

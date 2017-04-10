@@ -84,6 +84,11 @@ struct mtk_uart_setting {
 
 	unsigned long irq_flags;
 #endif
+
+#if !defined(CONFIG_MTK_LEGACY)
+    struct clk *clk_uart_main;
+#endif /* !defined(CONFIG_MTK_LEGACY) */
+
 	u8 irq_num;
 	u8 irq_sen;
 	u8 set_bit;		/*APMCU_CG_SET0 */
@@ -118,7 +123,6 @@ struct mtk_uart_vfifo {
 	atomic_t reg_cb;
 	atomic_t entry;		/* entry count */
 	spinlock_t iolock;
-    spinlock_t dma_free_lock;
 	struct timer_list timer;	/* vfifo timer */
 	struct hrtimer flush;
 	dma_addr_t dmahd;	/* dma handle */
@@ -193,7 +197,6 @@ struct mtk_uart {
 	struct mtk_uart_register registers;
 	struct mtk_uart_dma dma_tx;
 	struct mtk_uart_dma dma_rx;
-        spinlock_t dma_free_lock;
 	struct mtk_uart_vfifo *tx_vfifo;
 	struct mtk_uart_vfifo *rx_vfifo;
 
@@ -228,6 +231,11 @@ struct fiq_dbg_event {
 extern spinlock_t mtk_console_lock;
 extern struct mtk_uart *console_port;
 unsigned int mtk_uart_pdn_enable(char *port, int enable);
+extern void update_history_byte(char is_tx, int nport, unsigned char byte);
+extern void update_history_time(char is_tx, int nport);
+extern void update_history_bulk(char is_tx, int nport, unsigned char *chars, int count);
 
+#ifdef CONFIG_FIQ_DEBUGGER
 extern struct resource fiq_resource[];
+#endif /* CONFIG_FIQ_DEBUGGER */
 #endif				/* MTK_UART_H */

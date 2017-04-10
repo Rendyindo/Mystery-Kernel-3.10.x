@@ -9,6 +9,8 @@ struct sched_block_event {
 
 	unsigned long cur_count;
 	unsigned long last_count;
+
+    int preempt_count;
 };
 DECLARE_PER_CPU(struct sched_block_event, ISR_mon);
 DECLARE_PER_CPU(struct sched_block_event, SoftIRQ_mon);
@@ -58,6 +60,7 @@ DECLARE_PER_CPU(unsigned long long, local_timer_te);
 
 #define MT_LOCAL_TIMER_IRQ 29
 #define MT_LOCAL_WDT_IRQ 3
+#define MAX_NR_IRQS 512
 
 #ifdef CONFIG_MT_SCHED_MONITOR
 #define mt_sched_mon_disable(sflag) \

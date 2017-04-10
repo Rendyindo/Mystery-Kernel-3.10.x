@@ -98,7 +98,7 @@ void* history_record_get_record(struct history_record *history_record)
 	}
 
 	if(history_record_test_busy(history_record, index)) {
-		IONMSG("%s: error to get record %d, bitmap is:\n", index);
+		IONMSG("%s: error to get record %d, bitmap is:\n", __FUNCTION__, index);
 		history_record_dump_busy(NULL, history_record);
 		spin_unlock(&history_record->lock);
 		return NULL;
@@ -270,13 +270,13 @@ struct history_record * history_record_create(unsigned int record_num,
 
 	history_record = kzalloc(sizeof(struct history_record) + bitmap_bytes, GFP_KERNEL);
 	if(!history_record) {
-		IONMSG("%s error to kzalloc %d\n", __FUNCTION__, sizeof(struct history_record));
+		IONMSG("%s error to kzalloc %zd.\n", __FUNCTION__, sizeof(struct history_record));
 		return ERR_PTR(-ENOMEM);
 	}
 
 	history_record->record = vzalloc(size_align);
 	if(!history_record->record) {
-		IONMSG("%s error to valloc %ld\n", __FUNCTION__, size_align);
+		IONMSG("%s error to valloc %zu.\n", __FUNCTION__, size_align);
 		kfree(history_record);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -380,9 +380,9 @@ static struct string_struct * string_hash_get(const char* str)
 		string->ref++;
 	} else {
 		/* add string */
-		string = kzalloc(sizeof(*string) + len + 1, GFP_KERNEL);
+		string = kzalloc(sizeof(*string) + len + 1, GFP_ATOMIC);
 		if(!string) {
-			IONMSG("%s: kzalloc fail size=%d\n", __FUNCTION__, 
+			IONMSG("%s: kzalloc fail size=%zd.\n", __FUNCTION__, 
 					sizeof(*string) + len + 1);
 			goto out;
 		}
@@ -681,7 +681,7 @@ int ion_history_init(void)
 
 	if(IS_ERR_OR_NULL(g_client_history)) {
 		IONMSG("create client history fail\n");
-		return (int)g_client_history;
+		return (long)g_client_history;
 	}
 
 	debugfs_create_file("string_hash", 644, g_ion_device->debug_root,

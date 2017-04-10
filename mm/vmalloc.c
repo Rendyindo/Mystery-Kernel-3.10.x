@@ -938,8 +938,13 @@ again:
 		int i;
 
 		spin_lock(&vb->lock);
-		if (vb->free < 1UL << order)
+		if (vb->free < 1UL << order) {
+            if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
+				/* free left too small, handle as fragmented scenario */
+				purge = 1;
+			}
 			goto next;
+        }
 
 		i = bitmap_find_free_region(vb->alloc_map,
 						VMAP_BBMAP_BITS, order);

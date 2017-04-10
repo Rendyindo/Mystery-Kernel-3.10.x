@@ -52,11 +52,13 @@ extern void rtc_irq_handler(void);
 
 extern bool crystal_exist_status(void);
 
+extern bool rtc_low_power_detected(void);
+
 #else
 #define rtc_read_hw_time()              ({ 0; })
 #define rtc_gpio_enable_32k(user)	do {} while (0)
 #define rtc_gpio_disable_32k(user)	do {} while (0)
-#define rtc_gpio_32k_status()		do {} while (0)
+#define rtc_gpio_32k_status()		({ 0; })
 #define rtc_enable_abb_32k()		do {} while (0)
 #define rtc_disable_abb_32k()		do {} while (0)
 #define rtc_enable_writeif()		do {} while (0)
@@ -75,7 +77,8 @@ extern bool crystal_exist_status(void);
 
 #define rtc_irq_handler()			do {} while (0)
 
-#define crystal_exist_status()		do {} while (0)
+#define crystal_exist_status()		({ 0; })
+#define rtc_low_power_detected()		({ 0; })
 #endif
 
 #endif

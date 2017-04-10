@@ -35,7 +35,6 @@
 #include <asm/tls.h>
 #include <asm/system_misc.h>
 #include <linux/aee.h>
-
 static const char *handler[]= {
 	"prefetch abort",
 	"data abort",
@@ -241,6 +240,7 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 static int __die(const char *str, int err, struct pt_regs *regs)
 {
 	struct task_struct *tsk = current;
+	unsigned long sp, stack;
 	static int die_counter;
 	int ret;
 
@@ -258,8 +258,13 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 		TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), end_of_stack(tsk));
 
 	if (!user_mode(regs) || in_interrupt()) {
-		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
-			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
+		sp = regs->ARM_sp;
+		stack = (unsigned long)task_stack_page(tsk);
+		dump_mem(KERN_EMERG, "Stack: ", sp, ALIGN(sp, THREAD_SIZE));
+		if (sp < stack || (sp - stack) > THREAD_SIZE) {
+			printk(KERN_EMERG "Invalid sp[%lx] or stack address[%lx]\n", sp, stack);
+			dump_mem(KERN_EMERG, "Stack(backup) ", stack, THREAD_SIZE + stack);
+		}
 		dump_backtrace(regs, tsk);
 		dump_instr(KERN_EMERG, regs);
 	}
@@ -415,6 +420,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	unsigned int instr;
 	siginfo_t info;
 	void __user *pc;
+	u32 insn = __opcode_to_mem_arm(BUG_INSTR_VALUE);
 
 	if (!user_mode(regs)) {
 		thread->cpu_excp++;
@@ -477,7 +483,7 @@ die_sig:
 	info.si_addr  = pc;
 
 	arm_notify_die("Oops - undefined instruction", regs, &info, 0, 6);
-	}
+}
 
 asmlinkage void do_unexp_fiq (struct pt_regs *regs)
 {

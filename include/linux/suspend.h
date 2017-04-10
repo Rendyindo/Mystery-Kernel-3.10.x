@@ -325,7 +325,6 @@ extern int mtk_hibernate(void);
 extern int mtk_hibernate_abort(void);
 #endif
 extern bool system_entering_hibernation(void);
-extern bool system_hibernating(void);
 #else /* CONFIG_HIBERNATION */
 static inline void register_nosave_region(unsigned long b, unsigned long e) {}
 static inline void register_nosave_region_late(unsigned long b, unsigned long e) {}
@@ -336,7 +335,6 @@ static inline void swsusp_unset_page_free(struct page *p) {}
 static inline void hibernation_set_ops(const struct platform_hibernation_ops *ops) {}
 static inline int hibernate(void) { return -ENOSYS; }
 static inline bool system_entering_hibernation(void) { return false; }
-static inline bool system_hibernating(void) { return false; }
 #endif /* CONFIG_HIBERNATION */
 
 /* Hibernation and suspend events */
@@ -370,7 +368,7 @@ extern bool pm_wakeup_pending(void);
 extern bool pm_get_wakeup_count(unsigned int *count, bool block);
 extern bool pm_save_wakeup_count(unsigned int count);
 extern void pm_wakep_autosleep_enabled(bool set);
-
+extern void pm_get_active_wakeup_sources(char *pending_sources, size_t max);
 static inline void lock_system_sleep(void)
 {
 	current->flags |= PF_FREEZER_SKIP;
@@ -456,8 +454,9 @@ extern int toi_running;
 
 #define test_action_state(bit) (test_bit(bit, &toi_bkd.toi_action))
 extern int try_tuxonice_hibernate(void);
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_ENHANCE
 extern int toi_abort_hibernate(void);
+extern int toi_hibernate_fatalerror(void);
 #endif
 
 #else /* !CONFIG_TOI */
@@ -470,8 +469,9 @@ extern int toi_abort_hibernate(void);
 
 static inline int try_tuxonice_hibernate(void) { return 0; }
 #define test_action_state(bit) (0)
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_ENHANCE
 static inline int toi_abort_hibernate(void) { return 0; }
+static inline int toi_hibernate_fatalerror(void) { return 0; }
 #endif
 
 #endif /* CONFIG_TOI */

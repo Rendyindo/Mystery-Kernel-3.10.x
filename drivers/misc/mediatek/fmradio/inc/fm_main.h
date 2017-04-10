@@ -164,7 +164,6 @@ struct fm_tune_t {
 	void *priv;
 };
 
-
 #ifdef CONFIG_MTK_FM_50KHZ_SUPPORT
 struct fm_rssi_req {
 	fm_u16 num;
@@ -308,12 +307,16 @@ struct fm_search_threshold_t {
 	fm_s32 reserve;
 };
 
+typedef struct {
+	int which;
+	bool stat;
+} fm_status_t;
+
 /* init and deinit APIs */
 extern fm_s32 fm_env_setup(void);
 extern fm_s32 fm_env_destroy(void);
 extern struct fm *fm_dev_init(fm_u32 arg);
 extern fm_s32 fm_dev_destroy(struct fm *fm);
-
 
 /* fm main basic APIs */
 extern enum fm_pwr_state fm_pwr_state_get(struct fm *fmp);
@@ -360,6 +363,8 @@ extern fm_s32 fm_is_dese_chan(struct fm *pfm, fm_u16 freq);
 extern fm_s32 fm_desense_check(struct fm *pfm, fm_u16 freq, fm_s32 rssi);
 extern fm_s32 fm_sys_state_get(struct fm *fmp);
 extern fm_s32 fm_sys_state_set(struct fm *fmp, fm_s32 sta);
+extern fm_s32 fm_set_stat(struct fm *fmp, int which, bool stat);
+extern fm_s32 fm_get_stat(struct fm *fmp, int which, bool *stat);
 extern fm_s32 fm_subsys_reset(struct fm *fm);
 
 extern fm_s32 fm_scan_new(struct fm *fm, struct fm_scan_t *parm);
@@ -389,4 +394,4 @@ extern fm_s32 fm_rdstx_enable(struct fm *fm, fm_s32 enable);
 extern fm_s32 fm_tx_scan(struct fm *fm, struct fm_tx_scan_parm *parm);
 fm_s32 fm_full_cqi_logger(fm_full_cqi_log_t *setting);
 
-#endif				/* __FM_MAIN_H__ */
+#endif /* __FM_MAIN_H__ */

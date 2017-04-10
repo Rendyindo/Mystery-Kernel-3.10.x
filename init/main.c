@@ -689,7 +689,7 @@ int __init_or_module do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
 	int ret;
-
+	TIME_LOG_START();
 	if (initcall_debug)
 		ret = do_one_initcall_debug(fn);
 	else
@@ -707,6 +707,7 @@ int __init_or_module do_one_initcall(initcall_t fn)
 	}
 	WARN(msgbuf[0], "initcall %pF returned with %s\n", fn, msgbuf);
 
+	TIME_LOG_END("[init] f(%p)\n", fn);
 	return ret;
 }
 

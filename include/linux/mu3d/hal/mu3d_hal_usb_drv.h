@@ -2,6 +2,7 @@
 #ifndef MTK_USB_DRV_H
 #define MTK_USB_DRV_H
 
+#include <linux/mu3d/hal/mu3d_hal_hw.h>
 #undef EXTERN
 
 #ifdef _MTK_USB_DRV_EXT_
@@ -12,19 +13,13 @@
 
 
 
-#define MAX_EP_NUM		8	/* 4 Tx and 4 Rx */
+#define MAX_EP_NUM		8		/* 4 Tx and 4 Rx */
 #define USB_BUF_SIZE    65536
 #define MAX_SLOT		(2-1)
 
-#ifdef SUPPORT_U3
-/* EP0, TX, RX has separate SRAMs */
+/*EP0, TX, RX has separate SRAMs*/
 #define USB_TX_FIFO_START_ADDRESS  0
 #define USB_RX_FIFO_START_ADDRESS  0
-#else
-/* EP0, TX, RX share one SRAM. 0-63 bytes are reserved for EP0 */
-#define USB_TX_FIFO_START_ADDRESS  (64)
-#define USB_RX_FIFO_START_ADDRESS  (64+512*MAX_EP_NUM)
-#endif
 
 #ifndef IRQ_USB_MC_NINT_CODE
 #define	IRQ_USB_MC_NINT_CODE	8
@@ -48,42 +43,42 @@ typedef enum {
 } TRANSFER_TYPE;
 
 typedef enum {
-	SSUSB_SPEED_INACTIVE = 0,
-	SSUSB_SPEED_FULL = 1,
-	SSUSB_SPEED_HIGH = 3,
-	SSUSB_SPEED_SUPER = 4,
+    SSUSB_SPEED_INACTIVE = 0,
+    SSUSB_SPEED_FULL = 1,
+    SSUSB_SPEED_HIGH = 3,
+    SSUSB_SPEED_SUPER = 4,
 } USB_SPEED;
 
 typedef enum {
-	EP0_IDLE = 0,
-	EP0_TX,
-	EP0_RX,
+    EP0_IDLE = 0,
+    EP0_TX,
+    EP0_RX,
 } EP0_STATE;
 
 struct USB_EP_SETTING {
-	TRANSFER_TYPE transfer_type;
-	DEV_UINT32 fifoaddr;
-	DEV_UINT32 fifosz;
-	DEV_UINT32 maxp;
-	USB_DIR dir;
-	DEV_UINT8 enabled;
+    TRANSFER_TYPE transfer_type;
+    DEV_UINT32 fifoaddr;
+    DEV_UINT32 fifosz;
+    DEV_UINT32 maxp;
+    USB_DIR dir;
+    DEV_UINT8 enabled;
 };
 
 struct USB_REQ {
-	DEV_UINT8 *buf;
-	/* DEV_UINT8* dma_adr; */
+    DEV_UINT8* buf;
+    //DEV_UINT8* dma_adr;
 	dma_addr_t dma_adr;
-	DEV_UINT32 actual;
-	DEV_UINT32 count;
-	DEV_UINT32 currentCount;
-	DEV_UINT32 complete;
-	DEV_UINT32 needZLP;
-	DEV_UINT32 transferCount;
+    DEV_UINT32 actual;
+    DEV_UINT32 count;
+    DEV_UINT32 currentCount;
+    DEV_UINT32 complete;
+    DEV_UINT32 needZLP;
+    DEV_UINT32 transferCount;
 };
 
 struct USB_TEST_SETTING {
-	USB_SPEED speed;
-	struct USB_EP_SETTING ep_setting[2 * MAX_EP_NUM + 1];
+    USB_SPEED speed;
+    struct USB_EP_SETTING ep_setting[2 * MAX_EP_NUM + 1];
 };
 
 /*=============================================
@@ -92,20 +87,20 @@ struct USB_TEST_SETTING {
 *
 *=============================================*/
 
-/* #define NUM_TXENDPS                 4 */
-/* #define NUM_RXENDPS                 4 */
-/* #define NUM_EPS                     (NUM_TXENDPS + NUM_RXENDPS + 1) */
+//#define NUM_TXENDPS                 4
+//#define NUM_RXENDPS                 4
+//#define NUM_EPS                     (NUM_TXENDPS + NUM_RXENDPS + 1)
 
-/* #define MGC_END0_FIFOSIZE           64 */
-/* #define MGC_RX_DMA_ENABLE_LEVEL     32 */
+//#define MGC_END0_FIFOSIZE           64
+//#define MGC_RX_DMA_ENABLE_LEVEL     32
 
-/* #define IsDbf                       0x00000001 */
-/* #define IsTx                        0x00000002 */
-/* #define IsHalt                      0x00000004 */
-/* #define IsEnabled                   0x80000000 */
+//#define IsDbf                       0x00000001
+//#define IsTx                        0x00000002
+//#define IsHalt                      0x00000004
+//#define IsEnabled                   0x80000000
 
-/* #define REQUEST_START_TX            0x1 */
-/* #define REQUEST_START_RX            0x2 */
+//#define REQUEST_START_TX            0x1
+//#define REQUEST_START_RX            0x2
 
 
  /*
@@ -114,13 +109,13 @@ struct USB_TEST_SETTING {
   * This bit flag is used in endpoint descriptors' bEndpointAddress field.
   * It's also one of three fields in control requests bRequestType.
   */
-#define USB_DIR_OUT			0	/* to device */
-#define USB_DIR_IN			0x80	/* to host */
-#define USB_DIR_MASK		0x80	/* to host */
+#define USB_DIR_OUT			0		/* to device */
+#define USB_DIR_IN			0x80		/* to host */
+#define USB_DIR_MASK		0x80		/* to host */
 
  /*
-  * USB request types
-  */
+ * USB request types
+ */
 
 #define USB_TYPE_MASK			(0x03 << 5)
 #define USB_TYPE_STANDARD		(0x00 << 5)
@@ -130,8 +125,8 @@ struct USB_TEST_SETTING {
 
 
  /*
-  * Standard requests
-  */
+ * Standard requests
+ */
 #define USB_REQ_GET_STATUS		        0x00
 #define USB_REQ_CLEAR_FEATURE	        0x01
 #define USB_REQ_SET_FEATURE		        0x03
@@ -143,9 +138,9 @@ struct USB_TEST_SETTING {
 #define USB_REQ_GET_INTERFACE		    0x0A
 #define USB_REQ_SET_INTERFACE		    0x0B
 #define USB_REQ_SYNCH_FRAME             0x0C
-#define USB_REQ_EP0_IN_STALL			0xFD
-#define USB_REQ_EP0_OUT_STALL			0xFE
-#define USB_REQ_EP0_STALL				0xFF
+#define USB_REQ_EP0_IN_STALL  			0xFD
+#define USB_REQ_EP0_OUT_STALL  			0xFE
+#define USB_REQ_EP0_STALL  				0xFF
 
 
 
@@ -157,27 +152,29 @@ EXTERN DEV_UINT32 g_RxFIFOadd;
 
 
 EXTERN struct USB_REQ *mu3d_hal_get_req(DEV_INT32 ep_num, USB_DIR dir);
+EXTERN void mu3d_hal_pdn_dis(void);
 EXTERN void mu3d_hal_ssusb_en(void);
+EXTERN void _ex_mu3d_hal_ssusb_en(void);
 EXTERN void mu3d_hal_rst_dev(void);
 EXTERN DEV_INT32 mu3d_hal_check_clk_sts(void);
 EXTERN DEV_INT32 mu3d_hal_link_up(DEV_INT32 latch_val);
 EXTERN void mu3d_hal_initr_dis(void);
 EXTERN void mu3d_hal_clear_intr(void);
 EXTERN void mu3d_hal_system_intr_en(void);
-EXTERN DEV_INT32 mu3d_hal_read_fifo_burst(DEV_INT32 ep_num, DEV_UINT8 *buf);
-EXTERN DEV_INT32 mu3d_hal_read_fifo(DEV_INT32 ep_num, DEV_UINT8 *buf);
-EXTERN DEV_INT32 mu3d_hal_write_fifo_burst(DEV_INT32 ep_num, DEV_INT32 length, DEV_UINT8 *buf,
-					   DEV_INT32 maxp);
-EXTERN DEV_INT32 mu3d_hal_write_fifo(DEV_INT32 ep_num, DEV_INT32 length, DEV_UINT8 *buf,
-				     DEV_INT32 maxp);
-EXTERN void mu3d_hal_ep_enable(DEV_UINT8 ep_num, USB_DIR dir, TRANSFER_TYPE type, DEV_INT32 maxp,
-			       DEV_INT8 interval, DEV_INT8 slot, DEV_INT8 burst, DEV_INT8 mult);
+EXTERN void _ex_mu3d_hal_system_intr_en(void);
+EXTERN DEV_INT32 mu3d_hal_read_fifo_burst(DEV_INT32 ep_num,DEV_UINT8 *buf);
+EXTERN DEV_INT32 mu3d_hal_read_fifo(DEV_INT32 ep_num,DEV_UINT8 *buf);
+EXTERN DEV_INT32 mu3d_hal_write_fifo_burst(DEV_INT32 ep_num,DEV_INT32 length,DEV_UINT8 *buf,DEV_INT32 maxp);
+EXTERN DEV_INT32 mu3d_hal_write_fifo(DEV_INT32 ep_num,DEV_INT32 length,DEV_UINT8 *buf,DEV_INT32 maxp);
+EXTERN void _ex_mu3d_hal_ep_enable(DEV_UINT8 ep_num, USB_DIR dir, TRANSFER_TYPE type, DEV_INT32 maxp, DEV_INT8 interval, DEV_INT8 slot,DEV_INT8 burst, DEV_INT8 mult);
+EXTERN void mu3d_hal_ep_enable(DEV_UINT8 ep_num, USB_DIR dir, TRANSFER_TYPE type, DEV_INT32 maxp, DEV_INT8 interval, DEV_INT8 slot,DEV_INT8 burst, DEV_INT8 mult);
 EXTERN void mu3d_hal_resume(void);
 EXTERN void mu3d_hal_u2dev_connect(void);
 EXTERN void mu3d_hal_u2dev_disconn(void);
 EXTERN void mu3d_hal_u3dev_en(void);
 EXTERN void mu3d_hal_u3dev_dis(void);
 EXTERN void mu3d_hal_unfigured_ep(void);
+EXTERN void mu3d_hal_unfigured_ep_num(DEV_UINT8 ep_num, USB_DIR dir);
 EXTERN void mu3d_hal_set_speed(USB_SPEED usb_speed);
 EXTERN void mu3d_hal_det_speed(USB_SPEED speed, DEV_UINT8 det_speed);
 EXTERN void mu3d_hal_pdn_cg_en(void);
@@ -187,4 +184,5 @@ EXTERN void mu3d_hal_dft_reg(void);
 #undef EXTERN
 
 
-#endif				/* USB_DRV_H */
+#endif //USB_DRV_H
+

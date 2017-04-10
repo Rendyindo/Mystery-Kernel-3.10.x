@@ -30,7 +30,7 @@ int fbconfig_get_esd_check_exec(void);
 BOOL get_fbconfig_start_lcm_config(void);
 
 
-//*****************debug for fbconfig tool in kernel part*************//
+/* *****************debug for fbconfig tool in kernel part************* */
 #define MAX_INSTRUCTION 35
 
 typedef enum {

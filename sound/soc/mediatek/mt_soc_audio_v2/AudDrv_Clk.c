@@ -104,7 +104,7 @@ void Auddrv_Bus_Init(void)
     unsigned long flags;
     printk("%s  \n", __func__);
     spin_lock_irqsave(&auddrv_Clk_lock, flags);
-    Afe_Set_Reg(AUDIO_TOP_CON0, 0x00004000, 0x00004000); //must set, system will default set bit14 to 0
+    Afe_Set_Reg(AUDIO_TOP_CON0, 0x00004000, 0x00004000); //must set, system will default set bit14 to 0    
     spin_unlock_irqrestore(&auddrv_Clk_lock, flags);
 }
 
@@ -129,7 +129,6 @@ void AudDrv_Clk_Power_On(void)
 
 void AudDrv_Clk_Power_Off(void)
 {
-
 }
 
 
@@ -151,11 +150,16 @@ void AudDrv_Clk_On(void)
     {
         printk("-----------AudDrv_Clk_On, Aud_AFE_Clk_cntr:%d \n", Aud_AFE_Clk_cntr);
 #ifdef PM_MANAGER_API
+        if (enable_clock(MT_CG_INFRA_AUDIO, "AUDIO"))
+        {
+            printk(ANDROID_LOG_ERROR, "Sound", "Aud enable_clock MT_CG_INFRA_AUDIO fail !!!\n");
+        }
         if (enable_clock(MT_CG_AUDIO_AFE, "AUDIO"))
         {
-            xlog_printk(ANDROID_LOG_ERROR, "Sound", "Aud enable_clock MT_CG_AUDIO_AFE fail !!!\n");
+            printk(ANDROID_LOG_ERROR, "Sound", "Aud enable_clock MT_CG_AUDIO_AFE fail !!!\n");
         }
 #else
+        SetInfraCfg(AUDIO_CG_CLR, 0x2000000, 0x2000000); //bit 25=0, without 133m master and 66m slave bus clock cg gating
         Afe_Set_Reg(AUDIO_TOP_CON0, 0x4000, 0x06004044);
 #endif
     }
@@ -179,12 +183,16 @@ void AudDrv_Clk_Off(void)
 #ifdef PM_MANAGER_API
             if (disable_clock(MT_CG_AUDIO_AFE, "AUDIO"))
             {
-                xlog_printk(ANDROID_LOG_ERROR, "Sound", "disable_clock MT_CG_AUDIO_AFE fail");
+                printk(ANDROID_LOG_ERROR, "Sound", "disable_clock MT_CG_AUDIO_AFE fail");
+            }
+            if (disable_clock(MT_CG_INFRA_AUDIO, "AUDIO"))
+            {
+                printk(ANDROID_LOG_ERROR, "Sound", "disable_clock MT_CG_INFRA_AUDIO fail !!!\n");
             }
 #else
             Afe_Set_Reg(AUDIO_TOP_CON0, 0x06000044, 0x06000044);
+            SetInfraCfg(AUDIO_CG_SET, 0x2000000, 0x2000000); //bit25=1, with 133m mastesr and 66m slave bus clock cg gating
 #endif
-
         }
     }
     else if (Aud_AFE_Clk_cntr < 0)
@@ -301,7 +309,7 @@ void AudDrv_ADC2_Clk_On(void)
     if (Aud_ADC2_Clk_cntr == 0)
     {
         PRINTK_AUDDRV("+%s  enable_clock ADC clk(%x)\n", __func__, Aud_ADC2_Clk_cntr);
-#if 0 //K2 removed
+#if 0 //6752 removed
 #ifdef PM_MANAGER_API
         if (enable_clock(MT_CG_AUDIO_ADDA2, "AUDIO"))
         {
@@ -324,7 +332,7 @@ void AudDrv_ADC2_Clk_Off(void)
     if (Aud_ADC2_Clk_cntr == 0)
     {
         PRINTK_AUDDRV("+%s disable_clock ADC clk(%x)\n", __func__, Aud_ADC2_Clk_cntr);
-#if 0 //K2 removed		
+#if 0 //6752 removed		
 #ifdef PM_MANAGER_API
         if (disable_clock(MT_CG_AUDIO_ADDA2, "AUDIO"))
         {
@@ -362,7 +370,7 @@ void AudDrv_ADC3_Clk_On(void)
     if (Aud_ADC3_Clk_cntr == 0)
     {
         PRINTK_AUDDRV("+%s  enable_clock ADC clk(%x)\n", __func__, Aud_ADC3_Clk_cntr);
-#if 0 //K2 removed		
+#if 0 //6752 removed		
 #ifdef PM_MANAGER_API
         if (enable_clock(MT_CG_AUDIO_ADDA3, "AUDIO"))
         {
@@ -383,7 +391,7 @@ void AudDrv_ADC3_Clk_Off(void)
     if (Aud_ADC3_Clk_cntr == 0)
     {
         PRINTK_AUDDRV("+%s disable_clock ADC clk(%x)\n", __func__, Aud_ADC3_Clk_cntr);
-#if 0 //K2 removed		
+#if 0 //6752 removed		
 #ifdef PM_MANAGER_API
         if (disable_clock(MT_CG_AUDIO_ADDA3, "AUDIO"))
         {
@@ -675,7 +683,7 @@ void AudDrv_APLL2Tuner_Clk_On(void)
     if (Aud_APLL2_Tuner_cntr == 0)
     {
         PRINTK_AUD_CLK("+Aud_APLL2_Tuner_cntr, Aud_APLL2_Tuner_cntr:%d \n", Aud_APLL2_Tuner_cntr);
-        Afe_Set_Reg(AUDIO_TOP_CON0, 0x0 << 20, 0x1 << 20);
+        Afe_Set_Reg(AUDIO_TOP_CON0, 0x0 << 18, 0x1 << 18);
         Afe_Set_Reg(AFE_APLL2_TUNER_CFG, 0x00000033, 0x1 << 19);
         SetpllCfg(AP_PLL_CON5, 0x1<<1, 0x1<<1);
     }
@@ -690,7 +698,7 @@ void AudDrv_APLL2Tuner_Clk_Off(void)
     Aud_APLL2_Tuner_cntr--;
     if (Aud_APLL2_Tuner_cntr == 0)
     {
-        Afe_Set_Reg(AUDIO_TOP_CON0, 0x1 << 20, 0x1 << 20);
+        Afe_Set_Reg(AUDIO_TOP_CON0, 0x1 << 18, 0x1 << 18);
         SetpllCfg(AP_PLL_CON5, 0x0<<1, 0x1<<1);
     }
     // handle for clock error
@@ -761,7 +769,7 @@ void AudDrv_Suspend_Clk_Off(void)
         {
             if (disable_clock(MT_CG_AUDIO_AFE, "AUDIO"))
             {
-                xlog_printk(ANDROID_LOG_ERROR, "Sound", "Aud enable_clock MT_CG_AUDIO_AFE fail !!!\n");
+                printk(ANDROID_LOG_ERROR, "Sound", "Aud enable_clock MT_CG_AUDIO_AFE fail !!!\n");
             }
         }
         if (Aud_I2S_Clk_cntr > 0)
@@ -778,7 +786,7 @@ void AudDrv_Suspend_Clk_Off(void)
         }
         if (Aud_ADC2_Clk_cntr > 0)
         {
-        	#if 0 //K2 removed
+        	#if 0 //6752 removed
             if (disable_clock(MT_CG_AUDIO_ADDA2, "AUDIO"))
             {
                 PRINTK_AUD_CLK("%s fail", __func__);
@@ -787,7 +795,7 @@ void AudDrv_Suspend_Clk_Off(void)
         }
         if (Aud_ADC3_Clk_cntr > 0)
         {
-            #if 0 //K2 removed
+            #if 0 //6752 removed
             if (disable_clock(MT_CG_AUDIO_ADDA3, "AUDIO"))
             {
                 PRINTK_AUD_CLK("%s fail", __func__);
@@ -844,7 +852,7 @@ void AudDrv_Suspend_Clk_On(void)
         {
             if (enable_clock(MT_CG_AUDIO_AFE, "AUDIO"))
             {
-                xlog_printk(ANDROID_LOG_ERROR, "Sound", "Aud enable_clock MT_CG_AUDIO_AFE fail !!!\n");
+                printk(ANDROID_LOG_ERROR, "Sound", "Aud enable_clock MT_CG_AUDIO_AFE fail !!!\n");
             }
         }
         if (Aud_I2S_Clk_cntr > 0)
@@ -860,7 +868,7 @@ void AudDrv_Suspend_Clk_On(void)
         }
         if (Aud_ADC2_Clk_cntr > 0)
         {
-        	#if 0 //K2 removed
+        	#if 0 //6752 removed
             if (enable_clock(MT_CG_AUDIO_ADDA2, "AUDIO"))
             {
                 PRINTK_AUD_CLK("%s fail", __func__);
@@ -869,7 +877,7 @@ void AudDrv_Suspend_Clk_On(void)
         }
         if (Aud_ADC3_Clk_cntr > 0)
         {
-        	#if 0 //K2 removed	
+        	#if 0 //6752 removed	
             if (enable_clock(MT_CG_AUDIO_ADDA3, "AUDIO"))
             {
                 PRINTK_AUD_CLK("%s fail", __func__);

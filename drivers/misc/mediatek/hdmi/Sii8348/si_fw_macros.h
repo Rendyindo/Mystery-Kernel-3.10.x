@@ -9,8 +9,8 @@ modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation version 2.
 This program is distributed AS-IS WITHOUT ANY WARRANTY of any
 kind, whether express or implied; INCLUDING without the implied warranty
-of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See
-the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.
+of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See 
+the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.             
 
 */
 
@@ -30,6 +30,7 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #define SII_ASSERT(cond, ...)	\
 do {							\
 	if (!(cond)) {				\
+		printk(__VA_ARGS__);	\
 		BUG();					\
 	}							\
-} while (0)
+} while(0)

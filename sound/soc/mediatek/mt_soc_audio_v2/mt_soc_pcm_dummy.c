@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include "AudDrv_Common.h"
 #include "AudDrv_Def.h"
 #include "AudDrv_Afe.h"
@@ -214,6 +215,13 @@ static struct snd_soc_platform_driver mtk_soc_dummy_platform =
 static int mtk_dummy_probe(struct platform_device *pdev)
 {
     printk("mtk_dummy_probe\n");
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_DUMMY_PCM);
@@ -246,23 +254,36 @@ static int mtk_afedummy_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_pcm_dummy_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_dummy", },
+    {}
+};
+#endif
+
 static struct platform_driver mtk_afedummy_driver =
 {
     .driver = {
         .name = MT_SOC_DUMMY_PCM,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_dummy_of_ids,
+        #endif        
     },
     .probe = mtk_dummy_probe,
     .remove = mtk_afedummy_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtkafe_dummy_dev;
+#endif
 
 static int __init mtk_soc_dummy_platform_init(void)
 {
     int ret =0;
     printk("%s\n", __func__);
-
+    #ifndef CONFIG_OF
     soc_mtkafe_dummy_dev = platform_device_alloc(MT_SOC_DUMMY_PCM , -1);
     if (!soc_mtkafe_dummy_dev)
     {
@@ -275,7 +296,7 @@ static int __init mtk_soc_dummy_platform_init(void)
         platform_device_put(soc_mtkafe_dummy_dev);
         return ret;
     }
-
+    #endif
     ret = platform_driver_register(&mtk_afedummy_driver);
 
     return ret;

@@ -785,6 +785,15 @@ int mtd_is_partition(const struct mtd_info *mtd)
 }
 EXPORT_SYMBOL_GPL(mtd_is_partition);
 
+#ifdef CONFIG_MTK_MTD_NAND
+u64 mtd_partition_start_address(struct mtd_info *mtd)
+{
+	struct mtd_part *part = PART(mtd);
+	return part->offset;
+}
+EXPORT_SYMBOL_GPL(mtd_partition_start_address);
+#endif
+
 /* Returns the size of the entire flash chip */
 uint64_t mtd_get_device_size(const struct mtd_info *mtd)
 {

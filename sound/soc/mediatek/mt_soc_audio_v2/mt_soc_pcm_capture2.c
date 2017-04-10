@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include "AudDrv_Common.h"
 #include "AudDrv_Def.h"
 #include "AudDrv_Afe.h"
@@ -179,7 +180,7 @@ static int mtk_capture2_alsa_stop(struct snd_pcm_substream *substream)
     Vul_Block->u4DMAReadIdx  = 0;
     Vul_Block->u4WriteIdx  = 0;
     Vul_Block->u4DataRemained = 0;
-    RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_VUL_DATA2);
+    RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_VUL_DATA2, substream);
     return 0;
 }
 
@@ -190,22 +191,22 @@ static snd_pcm_uframes_t mtk_capture2_pcm_pointer(struct snd_pcm_substream *subs
     kal_int32 HW_Cur_ReadIdx = 0;
     kal_uint32 Frameidx =0;
     AFE_BLOCK_T *vul2_Block = &(VUL2_Control_context->rBlock);
-    printk("mtk_capture2_pcm_pointer vul2_Block->u4WriteIdx;= 0x%x \n", vul2_Block->u4WriteIdx);
+    PRINTK_AUD_UL2("mtk_capture2_pcm_pointer vul2_Block->u4WriteIdx;= 0x%x \n", vul2_Block->u4WriteIdx);
     if (VUL2_Control_context->interruptTrigger == 1)
     {
         // get total bytes to copysinewavetohdmi
         Frameidx =audio_bytes_to_frame(substream , vul2_Block->u4WriteIdx);
         return Frameidx;
 
-        HW_Cur_ReadIdx = Afe_Get_Reg(AFE_VUL_D2_CUR);
+        HW_Cur_ReadIdx = Align64ByteSize(Afe_Get_Reg(AFE_VUL_D2_CUR));
         if (HW_Cur_ReadIdx == 0)
         {
-            printk("[Auddrv] mtk_capture2_pcm_pointer  HW_Cur_ReadIdx ==0 \n");
+            PRINTK_AUD_UL2("[Auddrv] mtk_capture2_pcm_pointer  HW_Cur_ReadIdx ==0 \n");
             HW_Cur_ReadIdx = vul2_Block->pucPhysBufAddr;
         }
         HW_memory_index = (HW_Cur_ReadIdx - vul2_Block->pucPhysBufAddr);
         Previous_Hw_cur = HW_memory_index;
-        printk("[Auddrv] mtk_capture2_pcm_pointer =0x%x HW_memory_index = 0x%x\n", HW_Cur_ReadIdx, HW_memory_index);
+        PRINTK_AUD_UL2("[Auddrv] mtk_capture2_pcm_pointer =0x%x HW_memory_index = 0x%x\n", HW_Cur_ReadIdx, HW_memory_index);
         VUL2_Control_context->interruptTrigger = 0;
         return (HW_memory_index >> 2);
     }
@@ -388,7 +389,7 @@ static int mtk_capture2_pcm_copy(struct snd_pcm_substream *substream,
 
     PRINTK_AUD_UL2("mtk_capture2_pcm_copy pos = %lucount = %lu \n ", pos, count);
 
-    count =audio_frame_to_bytes(substream , count);    // get total bytes to copy
+    count = Align64ByteSize(audio_frame_to_bytes(substream , count));    // get total bytes to copy
 
     // check which memif nned to be write
     pVUL_MEM_ConTrol = VUL2_Control_context;
@@ -571,6 +572,13 @@ static struct snd_soc_platform_driver mtk_soc_platform =
 static int mtk_capture2_probe(struct platform_device *pdev)
 {
     printk("mtk_capture2_probe\n");
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (pdev->dev.dma_mask == NULL)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_UL2_PCM);
@@ -580,29 +588,18 @@ static int mtk_capture2_probe(struct platform_device *pdev)
     return snd_soc_register_platform(&pdev->dev,
                                      &mtk_soc_platform);
 }
-static u64 capture_pcm_dmamask = DMA_BIT_MASK(32);
 
 static int mtk_asoc_capture2_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-    struct snd_card *card = rtd->card->snd_card;
-    int ret = 0;
-    if (!card->dev->dma_mask)
-    {
-        card->dev->dma_mask = &capture_pcm_dmamask;
-    }
-    if (!card->dev->coherent_dma_mask)
-    {
-        card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
-    }
     printk("mtk_asoc_capture2_pcm_new \n");
-    return ret;
+    return 0;
 }
 
 
 static int mtk_afe_capture2_probe(struct snd_soc_platform *platform)
 {
     printk("mtk_afe_capture2_probe\n");
-    AudDrv_Allocate_mem_Buffer(Soc_Aud_Digital_Block_MEM_VUL_DATA2, UL2_MAX_BUFFER_SIZE);
+    AudDrv_Allocate_mem_Buffer(platform->dev, Soc_Aud_Digital_Block_MEM_VUL_DATA2, UL2_MAX_BUFFER_SIZE);
     Capture_dma_buf =  Get_Mem_Buffer(Soc_Aud_Digital_Block_MEM_VUL_DATA2);
     mAudioDigitalI2S =  kzalloc(sizeof(AudioDigtalI2S), GFP_KERNEL);
     return 0;
@@ -616,22 +613,36 @@ static int mtk_capture2_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_pcm_capture2_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_capture2", },
+    {}
+};
+#endif
+
 static struct platform_driver mtk_afe_capture2_driver =
 {
     .driver = {
         .name = MT_SOC_UL2_PCM,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_capture2_of_ids,
+        #endif          
     },
     .probe = mtk_capture2_probe,
     .remove = mtk_capture2_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtkafe_capture2_dev;
+#endif
 
 static int __init mtk_soc_capture2_platform_init(void)
 {
     int ret = 0;
     printk("%s\n", __func__);
+	#ifndef CONFIG_OF
     soc_mtkafe_capture2_dev = platform_device_alloc(MT_SOC_UL2_PCM, -1);
     if (!soc_mtkafe_capture2_dev)
     {
@@ -644,6 +655,7 @@ static int __init mtk_soc_capture2_platform_init(void)
         platform_device_put(soc_mtkafe_capture2_dev);
         return ret;
     }
+	#endif
 
     ret = platform_driver_register(&mtk_afe_capture2_driver);
     return ret;

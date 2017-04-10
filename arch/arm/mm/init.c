@@ -207,7 +207,7 @@ static void __init arm_bootmem_init(unsigned long start_pfn,
 
 #ifdef CONFIG_ZONE_DMA
 
-unsigned long arm_dma_zone_size __read_mostly;
+phys_addr_t arm_dma_zone_size __read_mostly;
 EXPORT_SYMBOL(arm_dma_zone_size);
 
 /*
@@ -385,6 +385,8 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 	/* reserve any platform specific memblock areas */
 	if (mdesc->reserve)
 		mdesc->reserve();
+	
+	early_init_fdt_scan_reserved_mem();
 
     //reserve for ion_carveout_heap
     if(ion_reserve && (&ion_drv_platform_data))

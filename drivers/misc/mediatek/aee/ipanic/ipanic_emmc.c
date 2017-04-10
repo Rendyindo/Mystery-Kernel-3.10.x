@@ -12,6 +12,7 @@ extern int card_dump_func_read(unsigned char *buf, unsigned int len, unsigned lo
 			       int dev);
 extern int card_dump_func_write(unsigned char *buf, unsigned int len, unsigned long long offset,
 				int dev);
+extern unsigned int reset_boot_up_device(int type); /* force to re-initialize the emmc host controller */
 
 char *ipanic_read_size(int off, int len)
 {
@@ -54,7 +55,7 @@ static u64 buf;
 void ipanic_msdc_init(void)
 {
 	bufsize = ALIGN(PAGE_SIZE, EMMC_BLOCK_SIZE);
-	buf = (u64) (int)kmalloc(bufsize, GFP_KERNEL);
+	buf = (u64)(unsigned long)kmalloc(bufsize, GFP_KERNEL);
 }
 EXPORT_SYMBOL(ipanic_msdc_init);
 
@@ -69,6 +70,8 @@ int ipanic_msdc_info(struct ipanic_header *iheader)
 		iheader = NULL;
 		return -1;
 	}
+	if (oops_in_progress)
+		reset_boot_up_device(0);
 	return 0;
 }
 EXPORT_SYMBOL(ipanic_msdc_info);
@@ -80,3 +83,4 @@ void ipanic_erase(void)
 	kfree(zero);
 }
 EXPORT_SYMBOL(ipanic_erase);
+

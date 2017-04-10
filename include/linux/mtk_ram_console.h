@@ -2,6 +2,7 @@
 #define __MTK_RAM_CONSOLE_H__
 
 #include <linux/console.h>
+#include <linux/pstore.h>
 
 typedef enum {
 	AEE_FIQ_STEP_FIQ_ISR_BASE = 1,
@@ -24,7 +25,8 @@ typedef enum {
 	AEE_FIQ_STEP_KE_WDT_LOG,
 	AEE_FIQ_STEP_KE_SCHED_DEBUG,
 	AEE_FIQ_STEP_KE_WDT_DONE,
-	AEE_FIQ_STEP_KE_IPANIC_START = 32,
+	AEE_FIQ_STEP_KE_IPANIC_DIE = 32,
+	AEE_FIQ_STEP_KE_IPANIC_START,
 	AEE_FIQ_STEP_KE_IPANIC_OOP_HEADER,
 	AEE_FIQ_STEP_KE_IPANIC_DETAIL,
 	AEE_FIQ_STEP_KE_IPANIC_CONSOLE,
@@ -36,6 +38,8 @@ typedef enum {
 	AEE_FIQ_STEP_KE_NESTED_PANIC = 64,
 } AEE_FIQ_STEP_NUM;
 
+extern struct pstore_info *psinfo;
+
 #ifdef CONFIG_MTK_RAM_CONSOLE
 extern int aee_rr_curr_fiq_step(void);
 extern void aee_rr_rec_fiq_step(u8 i);
@@ -45,11 +49,10 @@ extern void aee_rr_rec_last_irq_enter(int cpu, int irq, u64 j);
 extern void aee_rr_rec_last_irq_exit(int cpu, int irq, u64 j);
 extern void aee_rr_rec_last_sched_jiffies(int cpu, u64 j, const char *comm);
 extern void aee_rr_rec_hoplug(int cpu, u8 data1, u8 data2);
-
+extern void aee_rr_rec_hotplug(int cpu, u8 data1, u8 data2, unsigned long data3);
 extern void aee_sram_fiq_log(const char *msg);
 extern void ram_console_write(struct console *console, const char *s, unsigned int count);
 extern void aee_sram_fiq_save_bin(const char *buffer, size_t len);
-
 #ifdef CONFIG_MTK_EMMC_SUPPORT
 extern void last_kmsg_store_to_emmc(void);
 #endif
@@ -61,6 +64,15 @@ static inline int aee_rr_curr_fiq_step(void)
 }
 
 static inline void aee_rr_rec_fiq_step(u8 i)
+{
+}
+
+static inline unsigned int aee_rr_curr_exp_type(void)
+{
+	return 0;
+}
+
+static inline void aee_rr_rec_exp_type(unsigned int type)
 {
 }
 
@@ -88,6 +100,10 @@ static inline void aee_rr_rec_hoplug(int cpu, u8 data1, u8 data2)
 {
 }
 
+static inline void aee_rr_rec_hotplug(int cpu, u8 data1, u8 data2, unsigned long data3)
+{
+}
+
 static inline void aee_sram_fiq_log(const char *msg)
 {
 }
@@ -106,7 +122,23 @@ static inline void last_kmsg_store_to_emmc(void)
 }
 #endif
 
-#endif
+#endif /* CONFIG_MTK_RAM_CONSOLE */
 
+#ifdef CONFIG_MTK_AEE_IPANIC
+extern int ipanic_kmsg_write(unsigned int part, const char *buf, size_t size);
+extern int ipanic_kmsg_get_next(int *count, u64 *id, enum pstore_type_id *type, struct timespec *time,
+				  char **buf, struct pstore_info *psi);
+#else
+static inline int ipanic_kmsg_write(unsigned int part, const char *buf, size_t size)
+{
+	return 0;
+}
+
+static inline int ipanic_kmsg_get_next(int *count, u64 *id, enum pstore_type_id *type, struct timespec *time,
+				  char **buf, struct pstore_info *psi)
+{
+	return 0;
+}
+#endif /* CONFIG_MTK_AEE_IPANIC */
 
 #endif

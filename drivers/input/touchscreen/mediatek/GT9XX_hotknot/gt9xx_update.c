@@ -450,7 +450,7 @@ static u8 gup_enter_update_judge(st_fw_head *fw_head)
     }
     if (update_msg.fw_total_len != fw_len)
     {
-        GTP_ERROR("Inconsistent firmware size, Update aborted! Default size: %d(%dK), actual size: %d(%dK)", fw_len, fw_len/1024, update_msg.fw_total_len, update_msg.fw_total_len/1024);
+        //GTP_ERROR("Inconsistent firmware size, Update aborted! Default size: %d(%dK), actual size: %d(%dK)", fw_len, fw_len/1024, update_msg.fw_total_len, update_msg.fw_total_len/1024);
         return FAIL;
     }
     if ((update_msg.fw_total_len < 36*1024) || (update_msg.fw_total_len > 128*1024))
@@ -749,7 +749,7 @@ static u8 gup_check_update_file(struct i2c_client *client, st_fw_head *fw_head, 
     got_file_flag = 0x00;
     if (path)
     {
-        GTP_DEBUG("Update File path:%s, %d", path, strlen(path));
+        GTP_DEBUG("Update File path:%s, %zu", path, strlen(path));
         update_msg.file = filp_open(path, O_RDONLY, 0);
 
         if (IS_ERR(update_msg.file))
@@ -2274,6 +2274,10 @@ s32 gup_update_proc(void *dir)
 	}
 #endif
 
+#ifdef GTP_FORCE_UPDATE_FW_K92
+		ret = SUCCESS;
+#endif
+
 #if GTP_FORCE_UPDATE_FW
 		ret = SUCCESS;								//for test
 #endif
@@ -2760,7 +2764,7 @@ static s32 gup_prepare_fl_fw(char *path, st_fw_head *fw_head)
     update_msg.fw_total_len = update_msg.file->f_op->llseek(update_msg.file, 0, SEEK_END);
     if (sizeof(gtp_default_FW_fl) != update_msg.fw_total_len)
     {
-        GTP_ERROR("Inconsistent firmware size. File size: %d, default fw size: %d", update_msg.fw_total_len, sizeof(gtp_default_FW_fl));
+        //GTP_ERROR("Inconsistent firmware size. File size: %du, default fw size: %lu", update_msg.fw_total_len, sizeof(gtp_default_FW_fl));
         set_fs(update_msg.old_fs);
         _CLOSE_FILE(update_msg.file);
         return FAIL;

@@ -153,6 +153,7 @@ static struct i2c_driver mmc328x_i2c_driver = {
 };
 
 /*----------------------------------------------------------------------------*/
+#if 0
 static struct platform_driver mmc_sensor_driver = {
 	.probe      = mmc_probe,
 	.remove     = mmc_remove,    
@@ -161,7 +162,27 @@ static struct platform_driver mmc_sensor_driver = {
 		//.owner = THIS_MODULE,
 	}
 };
+#endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id mmc_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
+
+static struct platform_driver mmc_sensor_driver =
+{
+	.probe      = mmc_probe,
+	.remove     = mmc_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = mmc_of_match,
+		#endif
+	}
+};
 
 /*----------------------------------------------------------------------------*/
 static atomic_t dev_open_count;

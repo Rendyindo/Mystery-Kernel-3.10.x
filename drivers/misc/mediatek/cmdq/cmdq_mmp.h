@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #ifndef __CMDQ_MMP_H__
 #define __CMDQ_MMP_H__
 
@@ -32,6 +18,8 @@ typedef struct {
 	MMP_Event wait_task;
 	MMP_Event wait_thread;
 	MMP_Event MDP_reset;
+	MMP_Event thread_suspend;
+	MMP_Event thread_resume;
 } CMDQ_MMP_Events_t;
 
 void cmdq_mmp_init(void);

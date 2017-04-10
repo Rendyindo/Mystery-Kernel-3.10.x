@@ -135,6 +135,29 @@ int toi_expected_compression_ratio(void)
 	return ratio;
 }
 
+#ifdef CONFIG_TOI_ENHANCE
+/*
+ * toi_actual_compression_ratio
+ *
+ * Returns the actual compression ratio when saving the image.
+ */
+int toi_actual_compression_ratio(void)
+{
+	int ratio = 0;
+	struct toi_module_ops *this_module;
+
+	list_for_each_entry(this_module, &toi_modules, module_list) {
+		if (!this_module->enabled)
+			continue;
+		if (this_module->actual_compression)
+			ratio = this_module->actual_compression();
+	}
+
+	return ratio;
+}
+#endif /* CONFIG_TOI_ENHANCE */
+
+
 /* toi_find_module_given_dir
  * Functionality :	Return a module (if found), given a pointer
  *			to its directory name

@@ -31,6 +31,9 @@
 
 #include <mach/mt_gpio.h>
 #include <mach/mt_gpio_core.h>
+#ifndef CONFIG_MTK_FPGA
+#include <mach/gpio_const.h>
+#endif
 
 /***********************/
 struct mt_gpio_ops {
@@ -524,6 +527,9 @@ static long mt_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 static struct file_operations mt_gpio_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = mt_gpio_ioctl,
+	#ifdef CONFIG_COMPAT
+	.compat_ioctl   = mt_gpio_ioctl,
+	#endif
 	.open = mt_gpio_open,
 	.release = mt_gpio_release,
 };
@@ -629,6 +635,24 @@ static struct platform_driver gpio_driver = {
 #endif
 		},
 };
+
+#ifndef CONFIG_MTK_FPGA
+#ifdef CONFIG_OF
+struct device_node *get_gpio_np(void)
+{
+    gpio_vbase.gpio_regs = NULL;
+	struct device_node *np_gpio;
+	np_gpio = of_find_compatible_node(NULL, NULL, apgpio_of_ids[0].compatible);
+	if(np_gpio == NULL) {
+		GPIOERR("GPIO device node is NULL\n");
+		return NULL;
+	}
+    return np_gpio;
+}
+#endif
+#endif
+
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 static int __init mt_gpio_init(void)

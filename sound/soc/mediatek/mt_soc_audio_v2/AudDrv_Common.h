@@ -50,6 +50,7 @@
 #include <linux/xlog.h>
 #include <mach/mt_typedefs.h>
 #include "AudDrv_Def.h"
+#include <mach/mt_clkmgr.h>
 
 typedef struct
 {
@@ -61,17 +62,27 @@ typedef struct
    kal_uint32 u4SamplesPerInt;    // number of samples to play before interrupting
    kal_int32 u4WriteIdx;          // Previous Write Index.
    kal_int32 u4DMAReadIdx;        // Previous DMA Read Index.
+   kal_uint32 u4MaxCopySize;
    kal_uint32 u4fsyncflag;
    kal_uint32 uResetFlag;
 } AFE_BLOCK_T;
 
 typedef struct
 {
-   struct file *flip;
    struct snd_pcm_substream *substream;
+   volatile kal_uint32 u4MaxCopySize;
+   struct substreamList *next;
+}substreamList;
+
+
+typedef struct
+{
+   struct file *flip;
+   substreamList *substreamL;
    AFE_BLOCK_T    rBlock;
    kal_uint32   MemIfNum;
    bool interruptTrigger;
+   spinlock_t substream_lock;
 } AFE_MEM_CONTROL_T;
 
 struct pcm_afe_info

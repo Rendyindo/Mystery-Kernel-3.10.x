@@ -31,7 +31,12 @@ static const struct file_operations mt_##name##_fops = { \
 }
 
 #define BOOT_STR_SIZE 128
+#ifdef CONFIG_MT_ENG_BUILD
 #define BOOT_LOG_NUM 64
+#else
+#define BOOT_LOG_NUM 48
+#endif
+
 struct boot_log_struct {
 	u64 timestamp;
 	char event[BOOT_STR_SIZE];
@@ -39,9 +44,12 @@ struct boot_log_struct {
 int boot_log_count = 0;
 
 static DEFINE_MUTEX(mt_bootprof_lock);
-static int mt_bootprof_enabled;
-static int bootprof_lk_t = 0, bootprof_pl_t;
+static int mt_bootprof_enabled = 0;
+static int bootprof_lk_t = 0, bootprof_pl_t = 0;
 extern unsigned int gpt_boot_time(void);
+extern void mt_cputime_switch(int on);
+int boot_finish = 0;
+
 
 module_param_named(pl_t, bootprof_pl_t, int, S_IRUGO | S_IWUSR);
 module_param_named(lk_t, bootprof_lk_t, int, S_IRUGO | S_IWUSR);
@@ -79,7 +87,16 @@ void log_boot(char *str)
 		return;
 	ts = sched_clock();
 	pr_err("BOOTPROF:%10Ld.%06ld:%s\n", SPLIT_NS(ts), str);
-	if (boot_log_count >= BOOT_LOG_NUM) {
+	if(strncmp("BOOT_Animation:START", str, 20) == 0)
+	{
+		mt_cputime_switch(1);
+	}
+	if(strncmp("BOOT_Animation:END", str, 17) == 0)
+	{
+		mt_cputime_switch(0);
+	}
+    if(boot_log_count >= BOOT_LOG_NUM)
+	{
 		pr_err("[BOOTPROF] not enuough bootprof buffer\n");
 		return;
 	}
@@ -110,6 +127,7 @@ static void mt_bootprof_switch(int on)
 			mt_bootprof_enabled = 1;
 		} else {	/* boot up complete */
 			mt_bootprof_enabled = 0;
+			boot_finish = 1;
 			bootup_finish();
 		}
 	}
@@ -132,6 +150,7 @@ static ssize_t mt_bootprof_write(struct file *filp, const char *ubuf, size_t cnt
 			mt_bootprof_switch(0);
 		else if (buf[0] == '1')
 			mt_bootprof_switch(1);
+	return 1;
 	}
 
 	buf[copy_size] = 0;
@@ -151,8 +170,8 @@ static int mt_bootprof_show(struct seq_file *m, void *v)
 	if (bootprof_pl_t > 0 && bootprof_lk_t > 0) {
 		SEQ_printf(m, "%10d        : %s\n", bootprof_pl_t, "preloader");
 		SEQ_printf(m, "%10d        : %s\n", bootprof_lk_t, "lk");
-		//SEQ_printf(m, "%10d        : %s\n",
-		//	   gpt_boot_time() - bootprof_pl_t - bootprof_lk_t, "lk->Kernel");
+		SEQ_printf(m, "%10d        : %s\n",
+			   gpt_boot_time() - bootprof_pl_t - bootprof_lk_t, "lk->Kernel");
 		SEQ_printf(m, "----------------------------------------\n");
 	}
 

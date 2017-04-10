@@ -141,7 +141,7 @@ void toi_copy_pageset1(void)
 		struct page *origpage, *copypage;
 		int loop = (PAGE_SIZE / sizeof(unsigned long)) - 1, was_present1, was_present2;
 
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_ENHANCE
 		if (!pfn_valid(source_index) || !pfn_valid(dest_index)) {
 			pr_emerg("[%s] (%d) dest_index:%lu, source_index:%lu\n", __func__, i,
 				 dest_index, source_index);
@@ -324,7 +324,10 @@ int toi_atomic_restore(void)
  Failed:
 	free_pbe_list(&restore_pblist, 0);
 #ifdef CONFIG_HIGHMEM
-	free_pbe_list(&restore_highmem_pblist, 1);
+	pr_warn("[%s] 0x%p 0x%p 0x%p\n", __func__,
+			restore_highmem_pblist->address, restore_highmem_pblist->orig_address, restore_highmem_pblist->next);
+	if (restore_highmem_pblist->next != NULL)
+		free_pbe_list(&restore_highmem_pblist, 1);
 #endif
 	toi_running = 0;
 	return 1;

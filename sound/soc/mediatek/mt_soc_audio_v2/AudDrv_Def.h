@@ -48,8 +48,6 @@
 //#define DEBUG_AUD_DL1
 //#define DEBUG_AUD_DAI
 
-//#define K2_EARLYPORTING_PMIC_LOOPBACK //ccc K2 early porting
-
 #ifdef DEBUG_AUDDRV
 #define PRINTK_AUDDRV(format, args...) printk(format, ##args )
 #else
@@ -218,6 +216,8 @@
 #define MT_SOC_ADC2AWBDAI_NAME "mt-soc-adc2awb-driver"
 #define MT_SOC_IO2DAIDAI_NAME "mt-soc-io2dai-driver"
 #define MT_SOC_HP_IMPEDANCE_NAME "mt-soc-hpimpedancedai-driver"
+#define MT_SOC_FM_I2S_NAME "mt-soc-fmi2S-driver"
+#define MT_SOC_FM_I2S_CAPTURE_NAME "mt-soc-fmi2Scapturedai-driver"
 
 
 // platform name
@@ -252,6 +252,8 @@
 #define MT_SOC_MOD_ADCI2S_PCM "mt-soc-mod2adci2s-pcm"
 #define MT_SOC_ADC2_AWB_PCM "mt-soc-adc2awb-pcm"
 #define MT_SOC_IO2_DAI_PCM "mt-soc-io2dai-pcm"
+#define MT_SOC_FM_I2S_PCM  "mt-soc-fm-i2s-pcm"
+#define MT_SOC_FM_I2S_AWB_PCM  "mt-soc-fm-i2s-awb-pcm"
 
 
 //codec dai name
@@ -287,6 +289,8 @@
 #define MT_SOC_CODEC_MODADCI2S_DUMMY_DAI_NAME "mt-soc-mod2adci2s-dummy-dai-codec"
 #define MT_SOC_CODEC_ADC2AWB_DUMMY_DAI_NAME "mt-soc-adc2awb-dummy-dai-codec"
 #define MT_SOC_CODEC_IO2DAI_DUMMY_DAI_NAME "mt-soc-io2dai-dummy-dai-codec"
+#define MT_SOC_CODEC_FM_I2S_DUMMY_DAI_NAME "mt-soc-fm-i2s-dummy-dai-codec"
+#define MT_SOC_CODEC_FM_I2S_DAI_NAME "mt-soc-fm-i2s-dai-codec"
 
 // stream name
 #define MT_SOC_DL1_STREAM_NAME "MultiMedia1_PLayback"
@@ -320,6 +324,8 @@
 #define MT_SOC_MODADCI2S_STREAM_NAME "ANC_Debug_Record_MOD"
 #define MT_SOC_ADC2AWB_STREAM_NAME "ANC_Debug_Record_ADC2"
 #define MT_SOC_IO2DAI_STREAM_NAME "ANC_Debug_Record_IO2"
+#define MT_SOC_FM_I2S_PLAYBACK_STREAM_NAME "FM_I2S_Playback"
+#define MT_SOC_FM_I2S_CAPTURE_STREAM_NAME "FM_I2S_Capture"
 
 #endif
 

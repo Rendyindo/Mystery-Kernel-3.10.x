@@ -16,9 +16,11 @@
 #include <asm/memory.h>
 #include <asm/traps.h>
 #include <mach/fiq_smp_call.h>
-#include <mach/irqs.h>
 #include <mach/wd_api.h>
+#ifndef __aarch64__
 #include <mach/smp.h>
+#include <mach/irqs.h>
+#endif
 #include "aee-common.h"
 
 #undef WDT_DEBUG_VERBOSE
@@ -274,6 +276,7 @@ static void aee_wdt_dump_stack_bin(unsigned int cpu, unsigned long bottom, unsig
 }
 #endif				/* #ifdef CONFIG_FIQ_GLUE */
 
+extern void mrdump_mini_per_cpu_regs(int cpu, struct pt_regs *regs);
 /* save binary register and stack value into ram console */
 static void aee_save_reg_stack_sram(int cpu)
 {
@@ -315,6 +318,8 @@ static void aee_save_reg_stack_sram(int cpu)
 		}
 		aee_sram_fiq_log(str_buf);
 	}
+
+	mrdump_mini_per_cpu_regs(cpu, &regs_buffer_bin[cpu].regs);
 }
 
 #ifdef CONFIG_SMP
@@ -385,10 +390,13 @@ void aee_smp_send_stop(void)
 	int cpu = 0;
 
 	cpumask_copy(&mask, cpu_online_mask);
+#ifdef __aarch64__
+	smp_send_stop();
+#else
 	cpu = get_HW_cpuid();
 	cpumask_clear_cpu(cpu, &mask);
-	irq_raise_softirq(&mask, IPI_CPU_STOP);
-
+	//irq_raise_softirq(&mask, IPI_CPU_STOP);//FIXME : temporarily disable for atf project bring up
+#endif
 	/* Wait up to one second for other CPUs to stop */
 	timeout = USEC_PER_SEC;
 	while (num_online_cpus() > 1 && timeout--)
@@ -400,6 +408,7 @@ void aee_smp_send_stop(void)
 #endif				/* #ifdef CONFIG_FIQ_GLUE */
 #endif				/* #ifdef CONFIG_SMP */
 
+void aee_rr_rec_exp_type(unsigned int type);
 void aee_wdt_irq_info(void)
 {
 	unsigned long long t;
@@ -453,7 +462,7 @@ void aee_wdt_irq_info(void)
 	/* avoid lock prove to dump_stack in __debug_locks_off() */
 	xchg(&debug_locks, 0);
 	aee_rr_rec_fiq_step(AEE_FIQ_STEP_WDT_IRQ_DONE);
-
+	aee_rr_rec_exp_type(1);
 	BUG();
 }
 

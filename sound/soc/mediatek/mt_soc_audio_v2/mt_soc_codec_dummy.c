@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -339,30 +340,14 @@ static struct snd_soc_dai_driver dummy_6323_dai_codecs[] =
             .channels_min = 1,
             .channels_max = 8,
             .rates = SNDRV_PCM_RATE_8000_192000,
-            .formats = (SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 |
-            SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_S16_LE |
-            SNDRV_PCM_FMTBIT_U16_BE | SNDRV_PCM_FMTBIT_S16_BE |
-            SNDRV_PCM_FMTBIT_U24_LE | SNDRV_PCM_FMTBIT_S24_LE |
-            SNDRV_PCM_FMTBIT_U24_BE | SNDRV_PCM_FMTBIT_S24_BE |
-            SNDRV_PCM_FMTBIT_U24_3LE | SNDRV_PCM_FMTBIT_S24_3LE |
-            SNDRV_PCM_FMTBIT_U24_3BE | SNDRV_PCM_FMTBIT_S24_3BE |
-            SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_S32_LE |
-            SNDRV_PCM_FMTBIT_U32_BE | SNDRV_PCM_FMTBIT_S32_BE),
+            .formats = SND_SOC_ADV_MT_FMTS,
         },
         .capture = {
             .stream_name = MT_SOC_MRGRX_STREAM_NAME,
             .channels_min = 1,
             .channels_max = 8,
             .rates = SNDRV_PCM_RATE_8000_192000,
-            .formats = (SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 |
-            SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_S16_LE |
-            SNDRV_PCM_FMTBIT_U16_BE | SNDRV_PCM_FMTBIT_S16_BE |
-            SNDRV_PCM_FMTBIT_U24_LE | SNDRV_PCM_FMTBIT_S24_LE |
-            SNDRV_PCM_FMTBIT_U24_BE | SNDRV_PCM_FMTBIT_S24_BE |
-            SNDRV_PCM_FMTBIT_U24_3LE | SNDRV_PCM_FMTBIT_S24_3LE |
-            SNDRV_PCM_FMTBIT_U24_3BE | SNDRV_PCM_FMTBIT_S24_3BE |
-            SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_S32_LE |
-            SNDRV_PCM_FMTBIT_U32_BE | SNDRV_PCM_FMTBIT_S32_BE),
+            .formats = SND_SOC_ADV_MT_FMTS,
         },
     },
     {
@@ -493,6 +478,23 @@ static struct snd_soc_dai_driver dummy_6323_dai_codecs[] =
             SNDRV_PCM_FMTBIT_U32_BE | SNDRV_PCM_FMTBIT_S32_BE),
         },
     },
+    {
+        .name = MT_SOC_CODEC_FM_I2S_DUMMY_DAI_NAME,
+        .playback = {
+            .stream_name = MT_SOC_FM_I2S_PLAYBACK_STREAM_NAME,
+            .channels_min = 1,
+            .channels_max = 8,
+            .rates = SNDRV_PCM_RATE_8000_192000,
+            .formats = SND_SOC_ADV_MT_FMTS,
+        },
+        .capture = {
+            .stream_name = MT_SOC_FM_I2S_PLAYBACK_STREAM_NAME,
+            .channels_min = 1,
+            .channels_max = 8,
+            .rates = SNDRV_PCM_RATE_8000_192000,
+            .formats = SND_SOC_ADV_MT_FMTS,
+        },
+    },
 
 };
 
@@ -517,12 +519,18 @@ static struct snd_soc_codec_driver soc_mtk_codec =
 
 static int mtk_dummy_codec_dev_probe(struct platform_device *pdev)
 {
-    if (pdev->dev.of_node)
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (pdev->dev.dma_mask == NULL)
     {
-        dev_set_name(&pdev->dev, "%s.%d", "msm-stub-codec", 1);
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
     }
 
-    dev_err(&pdev->dev, "dev name %s\n", dev_name(&pdev->dev));
+    if (pdev->dev.of_node)
+    {
+        dev_set_name(&pdev->dev, "%s", MT_SOC_CODEC_DUMMY_NAME);
+    }
+
+    printk("%s: dev name %s\n", __func__, dev_name(&pdev->dev));
     return snd_soc_register_codec(&pdev->dev,
                                   &soc_mtk_codec, dummy_6323_dai_codecs, ARRAY_SIZE(dummy_6323_dai_codecs));
 }
@@ -535,22 +543,36 @@ static int mtk_dummy_codec_dev_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_codec_dummy_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_codec_dummy", },
+    {}
+};
+#endif
+
 static struct platform_driver mtk_codec_dummy_driver =
 {
     .driver = {
         .name = MT_SOC_CODEC_DUMMY_NAME,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_codec_dummy_of_ids,
+        #endif        
     },
     .probe  = mtk_dummy_codec_dev_probe,
     .remove = mtk_dummy_codec_dev_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtk_codec_dummy_dev;
+#endif
 
 static int __init mtk_dummy_codec_init(void)
 {
-    int ret = 0;
     printk("%s:\n", __func__);
+    #ifndef CONFIG_OF		
+    int ret = 0;
     soc_mtk_codec_dummy_dev = platform_device_alloc(MT_SOC_CODEC_DUMMY_NAME, -1);
     if (!soc_mtk_codec_dummy_dev)
     {
@@ -563,7 +585,7 @@ static int __init mtk_dummy_codec_init(void)
         platform_device_put(soc_mtk_codec_dummy_dev);
         return ret;
     }
-
+    #endif
     return platform_driver_register(&mtk_codec_dummy_driver);
 }
 module_init(mtk_dummy_codec_init);

@@ -248,9 +248,10 @@ struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	/* Change machine number to match the mdesc we're using */
 	__machine_arch_type = mdesc_best->nr;
 
-	if (mdesc_best->fixup) mdesc_best->fixup((void *)dt_root, &from, &meminfo);
-
-	strlcpy(boot_command_line, from, COMMAND_LINE_SIZE);
+	if (mdesc_best->fixup) {
+        mdesc_best->fixup((void *)dt_root, &from, &meminfo);
+        strlcpy(boot_command_line, from, COMMAND_LINE_SIZE);
+    }
 
 	return mdesc_best;
 }

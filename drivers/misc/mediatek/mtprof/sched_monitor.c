@@ -10,6 +10,7 @@
 #include <linux/pid.h>
 
 #include <linux/irq.h>
+#include <linux/irqnr.h>
 #include <linux/interrupt.h>
 
 #include <linux/mt_sched_mon.h>
@@ -75,7 +76,7 @@ void mt_sched_monitor_switch(int on);
 
 #define MT_DEBUG_ENTRY(name) \
 static int mt_##name##_show(struct seq_file *m, void *v);\
-static int mt_##name##_write(struct file *filp, const char *ubuf, size_t cnt, loff_t *data);\
+static ssize_t mt_##name##_write(struct file *filp, const char *ubuf, size_t cnt, loff_t *data);\
 static int mt_##name##_open(struct inode *inode, struct file *file) \
 { \
     return single_open(file, mt_##name##_show, inode->i_private); \
@@ -144,11 +145,15 @@ static void event_duration_check(struct sched_block_event *b)
 	switch (b->type) {
 	case evt_ISR:
 		if (t_dur > WARN_ISR_DUR) {
-			pr_err
+			pr_emerg
 			    ("[ISR DURATION WARN] IRQ[%d:%s], dur:%llu ns > %d ms,(s:%llu,e:%llu)\n",
 			     (int)b->last_event, isr_name(b->last_event), t_dur,
 			     WARN_ISR_DUR / 1000000, b->last_ts, b->last_te);
 		}
+        if(b->preempt_count != preempt_count()){
+            pr_debug("[ISR WARN]IRQ[%d:%s], Unbalanced Preempt Count:0x%x! Should be 0x%x\n",(int)b->last_event, isr_name(b->last_event), preempt_count(), b->preempt_count);
+        }
+
 		break;
 	case evt_SOFTIRQ:
 		if (t_dur > WARN_SOFTIRQ_DUR) {
@@ -167,6 +172,9 @@ static void event_duration_check(struct sched_block_event *b)
 				     b_isr->last_te);
 			}
 		}
+        if(b->preempt_count != preempt_count()){
+            pr_debug("[SOFTIRQ WARN] SoftIRQ:%d, Unbalanced Preempt Count:0x%x! Should be 0x%x\n",(int)b->last_event, preempt_count(), b->preempt_count);
+        }
 		break;
 	case evt_TASKLET:
 		if (t_dur > WARN_TASKLET_DUR) {
@@ -185,14 +193,20 @@ static void event_duration_check(struct sched_block_event *b)
 				     b_isr->last_te);
 			}
 		}
+        if(b->preempt_count != preempt_count()){
+            pr_debug("[TASKLET WARN] TASKLET:%pS, Unbalanced Preempt Count:0x%x! Should be 0x%x\n",(void *)b->last_event, preempt_count(), b->preempt_count);
+        }
 		break;
 	case evt_HRTIMER:
 		if (t_dur > WARN_HRTIMER_DUR) {
-			pr_err
+			pr_emerg
 			    ("[HRTIMER DURATION WARN] HRTIMER:%pS, dur:%llu ns > %d ms,(s:%llu,e:%llu)\n",
 			     (void *)b->last_event, t_dur, WARN_HRTIMER_DUR / 1000000, b->last_ts,
 			     b->last_te);
 		}
+        if(b->preempt_count != preempt_count()){
+            pr_debug("[HRTIMER WARN] HRTIMER:%pS, Unbalanced Preempt Count:0x%x! Should be 0x%x\n",(void *)b->last_event, preempt_count(), b->preempt_count);
+        }
 		break;
 	case evt_STIMER:
 		if (t_dur > WARN_STIMER_DUR) {
@@ -211,6 +225,9 @@ static void event_duration_check(struct sched_block_event *b)
 				     b_isr->last_te);
 			}
 		}
+        if(b->preempt_count != preempt_count()){
+            pr_debug("[STTIMER WARN] SoftTIMER:%pS, Unbalanced Preempt Count:0x%x! Should be 0x%x\n",(void *)b->last_event, preempt_count(), b->preempt_count);
+        }
 		break;
 
 	}
@@ -228,6 +245,7 @@ void mt_trace_ISR_start(int irq)
 	struct sched_block_event *b;
 	b = &__raw_get_cpu_var(ISR_mon);
 
+    b->preempt_count = preempt_count();
 	b->cur_ts = sched_clock();
 	b->cur_event = (unsigned long)irq;
 	aee_rr_rec_last_irq_enter(smp_processor_id(), irq, b->cur_ts);
@@ -261,6 +279,7 @@ void mt_trace_SoftIRQ_start(int sq_num)
 	struct sched_block_event *b;
 	b = &__raw_get_cpu_var(SoftIRQ_mon);
 
+    b->preempt_count = preempt_count();
 	b->cur_ts = sched_clock();
 	b->cur_event = (unsigned long)sq_num;
 }
@@ -292,6 +311,7 @@ void mt_trace_tasklet_start(void *func)
 	struct sched_block_event *b;
 	b = &__raw_get_cpu_var(tasklet_mon);
 
+    b->preempt_count = preempt_count();
 	b->cur_ts = sched_clock();
 	b->cur_event = (unsigned long)func;
 	b->cur_count++;
@@ -317,6 +337,7 @@ void mt_trace_hrt_start(void *func)
 	struct sched_block_event *b;
 	b = &__raw_get_cpu_var(hrt_mon);
 
+    b->preempt_count = preempt_count();
 	b->cur_ts = sched_clock();
 	b->cur_event = (unsigned long)func;
 	b->cur_count++;
@@ -342,6 +363,7 @@ void mt_trace_sft_start(void *func)
 	struct sched_block_event *b;
 	b = &__raw_get_cpu_var(sft_mon);
 
+    b->preempt_count = preempt_count();
 	b->cur_ts = sched_clock();
 	b->cur_event = (unsigned long)func;
 	b->cur_count++;
@@ -414,7 +436,7 @@ void MT_trace_irq_on(void)
 #include <linux/kernel_stat.h>
 #include <asm/hardirq.h>
 
-int mt_irq_count[NR_CPUS][NR_IRQS];
+int mt_irq_count[NR_CPUS][MAX_NR_IRQS];
 #ifdef CONFIG_SMP
 int mt_local_irq_count[NR_CPUS][NR_IPI];
 #endif
@@ -437,7 +459,7 @@ void mt_save_irq_counts(void)
 	}
 	mt_save_irq_count_time = sched_clock();
 	for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
-		for (irq = 0; irq < NR_IRQS; irq++) {
+		for (irq = 0; irq < nr_irqs && irq < MAX_NR_IRQS; irq++) {
 			mt_irq_count[cpu][irq] = kstat_irqs_cpu(irq, cpu);
 		}
 	}
@@ -513,9 +535,14 @@ void mt_save_irq_counts(void)
 #endif
  /**/
 #define TIME_3MS  3000000
+#define TIME_5MS  5000000
 #define TIME_10MS 10000000
 #define TIME_20MS 20000000
 #define TIME_1S   1000000000
+#define TIME_5S   1000000000
+#define TIME_30S  30000000000
+
+static unsigned long long t_threshold = TIME_5S;
 static DEFINE_PER_CPU(int, MT_tracing_cpu);
 static DEFINE_PER_CPU(unsigned long long, t_irq_on);
 static DEFINE_PER_CPU(unsigned long long, t_irq_off);
@@ -540,17 +567,17 @@ void MT_trace_hardirqs_on(void)
 			t_diff = t_on - t_off;
 
 			__raw_get_cpu_var(t_irq_on) = t_on;
-			if (t_diff > TIME_20MS) {
-				pr_err
+			if (t_diff > t_threshold) {
+				pr_emerg
 				    ("\n----------------------------[IRQ disable monitor]-------------------------\n");
-				pr_err
-				    ("[Sched Latency Warning:IRQ Disable too long(>20ms)] Duration: %lld.%lu ms (off:%lld.%lums, on:%lld.%lums)\n",
+				pr_emerg
+				    ("[Sched Latency Warning:IRQ Disable too long(>%lldms)] Duration: %lld.%lu ms (off:%lld.%lums, on:%lld.%lums)\n", nsec_high(t_threshold),
 				     SPLIT_NS(t_diff), SPLIT_NS(t_off), SPLIT_NS(t_on));
 				mt_dump_irq_off_traces();
-				pr_err("irq on at: %lld.%lu ms\n", SPLIT_NS(t_on));
-				pr_err("irq on backtraces:\n");
+				pr_emerg("irq on at: %lld.%lu ms\n", SPLIT_NS(t_on));
+				pr_emerg("irq on backtraces:\n");
 				dump_stack();
-				pr_err
+				pr_emerg
 				    ("--------------------------------------------------------------------------\n\n");
 			}
 			__raw_get_cpu_var(t_irq_off) = 0;
@@ -573,7 +600,7 @@ void MT_trace_hardirqs_off(void)
 			__raw_get_cpu_var(t_irq_off) = sched_clock();
 		}
 		__raw_get_cpu_var(MT_tracing_cpu) = 1;
-	}
+	} 
 }
 EXPORT_SYMBOL(MT_trace_hardirqs_off);
 
@@ -583,10 +610,10 @@ void mt_dump_irq_off_traces(void)
 	int i;
 	struct stack_trace *trace;
 	trace = &__raw_get_cpu_var(MT_stack_trace);
-	pr_err("irq off at:%lld.%lu ms\n", SPLIT_NS(__raw_get_cpu_var(TS_irq_off)));
-	pr_err("irq off backtraces:\n");
+	pr_emerg("irq off at:%lld.%lu ms\n", SPLIT_NS(__raw_get_cpu_var(TS_irq_off)));
+	pr_emerg("irq off backtraces:\n");
 	for (i = 0; i < trace->nr_entries; i++) {
-		pr_err("[<%pK>] %pS\n", (void *)trace->entries[i], (void *)trace->entries[i]);
+		pr_emerg("[<%pK>] %pS\n", (void *)trace->entries[i], (void *)trace->entries[i]);
 	}
 #endif
 }
@@ -656,7 +683,7 @@ void mt_sched_monitor_switch(int on)
 	preempt_disable_notrace();
 	mutex_lock(&mt_sched_mon_lock);
 	for_each_possible_cpu(cpu) {
-		pr_err("[mtprof] sched monitor on CPU#%d switch from %d to %d\n", cpu,
+		pr_emerg("[mtprof] sched monitor on CPU#%d switch from %d to %d\n", cpu,
 		       per_cpu(mtsched_mon_enabled, cpu), on);
 		per_cpu(mtsched_mon_enabled, cpu) = on;	/* 0x1 || 0x2, IRQ & Preempt */
 	}
@@ -671,7 +698,7 @@ static int __init init_mtsched_mon(void)
 	struct proc_dir_entry *pe;
 	for_each_possible_cpu(cpu) {
 		per_cpu(MT_stack_trace, cpu).entries =
-		    kmalloc(MAX_STACK_TRACE_DEPTH * 4, GFP_KERNEL);
+		    kmalloc(MAX_STACK_TRACE_DEPTH * sizeof(unsigned long), GFP_KERNEL);
 		per_cpu(MT_tracing_cpu, cpu) = 0;
 		per_cpu(mtsched_mon_enabled, cpu) = 0;	/* 0x1 || 0x2, IRQ & Preempt */
 
@@ -688,6 +715,8 @@ static int __init init_mtsched_mon(void)
 	pe = proc_create("mtmon/sched_mon", 0664, NULL, &mt_sched_monitor_fops);
 	if (!pe)
 		return -ENOMEM;
+
+//    mt_sched_monitor_switch(2);//enable irq disable monitor
 #endif
 	return 0;
 }

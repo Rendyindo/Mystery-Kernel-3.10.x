@@ -46,7 +46,7 @@
 #define mtkpasr_print(level, x...)			\
 	do {						\
 		if (mtkpasr_debug_level >= level)	\
-			pr_warn(x);			\
+			printk(KERN_CRIT x);		\
 	} while (0)
 
 #define MTKPASR		"MTKPASR"
@@ -61,7 +61,13 @@
 #endif
 
 /* This is an experimental value based on ARMv7 single core with 1.3 GHz! (Let the external decompression time be around 0.25s.) */
-#define MTKPASR_MAX_EXTCOMP	0x1FFF
+/* #define MTKPASR_MAX_EXTCOMP	0x1FFF */
+/* This is an experimental value based on ARMv7 single core with 1.1 GHz! (Let the external decompression time be around 0.05s.) */
+#ifndef CONFIG_64BIT
+#define MTKPASR_MAX_EXTCOMP	0x801
+#else
+#define MTKPASR_MAX_EXTCOMP	0x0
+#endif
 
 #define MTKPASR_FLUSH() do {				\
 				lru_add_drain_all();	\
@@ -84,7 +90,7 @@
 #define BANK_RANK(i)		(mtkpasr_banks[i].rank)
 
 /* Check whether there is any pending wakeup - (bool)*/
-#define CHECK_PENDING_WAKEUP	spm_check_wakeup_src()	/*pm_wakeup_pending() */
+#define CHECK_PENDING_WAKEUP	spm_check_wakeup_src()	/*pm_wakeup_pending()*/
 
 /* Kernel APIs */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
@@ -172,22 +178,22 @@ struct mtkpasr {
 /* For no-PASR-imposed banks */
 struct nopasr_bank {
 	unsigned long start_pfn;	/* The 1st pfn */
-	unsigned long end_pfn;	/* The pfn after the last valid one */
-	u32 inused;		/* The number of inuse pages or stands for SR OFF */
-	u32 segment;		/* Corresponding to which segment */
+	unsigned long end_pfn;		/* The pfn after the last valid one */
+	u32 inused;			/* The number of inuse pages or stands for SR OFF */
+	u32 segment;			/* Corresponding to which segment */
 };
 
 /* Bank information (1 PASR unit) */
 struct mtkpasr_bank {
 	unsigned long start_pfn;	/* The 1st pfn */
-	unsigned long end_pfn;	/* The pfn after the last valid one */
-	u32 inused;		/* The number of inuse pages or stands for SR OFF */
-	u32 valid_pages;	/* Valid pages in this bank */
-	void *rank;		/* Associated rank */
-	u32 segment;		/* Corresponding to which segment */
+	unsigned long end_pfn;		/* The pfn after the last valid one */
+	u32 inused;			/* The number of inuse pages or stands for SR OFF */
+	u32 valid_pages;		/* Valid pages in this bank */
+	void *rank;			/* Associated rank */
+	u32 segment;			/* Corresponding to which segment */
 #ifdef CONFIG_MTKPASR_MAFL
-	struct list_head mafl;	/* Mark it As Free by removing page blocks from buddy allocator to its List */
-	int inmafl;		/* Remaining count in mafl(in pages) */
+	struct list_head mafl;		/* Mark it As Free by removing page blocks from buddy allocator to its List */
+	int inmafl;			/* Remaining count in mafl(in pages) */
 #endif
 	union {
 		u32 comp_pos;
@@ -198,31 +204,31 @@ struct mtkpasr_bank {
 	};
 };
 
-#define MTKPASR_DPDON	0xFFFF	/* All banks belonging to it should be set as MTKPASR_RDPDON! */
+#define MTKPASR_DPDON	0xFFFF		/* All banks belonging to it should be set as MTKPASR_RDPDON! */
 /* Rank information (1 DPD unit) */
 struct mtkpasr_rank {
-	u16 start_bank;		/* The 1st bank */
-	u16 end_bank;		/* The last bank */
-	u16 hw_rank;		/* Corresponding to which hw rank */
-	u16 inused;		/* The number of inuse banks or stands for DPD ON */
+	u16 start_bank;			/* The 1st bank */
+	u16 end_bank;			/* The last bank */
+	u16 hw_rank;			/* Corresponding to which hw rank */
+	u16 inused;			/* The number of inuse banks or stands for DPD ON */
 };
 
 /* MTKPASR Status */
 enum mtkpasr_phase {
-	MTKPASR_OFF,		/* PASR is off */
-	MTKPASR_ENTERING,	/* Entering PASR. Do data compression on highmem inuse pages. */
-	MTKPASR_DISABLINGSR,	/* After entering PASR, disabling SR */
-	MTKPASR_RESTORING,	/* If there is any incoming ITR, then to terminate any on-going(Entering, Disabling SR) PASR */
-	MTKPASR_EXITING,	/* Exiting PASR. Do data decompression on highmem inuse pages. */
-	MTKPASR_ENABLINGSR,	/* Before exiting PASR, enabling SR */
-	MTKPASR_ON,		/* PASR is on */
-	MTKPASR_DPD_OFF,	/* DPD is off */
-	MTKPASR_DPD_ON,		/* DPD is on */
+	MTKPASR_OFF,			/* PASR is off */
+	MTKPASR_ENTERING,		/* Entering PASR. Do data compression on highmem inuse pages. */
+	MTKPASR_DISABLINGSR,		/* After entering PASR, disabling SR */
+	MTKPASR_RESTORING,		/* If there is any incoming ITR, then to terminate any on-going(Entering, Disabling SR) PASR */
+	MTKPASR_EXITING,		/* Exiting PASR. Do data decompression on highmem inuse pages. */
+	MTKPASR_ENABLINGSR,		/* Before exiting PASR, enabling SR */
+	MTKPASR_ON,			/* PASR is on */
+	MTKPASR_DPD_OFF,		/* DPD is off */
+	MTKPASR_DPD_ON,			/* DPD is on */
 	MTKPASR_PHASE_TOTAL,
 	MTKPASR_SUCCESS,
 	MTKPASR_FAIL,
-	MTKPASR_WRONG_STATE,	/* Wrong state! */
-	MTKPASR_GET_WAKEUP,	/* There exists a pending wakeup source during PASR flow! Another ret value is -EBUSY */
+	MTKPASR_WRONG_STATE,		/* Wrong state! */
+	MTKPASR_GET_WAKEUP,		/* There exists a pending wakeup source during PASR flow! Another ret value is -EBUSY */
 	MTKPASR_PHASE_ONE,
 	MTKPASR_PHASE_TWO,
 };
@@ -249,11 +255,9 @@ extern int mtkpasr_debug_level;
 /* MTKPASR preinit */
 /*-----------------*/
 /* Helper of constructing Memory (Virtual) Rank & Bank Information */
-extern int compute_valid_pasr_range(unsigned long *start_pfn, unsigned long *end_pfn,
-				    int *num_ranks);
+extern int compute_valid_pasr_range(unsigned long *start_pfn, unsigned long *end_pfn, int *num_ranks);
 /* Give bank, this function will return its (start_pfn, end_pfn) and corresponding rank */
-extern int __init query_bank_information(int bank, unsigned long *spfn, unsigned long *epfn,
-					 bool fully);
+extern int __init query_bank_information(int bank, unsigned long *spfn, unsigned long *epfn, bool fully);
 /* Translate sw bank to physical dram segment */
 extern u32 pasr_bank_to_segment(unsigned long start_pfn, unsigned long end_pfn);
 

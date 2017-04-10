@@ -35,8 +35,14 @@
 
 #ifdef CONFIG_MTK_SCHED_RQAVG_US
 struct rq_data rq_info;
+#ifdef CONFIG_MTK_SCHED_RQAVG_US_ENABLE_WQ
 struct workqueue_struct *rq_wq;
+#endif
 spinlock_t rq_lock;
+#endif
+
+#ifdef CONFIG_MT_LOAD_BALANCE_PROFILER
+#include <mtlbprof/mtlbprof.h>
 #endif
 
 /*
@@ -450,6 +456,9 @@ static void tick_nohz_stop_idle(int cpu, ktime_t now)
 
 	update_ts_time_stats(cpu, ts, now, NULL);
 	ts->idle_active = 0;
+#ifdef CONFIG_MT_LOAD_BALANCE_PROFILER
+	mt_lbprof_update_state(cpu, MT_LBPROF_NO_TASK_STATE);
+#endif
 
 	sched_clock_idle_wakeup_event(0);
 }
@@ -460,6 +469,9 @@ static ktime_t tick_nohz_start_idle(int cpu, struct tick_sched *ts)
 
 	ts->idle_entrytime = now;
 	ts->idle_active = 1;
+#ifdef CONFIG_MT_LOAD_BALANCE_PROFILER
+	mt_lbprof_update_state(cpu, MT_LBPROF_NO_TASK_STATE);
+#endif	
 
 	sched_clock_idle_sleep_event();
 	return now;
@@ -1122,6 +1134,7 @@ static void update_rq_stats(void)
     spin_unlock_irqrestore(&rq_lock, flags);
 }
 
+#ifdef CONFIG_MTK_SCHED_RQAVG_US_ENABLE_WQ
 static void wakeup_user(void)
 {
 	unsigned long jiffy_gap;
@@ -1133,6 +1146,8 @@ static void wakeup_user(void)
 		queue_work(rq_wq, &rq_info.def_timer_work);
 	}
 }
+#endif /* CONFIG_MTK_SCHED_RQAVG_US_ENABLE_WQ */
+
 #endif /* CONFIG_MTK_SCHED_RQAVG_US */
 /*
  * We rearm the timer until we get disabled by the idle code.
@@ -1162,10 +1177,12 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
 			 */
 			update_rq_stats();
 
+#ifdef CONFIG_MTK_SCHED_RQAVG_US_ENABLE_WQ
 			/*
 			 * wakeup user if needed
 			 */
 			wakeup_user();
+#endif /* CONFIG_MTK_SCHED_RQAVG_US_ENABLE_WQ */
 		}
 #endif /* CONFIG_MTK_SCHED_RQAVG_US */
 
@@ -1236,7 +1253,8 @@ void tick_cancel_sched_timer(int cpu)
 		hrtimer_cancel(&ts->sched_timer);
 # endif
 
-	memset(ts, 0, sizeof(*ts));
+	//memset(ts, 0, sizeof(*ts)); /*to avoid idle time clear to 0 after CPU plug off*/
+	ts->nohz_mode = NOHZ_MODE_INACTIVE;
 }
 #endif
 

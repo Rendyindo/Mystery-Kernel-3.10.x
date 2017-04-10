@@ -66,101 +66,17 @@
 #include <mach/pmic_mt6325_sw.h>
 #include "mt_soc_pcm_common.h"
 
-static DEFINE_MUTEX(Speaker_Ctrl_Mutex);
-static DEFINE_SPINLOCK(Speaker_lock);
-
-static int Speaker_Counter = 0;
-static bool  Speaker_Trim_init = false;
+//static DEFINE_MUTEX(Speaker_Ctrl_Mutex);
+//static DEFINE_SPINLOCK(Speaker_lock);
+//static int Speaker_Counter = 0;
+//static bool  Speaker_Trim_init = false;
 
 extern kal_uint32 mt6332_upmu_get_swcid(void);
-
-static bool EnableBoost()
-{
-    return true;
-}
-
-static void BoostOpen(void)
-{
-    printk("BoostOpen\n");
-    if (EnableBoost() == false)
-    {
-        return ;
-    }
-#if 0 //K2 removed
-    //Ana_Set_Reg(0x809a,  0x6025, 0x002a); // clk enable
-    ///Ana_Set_Reg(SPK_TOP_CKPDN_CON1_CLR,  0x0002, 0xffff); // clk enable
-    mt6332_OpenBoost4Audio();
-    Ana_Set_Reg(0x853a,  0x0000, 0xffff); // VSBST_CON8  , 1 enable
-    Ana_Set_Reg(0x8536,  0x0000, 0xffff); // VSBST_CON6
-    Ana_Set_Reg(0x8532,  0x01c0, 0xffff); // VSBST_CON4
-    Ana_Set_Reg(0x80b2,  0x03ff, 0xffff);
-    Ana_Set_Reg(0x854a,  0x0000, 0xffff);
-    Ana_Set_Reg(0x854a,  0x0001, 0xffff);
-    Ana_Set_Reg(0x854c,  0x0001, 0xffff);
-
-    Ana_Set_Reg(0x8542,  0x0040, 0xffff); //  VSBST_CON12
-    Ana_Set_Reg(0x854e,  0x0008, 0xffff);
-    Ana_Set_Reg(0x853e,  0x0021, 0x0021); //  VSBST_CON10 , 1 enable
-    // wiat for boost ready
-    msleep(30);
-    Ana_Set_Reg(0x854e,  0x0000, 0xffff);
-#endif
-}
-
-static void BoostClose(void)
-{
-    printk("BoostClose\n");
-#if 0 //K2 removed
-    Ana_Set_Reg(0x853e,  0x0020, 0xffff); //  VSBST_CON10 , 1 enable
-    msleep(30);
-    Ana_Set_Reg(SPK_TOP_CKPDN_CON1_SET,  0x0002, 0xffff); // clk enable
-#endif
-}
-
-static void Enable_Speaker_Clk(bool benable)
-{
-    if (benable)
-    {
-        Speaker_Counter++;
-#if 0 //K2 removed
-        Ana_Set_Reg(SPK_TOP_CKPDN_CON0_CLR, 0x000e, 0xffff);
-        if (mt6332_upmu_get_swcid() == PMIC6332_E1_CID_CODE)
-        {
-            //Ana_Set_Reg(0x8552,  0x0005, 0xffff);
-        }
-#endif
-    }
-    else
-    {
-        Speaker_Counter--;
-#if 0 //K2 removed
-        Ana_Set_Reg(SPK_TOP_CKPDN_CON0_SET, 0x000e, 0xffff);
-#endif
-    }
-}
 
 void Speaker_ClassD_Open(void)
 {
     kal_uint32 i, SPKTrimReg = 0;
     printk("%s\n", __func__);
-#if 0
-    BoostOpen();
-    Enable_Speaker_Clk(true);
-    Ana_Set_Reg(SPK_CON2,  0x0404, 0xffff);
-    Ana_Set_Reg(SPK_CON9,  0x0a00, 0xffff);
-    Ana_Set_Reg(SPK_CON13, 0x1900, 0xffff);
-    if (Speaker_Trim_init == false)
-    {
-        Ana_Set_Reg(SPK_CON0,  0x3000, 0xffff);
-        Ana_Set_Reg(SPK_CON0,  0x3408, 0xffff);
-        Ana_Set_Reg(SPK_CON0,  0x3409, 0xffff);
-        msleep(20);
-        Ana_Set_Reg(SPK_CON13, 0x0100, 0xff00);
-        Speaker_Trim_init = true;
-    }
-    Ana_Set_Reg(SPK_CON0,  0x3000, 0xffff);
-    Ana_Set_Reg(SPK_CON0,  0x3001, 0xffff);
-#else //K2
     // spk trim
     Ana_Set_Reg(SPK_CON7, 0x4531, 0xffff); //TD1,TD2,TD3 for trim (related with trim waiting time)
     Ana_Set_Reg(SPK_CON0, 0x3008, 0xffff);//Set to class D mode, set 0dB amplifier gain,  enable trim function
@@ -189,22 +105,15 @@ void Speaker_ClassD_Open(void)
 
     // spk amp gain fixed at 0dB
     Ana_Set_Reg(SPK_CON0, 0x3001, 0xffff); //set 0dB amplifier gain
-#endif
 }
 
 void Speaker_ClassD_close(void)
 {
     printk("%s\n", __func__);
-#if 0
-    Ana_Set_Reg(SPK_CON0,  0x0000, 0xffff);
-    BoostClose();
-    Enable_Speaker_Clk(false);
-#else //K2 TODO
     Ana_Set_Reg(SPK_CON9, 0x2A00, 0xffff); //Set Vcm high PSRR mode
     Ana_Set_Reg(SPK_ANA_CON0, 0x5000, 0xffff); //Set 12dB PGA gain(level when trimming)
     Ana_Set_Reg(SPK_CON0, 0x3001, 0xffff); //set 0dB amp gain(level when trimming)
     Ana_Set_Reg(SPK_CON0, 0x3000, 0xffff); //amp L-ch disable
-#endif
 }
 
 
@@ -212,25 +121,6 @@ void Speaker_ClassAB_Open(void)
 {
     kal_uint32 i, SPKTrimReg = 0;
     printk("%s\n", __func__);
-#if 0
-    BoostOpen();
-    Enable_Speaker_Clk(true);
-    Ana_Set_Reg(SPK_CON2,  0x0204, 0xffff);
-    Ana_Set_Reg(SPK_CON9,  0x0a00, 0xffff);
-    if (Speaker_Trim_init == false)
-    {
-        Ana_Set_Reg(SPK_CON13, 0x3B00, 0xffff);
-        Ana_Set_Reg(SPK_CON0,  0x3000, 0xffff);
-        Ana_Set_Reg(SPK_CON0,  0x3408, 0xffff);
-        msleep(5);
-        Ana_Set_Reg(SPK_CON0,  0x3409, 0xffff);
-        msleep(20);
-        Speaker_Trim_init = true;
-    }
-    Ana_Set_Reg(SPK_CON13, 0x2300, 0xff00);
-    Ana_Set_Reg(SPK_CON0,  0x3000, 0xffff);
-    Ana_Set_Reg(SPK_CON0,  0x3005, 0xffff);
-#else //K2
     // spk trim
     Ana_Set_Reg(SPK_CON7, 0x4531, 0xffff); //TD1,TD2,TD3 for trim (related with trim waiting time)
     Ana_Set_Reg(SPK_CON0, 0x1008, 0xffff);//Set to class D mode, set -6dB amplifier gain,  enable trim function
@@ -244,7 +134,12 @@ void Speaker_ClassAB_Open(void)
     {
         udelay(1000); //wait 10ms for trimming
     }
-    Ana_Set_Reg(SPK_CON0, 0x1005, 0xffff); //Turn off trim,(set to class AB mode)
+    
+    Ana_Set_Reg(SPK_CON0, 0x1001, 0xffff); //Turn off trim
+    Ana_Set_Reg(SPK_CON0, 0x1000, 0xffff); //Turn off spk_en
+    Ana_Set_Reg(SPK_CON0, 0x1004, 0xffff); // set to class AB mode
+    Ana_Set_Reg(SPK_CON0, 0x1005, 0xffff); // Turn on spk_en
+    
     Ana_Set_Reg(SPK_CON13, 0x0000, 0xffff); //Clock from Saw-tooth to Triangular wave
 
     SPKTrimReg = Ana_Get_Reg(SPK_CON1);
@@ -259,42 +154,20 @@ void Speaker_ClassAB_Open(void)
 
     // spk amp gain fixed at 0dB
     Ana_Set_Reg(SPK_CON0, 0x3005, 0xffff); //set 0dB amplifier gain
-#endif
 }
 
 void Speaker_ClassAB_close(void)
 {
     printk("%s\n", __func__);
-#if 0
-    BoostClose();
-    Ana_Set_Reg(SPK_CON0,  0x0000, 0xffff);
-    Enable_Speaker_Clk(false);
-#else
     Ana_Set_Reg(SPK_CON9, 0x2100, 0xffff); //Set Vcm high PSRR mode
     Ana_Set_Reg(SPK_ANA_CON0, 0x0800, 0xffff); //Set 0dB PGA gain(level when trimming)
     Ana_Set_Reg(SPK_CON0, 0x1005, 0xffff); //set -6dB amp gain(level when trimming)
     Ana_Set_Reg(SPK_CON0, 0x1004, 0xffff); //amp L-ch disable
-#endif
 }
 
 void Speaker_ReveiverMode_Open(void)
 {
     printk("%s\n", __func__);
-#if 0
-    BoostOpen();
-    Enable_Speaker_Clk(true);
-    Ana_Set_Reg(SPK_CON2,  0x0204, 0xffff);
-    Ana_Set_Reg(SPK_CON9,  0x0a00, 0xffff);
-    Ana_Set_Reg(SPK_CON13, 0x1B00, 0xffff);
-
-    Ana_Set_Reg(SPK_CON0,  0x1000, 0xffff);
-    Ana_Set_Reg(SPK_CON0,  0x1408, 0xffff);
-    Ana_Set_Reg(SPK_CON0,  0x1409, 0xffff);
-    msleep(20);
-    Ana_Set_Reg(SPK_CON13, 0x0300, 0xff00);
-    Ana_Set_Reg(SPK_CON0,  0x1000, 0xffff);
-    Ana_Set_Reg(SPK_CON0,  0x1005, 0xffff);
-#else //K2
     Ana_Set_Reg(SPK_CON0, 0x1304, 0xffff); //Enable thermal_shout_down, OC_shout_down. Set class AB mode, -6dB amp gain
     Ana_Set_Reg(SPK_CON2, 0x02A4, 0xffff); //Turn on OC function, set SPK PGA in DCC mode
     Ana_Set_Reg(SPK_CON9, 0x2100, 0xffff); //Set Fast Vcm mode
@@ -302,22 +175,14 @@ void Speaker_ReveiverMode_Open(void)
     Ana_Set_Reg(SPK_CON0, 0x1305, 0xffff); //Turn on speaker
     udelay(2000);
     Ana_Set_Reg(SPK_CON9, 0x0100, 0xffff); //Set Vcm high PSRR mode
-#endif
 }
 
 void Speaker_ReveiverMode_close(void)
 {
-#if 0
-    printk("%s\n", __func__);
-    Ana_Set_Reg(SPK_CON0,  0x0000, 0xffff);
-    BoostClose();
-    Enable_Speaker_Clk(false);
-#else //K2
     Ana_Set_Reg(SPK_CON9, 0x2000, 0xffff); //speaker L PGA gain control: mute
     Ana_Set_Reg(SPK_CON2, 0x0014, 0xffff); //Turn off OC function
     Ana_Set_Reg(SPK_ANA_CON0, 0x0, 0xffff); //Set mute PGA gain
     Ana_Set_Reg(SPK_CON0, 0x0, 0xffff); //set mute amp gain, amp L-ch disable
-#endif
 }
 
 bool GetSpeakerOcFlag(void)

@@ -128,6 +128,24 @@ static int emd_cfifo_writeable(cfifo_instance_t    *cfifo_instance)
     return size;
 }
 
+static int emd_cfifo_reset(cfifo_instance_t *cfifo_instance)
+{
+	int ret = 0;
+	if (cfifo_instance)
+	{
+    	*(cfifo_instance->shared_mem.rx_control.read) = 0;
+    	*(cfifo_instance->shared_mem.rx_control.write) = 0;
+		memset(cfifo_instance->shared_mem.rx_control.buffer, 0, *(cfifo_instance->shared_mem.rx_control.length));
+	}
+	else
+	{
+		EMD_MSG_INF("cfifo","cfifo null when try to reset\n");
+		ret = -EFAULT;
+	}
+	return ret;
+}
+
+
 static ssize_t emd_cfifo_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
     cfifo_instance_t *cfifo_instance=(cfifo_instance_t *)file->private_data;
@@ -218,7 +236,7 @@ static ssize_t emd_cfifo_read(struct file *file, char *buf, size_t count, loff_t
         wake_up_interruptible_poll(&cfifo_instance->other_side->poll_waitq_w,POLLOUT);
     }
     
-    EMD_MSG_INF("cfifo","emd_cfifo%d_read: ret=%d\n",cfifo_instance->idx,ret);
+    EMD_MSG_DBG("cfifo","emd_cfifo%d_read: ret=%d\n",cfifo_instance->idx,ret);
 out:
 
     return ret;
@@ -237,6 +255,10 @@ static ssize_t emd_cfifo_write(struct file *file, const char __user *buf, size_t
     {   
         EMD_MSG_INF("cfifo","emd_cfifo_write: count=0\n");   
         return 0;
+    }
+    if(!is_traffic_on(0))
+    {
+    	return -ENODEV;
     }
     mutex_lock(&cfifo_instance->emd_cfifo_mutex);
 
@@ -337,14 +359,29 @@ out:
             request_wakeup_md_timeout(1, 1);
         }
     }
-    EMD_MSG_INF("cfifo","emd_cfifo%d_write: ret=%d\n",cfifo_instance->idx,ret);
+    EMD_MSG_DBG("cfifo","emd_cfifo%d_write: ret=%d\n",cfifo_instance->idx,ret);
     return ret;
 }
 
+#define CCCI_IOC_MAGIC 'C'
+#define CCCI_IOC_RESET_CFIFO         _IO(CCCI_IOC_MAGIC, 203)	/*Reset cfifo, used by factory to avoid md boot trace impact*/
 
 static long emd_cfifo_ioctl( struct file *file, unsigned int cmd, unsigned long arg)
 {
-    int                ret = 0;
+	cfifo_instance_t *cfifo_instance=(cfifo_instance_t *)file->private_data;
+    int ret = 0;
+
+	switch (cmd) {
+	case CCCI_IOC_RESET_CFIFO:
+        EMD_MSG_INF("chr", "reset buffer ioctl called by %s\n", current->comm);
+        emd_cfifo_reset(cfifo_instance);
+        break;
+		
+	default:
+		EMD_MSG_INF("chr", "unsupported ioctl called by %s\n", current->comm);
+		break;
+	}
+
     return ret;
 }
 

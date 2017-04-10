@@ -161,11 +161,10 @@ static irqreturn_t sport_uart_rx_irq(int irq, void *dev_id)
 		if (!uart_handle_sysrq_char(&up->port, ch))
 			tty_insert_flip_char(port, ch, TTY_NORMAL);
 	}
-
-	spin_unlock(&up->port.lock);
-
 	/* XXX this won't deadlock with lowlat? */
 	tty_flip_buffer_push(port);
+
+	spin_unlock(&up->port.lock);
 
 	return IRQ_HANDLED;
 }
@@ -767,8 +766,7 @@ static int sport_uart_probe(struct platform_device *pdev)
 		}
 
 		ret = peripheral_request_list(
-			(unsigned short *)dev_get_platdata(&pdev->dev),
-			DRV_NAME);
+			(unsigned short *)pdev->dev.platform_data, DRV_NAME);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"Fail to request SPORT peripherals\n");
@@ -845,7 +843,7 @@ out_error_unmap:
 		iounmap(sport->port.membase);
 out_error_free_peripherals:
 		peripheral_free_list(
-			(unsigned short *)dev_get_platdata(&pdev->dev));
+			(unsigned short *)pdev->dev.platform_data);
 out_error_free_mem:
 		kfree(sport);
 		bfin_sport_uart_ports[pdev->id] = NULL;
@@ -865,7 +863,7 @@ static int sport_uart_remove(struct platform_device *pdev)
 		uart_remove_one_port(&sport_uart_reg, &sport->port);
 		iounmap(sport->port.membase);
 		peripheral_free_list(
-			(unsigned short *)dev_get_platdata(&pdev->dev));
+			(unsigned short *)pdev->dev.platform_data);
 		kfree(sport);
 		bfin_sport_uart_ports[pdev->id] = NULL;
 	}
@@ -885,7 +883,7 @@ static struct platform_driver sport_uart_driver = {
 };
 
 #ifdef CONFIG_SERIAL_BFIN_SPORT_CONSOLE
-static struct early_platform_driver early_sport_uart_driver __initdata = {
+static __initdata struct early_platform_driver early_sport_uart_driver = {
 	.class_str = CLASS_BFIN_SPORT_CONSOLE,
 	.pdrv = &sport_uart_driver,
 	.requested_id = EARLY_PLATFORM_ID_UNSET,

@@ -80,6 +80,9 @@ struct toi_module_ops {
 	int header_requested, header_used;
 
 	int (*expected_compression) (void);
+#ifdef CONFIG_TOI_ENHANCE
+    int (*actual_compression) (void);
+#endif
 
 	/*
 	 * Debug info
@@ -187,6 +190,9 @@ extern long toi_header_storage_for_modules(void);
 extern long toi_memory_for_modules(int print_parts);
 extern void print_toi_header_storage_for_modules(void);
 extern int toi_expected_compression_ratio(void);
+#ifdef CONFIG_TOI_ENHANCE
+extern int toi_actual_compression_ratio(void);
+#endif
 
 extern int toi_print_module_debug_info(char *buffer, int buffer_size);
 extern int toi_register_module(struct toi_module_ops *module);

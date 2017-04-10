@@ -18,7 +18,6 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
-#include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -29,7 +28,6 @@
 #include <board-custom.h>
 #include <linux/seq_file.h>
 
-#include "mach/mt_freqhopping.h"
 #include "mach/mt_fhreg.h"
 
 #include <linux/xlog.h> //ccyeh: for 6572
@@ -318,6 +316,7 @@ static ssize_t freqhopping_userdefine_proc_write(struct file *file, const char *
 		}
 	}
 
+    FH_MSG("Exit: %s",__func__);
 	return count;
 }
 
@@ -534,6 +533,10 @@ static ssize_t freqhopping_debug_proc_write(struct file *file, const char *buffe
 	if (cmd < FH_CMD_INTERNAL_MAX_CMD) {
 		mt_freqhopping_ioctl(NULL,cmd,(unsigned long)(&fh_ctl));
 	}
+    else if((cmd > FH_DCTL_CMD_ID) && (cmd < FH_DCTL_CMD_MAX))
+    {
+        mt_freqhopping_devctl(cmd, &fh_ctl);   
+    }
 	else {
 		FH_MSG("CMD error!");
 	}
@@ -651,16 +654,16 @@ static int freqhopping_debug_proc_init(void)
 
 		/* /proc/freqhopping/dramc */
 		//prDramcEntry = create_proc_entry("dramc",  S_IRUGO | S_IWUSR | S_IWGRP, fh_proc_dir);
-		prDramcEntry = proc_create("dramc",  S_IRUGO | S_IWUSR | S_IWGRP, fh_proc_dir, &dramc_fops);
-		if(prDramcEntry)
-		{
+		//prDramcEntry = proc_create("dramc",  S_IRUGO | S_IWUSR | S_IWGRP, fh_proc_dir, &dramc_fops);
+		//if(prDramcEntry)
+		//{
 			//prDramcEntry->read_proc  = g_p_fh_hal_drv->proc.dramc_read;
 			//prDramcEntry->write_proc = g_p_fh_hal_drv->proc.dramc_write;
-			FH_MSG("[%s]: successfully create /proc/freqhopping/prDramcEntry", __func__);
-		}else{
-			FH_MSG("[%s]: failed to create /proc/freqhopping/prDramcEntry", __func__);
-			return 1;
-		}
+		//	FH_MSG("[%s]: successfully create /proc/freqhopping/prDramcEntry", __func__);
+		//}else{
+		//	FH_MSG("[%s]: failed to create /proc/freqhopping/prDramcEntry", __func__);
+		//	return 1;
+		//}
 		/* /proc/freqhopping/dvfs */
 		//prDramcEntry = create_proc_entry("dvfs",  S_IRUGO | S_IWUSR | S_IWGRP, fh_proc_dir);
 		prDramcEntry = proc_create("dvfs",  S_IRUGO | S_IWUSR | S_IWGRP, fh_proc_dir, &dvfs_fops);
@@ -735,54 +738,66 @@ static int freqhopping_debug_proc_init(void)
 }
 
 #if defined(DISABLE_FREQ_HOPPING)
-void mt_fh_popod_save(void){}
-EXPORT_SYMBOL(mt_fh_popod_save);
-
-void mt_fh_popod_restore(void){}
-EXPORT_SYMBOL(mt_fh_popod_restore);
-
-int freqhopping_config(unsigned int pll_id, unsigned long vco_freq, unsigned int enable){return 0;}
-EXPORT_SYMBOL(freqhopping_config);
-
-int mt_l2h_mempll(void){return 0;}
-EXPORT_SYMBOL(mt_l2h_mempll);
-
-int mt_h2l_mempll(void){return 0;}
-EXPORT_SYMBOL(mt_h2l_mempll);
-
-int mt_dfs_armpll(unsigned int current_freq, unsigned int target_dds){return 0;}
-EXPORT_SYMBOL(mt_dfs_armpll);
-
-int mt_dfs_mmpll(unsigned int target_dds){	return 0;}
-EXPORT_SYMBOL(mt_dfs_mmpll);
-
-int mt_dfs_vencpll(unsigned int target_dds){return 0;}
-EXPORT_SYMBOL(mt_dfs_vencpll);
-
-int mt_is_support_DFS_mode(void){return 0;}
-EXPORT_SYMBOL(mt_is_support_DFS_mode);
-
-int mt_l2h_dvfs_mempll(void){return 0;}
-EXPORT_SYMBOL(mt_l2h_dvfs_mempll);
-
-int mt_h2l_dvfs_mempll(void){return 0;}
-EXPORT_SYMBOL(mt_h2l_dvfs_mempll);
-
-int mt_fh_dram_overclock(int clk){return 0;}
-EXPORT_SYMBOL(mt_fh_dram_overclock);
-
-int mt_fh_get_dramc(void){return 0;}
-EXPORT_SYMBOL(mt_fh_get_dramc);
-
-void mt_freqhopping_init(void){}
-EXPORT_SYMBOL(mt_freqhopping_init);
-
-void mt_freqhopping_pll_init(void){}
-EXPORT_SYMBOL(mt_freqhopping_pll_init);
-
+		void mt_fh_popod_save(void){}
+		EXPORT_SYMBOL(mt_fh_popod_save);
+		
+		void mt_fh_popod_restore(void){}
+		EXPORT_SYMBOL(mt_fh_popod_restore);
+		
+		int freqhopping_config(unsigned int pll_id, unsigned long vco_freq, unsigned int enable){return 0;}
+		EXPORT_SYMBOL(freqhopping_config);
+		
+		int mt_l2h_mempll(void){return 0;}
+		EXPORT_SYMBOL(mt_l2h_mempll);
+		
+		int mt_h2l_mempll(void){return 0;}
+		EXPORT_SYMBOL(mt_h2l_mempll);
+		
+		int mt_dfs_armpll(unsigned int current_freq, unsigned int target_dds){return 0;}
+		EXPORT_SYMBOL(mt_dfs_armpll);
+		
+		int mt_dfs_mmpll(unsigned int target_dds){	return 0;}
+		EXPORT_SYMBOL(mt_dfs_mmpll);
+		
+		int mt_dfs_vencpll(unsigned int target_dds){return 0;}
+		EXPORT_SYMBOL(mt_dfs_vencpll);
+		
+		int mt_dfs_mpll(unsigned int target_dds){return 0;}
+		EXPORT_SYMBOL(mt_dfs_mpll);
+		
+		int mt_is_support_DFS_mode(void){return 0;}
+		EXPORT_SYMBOL(mt_is_support_DFS_mode);
+		
+		int mt_l2h_dvfs_mempll(void){return 0;}
+		EXPORT_SYMBOL(mt_l2h_dvfs_mempll);
+		
+		int mt_h2l_dvfs_mempll(void){return 0;}
+		EXPORT_SYMBOL(mt_h2l_dvfs_mempll);
+		
+		int mt_fh_dram_overclock(int clk){return 0;}
+		EXPORT_SYMBOL(mt_fh_dram_overclock);
+		
+		int mt_fh_get_dramc(void){return 0;}
+		EXPORT_SYMBOL(mt_fh_get_dramc);
+		
+		void mt_freqhopping_init(void){}
+		EXPORT_SYMBOL(mt_freqhopping_init);
+		
+		void mt_freqhopping_pll_init(void){}
+		EXPORT_SYMBOL(mt_freqhopping_pll_init);
+		
+		int mt_freqhopping_devctl(unsigned int cmd, void* args){return 0;}   
+		EXPORT_SYMBOL(mt_freqhopping_devctl);
+		
 #else
+
 void mt_fh_popod_save(void)
 {
+	if(!g_p_fh_hal_drv)
+	{
+		FH_MSG("[%s]: g_p_fh_hal_drv is uninitialized.", __func__);	
+    return;
+	}	
 	FH_MSG("EN: %s",__func__);
 
 	g_p_fh_hal_drv->mt_fh_popod_save();
@@ -791,6 +806,12 @@ EXPORT_SYMBOL(mt_fh_popod_save);
 
 void mt_fh_popod_restore(void)
 {
+	if(!g_p_fh_hal_drv)
+	{
+		FH_MSG("[%s]: g_p_fh_hal_drv is uninitialized.", __func__);	
+    return;
+	}	
+		
 	FH_MSG("EN: %s",__func__);
 
 	g_p_fh_hal_drv->mt_fh_popod_restore();
@@ -838,11 +859,12 @@ int freqhopping_config(unsigned int pll_id, unsigned long vco_freq, unsigned int
 
 	g_p_fh_hal_drv->mt_fh_unlock(&flags);
 
-	if(skip_flag)
-		FH_MSG("-fh,skip");
+	//if(skip_flag)
+		//FH_MSG("-fh,skip");
 
 	return 0;
 }
+
 EXPORT_SYMBOL(freqhopping_config);
 
 
@@ -860,19 +882,63 @@ EXPORT_SYMBOL(mt_h2l_mempll);
 
 int mt_dfs_armpll(unsigned int current_freq, unsigned int target_dds)
 {
+	if(!g_p_fh_hal_drv)
+	{
+		FH_MSG("[%s]: g_p_fh_hal_drv is uninitialized.", __func__);	
+		return 1;
+	}
+		
 	return(g_p_fh_hal_drv->mt_dfs_armpll(current_freq, target_dds));
 }
 EXPORT_SYMBOL(mt_dfs_armpll);
 int mt_dfs_mmpll(unsigned int target_dds)
 {
+	if(!g_p_fh_hal_drv)
+	{
+		FH_MSG("[%s]: g_p_fh_hal_drv is uninitialized.", __func__);	
+		return 1;
+	}		
 	return(g_p_fh_hal_drv->mt_dfs_mmpll(target_dds));
 }
 EXPORT_SYMBOL(mt_dfs_mmpll);
 int mt_dfs_vencpll(unsigned int target_dds)
 {
+	if(!g_p_fh_hal_drv)
+	{
+		FH_MSG("[%s]: g_p_fh_hal_drv is uninitialized.", __func__);	
+		return 1;
+	}
+			
 	return(g_p_fh_hal_drv->mt_dfs_vencpll(target_dds));
 }
 EXPORT_SYMBOL(mt_dfs_vencpll);
+
+int mt_dfs_mpll(unsigned int target_dds)
+{
+	if((!g_p_fh_hal_drv) || (!g_p_fh_hal_drv->mt_dfs_mpll))
+	{
+		FH_MSG("[%s]: g_p_fh_hal_drv is uninitialized.", __func__);	
+		return 1;
+	}
+			
+	return(g_p_fh_hal_drv->mt_dfs_mpll(target_dds));
+
+}
+EXPORT_SYMBOL(mt_dfs_mpll);
+
+int mt_dfs_mempll(unsigned int target_dds)
+{
+	if((!g_p_fh_hal_drv) || (!g_p_fh_hal_drv->mt_dfs_mempll))
+	{
+		FH_MSG("[%s]: g_p_fh_hal_drv or g_p_fh_hal_drv->mt_dfs_mempll is uninitialized.", __func__);	
+		return 1;
+	}
+			
+	return(g_p_fh_hal_drv->mt_dfs_mempll(target_dds));
+
+}
+EXPORT_SYMBOL(mt_dfs_mempll);
+
 
 int mt_is_support_DFS_mode(void)
 {
@@ -881,12 +947,23 @@ int mt_is_support_DFS_mode(void)
 EXPORT_SYMBOL(mt_is_support_DFS_mode);
 int mt_l2h_dvfs_mempll(void)
 {
+	if(!g_p_fh_hal_drv)
+	{
+		FH_MSG("[%s]: g_p_fh_hal_drv is uninitialized.", __func__);	
+		return 1;
+	}		
 	return(g_p_fh_hal_drv->mt_l2h_dvfs_mempll());
 }
 EXPORT_SYMBOL(mt_l2h_dvfs_mempll);
 
 int mt_h2l_dvfs_mempll(void)
 {
+	if(!g_p_fh_hal_drv)
+	{
+		FH_MSG("[%s]: g_p_fh_hal_drv is uninitialized.", __func__);	
+		return 1;
+	}	
+			
 	return(g_p_fh_hal_drv->mt_h2l_dvfs_mempll());
 }
 EXPORT_SYMBOL(mt_h2l_dvfs_mempll);
@@ -904,8 +981,8 @@ EXPORT_SYMBOL(mt_fh_get_dramc);
 
 void mt_freqhopping_init(void)
 {
-	g_p_fh_hal_drv 		= mt_get_fh_hal_drv();
-
+	g_p_fh_hal_drv 		= mt_get_fh_hal_drv();		
+	
 	g_p_fh_hal_drv->mt_fh_hal_init();
 
 	g_fh_drv_pll   		= g_p_fh_hal_drv->fh_pll;
@@ -924,4 +1001,18 @@ void mt_freqhopping_pll_init(void)
 	g_p_fh_hal_drv->mt_fh_default_conf();
 }
 EXPORT_SYMBOL(mt_freqhopping_pll_init);
+
+int mt_freqhopping_devctl(unsigned int cmd, void* args)
+{
+    if(!g_p_fh_hal_drv) 
+    {
+        return 1;
+    }
+    
+	g_p_fh_hal_drv->ioctl(cmd, args);
+    return 0;
+    
+}
+EXPORT_SYMBOL(mt_freqhopping_devctl);
+
 #endif

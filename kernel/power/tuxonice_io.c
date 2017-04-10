@@ -865,6 +865,10 @@ static int do_rw_loop(int write, int finish_at, struct memory_bitmap *pageflags,
 			       "do?\nFinish at = %d. io_count = %d.\n",
 			       finish_at, atomic_read(&io_count));
 			printk(KERN_INFO "I/O bitmap still records work to do." "%ld.\n", next);
+			hib_err("Finish at = %d. io_count = %d. next: %lu\n", finish_at, atomic_read(&io_count), next);
+#ifdef CONFIG_TOI_FIXUP
+			HIB_SHOW_MEMINFO();
+#endif
 			BUG();
 			do {
 				cpu_relax();
@@ -1187,6 +1191,13 @@ static int read_module_configs(void)
 
 static inline int save_fs_info(struct fs_info *fs, struct block_device *bdev)
 {
+#ifdef CONFIG_TOI_ENHANCE
+	char buf[BDEVNAME_SIZE];
+
+	bdevname(bdev, buf);
+	if (!toi_ignore_late_initcall() && strstr(buf, "dm-"))
+		return 0;
+#endif
 	return (!fs || IS_ERR(fs) || !fs->last_mount_size) ? 0 : 1;
 }
 
@@ -1475,37 +1486,6 @@ static DECLARE_WAIT_QUEUE_HEAD(freeze_wait);
 
 static int freeze_result;
 
-#ifdef CONFIG_MTK_HIBERNATION
-static DECLARE_WAIT_QUEUE_HEAD(mmc_rescan_wait);
-static bool mmc_rescan_done;
-
-void mmc_rescan_wait_finish(void)
-{
-	if (mmc_rescan_done == true)
-		return;
-	mmc_rescan_done = true;
-	wake_up(&mmc_rescan_wait);
-	pr_warn("[%s] done\n", __func__);
-}
-EXPORT_SYMBOL_GPL(mmc_rescan_wait_finish);
-
-static int mmc_rescan_ready(void)
-{
-	int result = 0;
-
-	/* for hibernation boot-up, mmc rescan job MUST finish before trap_non_toi_io sets to 1. */
-	/* or mmc rescan may call submit_bio()after trap_non_toi_io sets to 1, which will induce BUG_ON() in submit_bio() !! */
-	wait_event_timeout(mmc_rescan_wait, mmc_rescan_done == true, 5 * HZ);
-	if (mmc_rescan_done == false) {
-		pr_warn("[%s] wait mmc rescan partition timeout !!\n", __func__);
-		abort_hibernate(TOI_FAILED_IO, "Failed to wait mmc rescan ready.");
-		return -EIO;
-	}
-	/* ///////// */
-	return result;
-}
-#endif				/* CONFIG_MTK_HIBERNATION */
-
 static void do_freeze(struct work_struct *dummy)
 {
 	freeze_result = freeze_processes();
@@ -1650,13 +1630,6 @@ static int __read_pageset1(void)
 		       "failed. Refusing to corrupt your filesystems!\n");
 		goto out_remove_image;
 	}
-#ifdef CONFIG_MTK_HIBERNATION
-	if (mmc_rescan_ready()) {
-		printk(KERN_EMERG "TuxOnIce: MMC rescan partition is not "
-		       "ready. Refusing to corrupt your filesystems!\n");
-		goto out_remove_image;
-	}
-#endif				/* CONFIG_MTK_HIBERNATION */
 
 	/* Read module configurations */
 	result = read_module_configs();

@@ -20,15 +20,23 @@ config SUSPEND_FREEZER
 
 config HAS_WAKELOCK
 	bool
-	default y
+	default y if MTK_LEGACY
+	default n if !MTK_LEGACY
 
 config HAS_EARLYSUSPEND
 	bool
+	default y if MTK_LEGACY
+	default n if !MTK_LEGACY
+
+config HAS_SBSUSPEND
+	bool
+	depends on HAS_EARLYSUSPEND
 	default y
 
 config WAKELOCK
 	bool
-	default y
+	default y if MTK_LEGACY
+	default n if !MTK_LEGACY
 
 config EARLYSUSPEND
 	bool "Early suspend"
@@ -400,6 +408,14 @@ config TOI_EXPORTS
 config TOI_ZRAM_SUPPORT
 	def_bool y
 	depends on TOI && ZRAM!=n
+
+config TOI_FIXUP
+        def_bool y
+        depends on TOI
+
+config TOI_ENHANCE
+        def_bool y
+        depends on TOI
 
 config PM_SLEEP
 	def_bool y

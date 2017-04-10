@@ -1434,12 +1434,35 @@ static int ami_remove(struct platform_device *pdev)
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+#if 0
 static struct platform_driver ami_sensor_driver = {
 	.probe      = ami_probe,
 	.remove     = ami_remove,    
 	.driver     = {
 		.name  = "msensor",
 //		.owner = THIS_MODULE,
+	}
+};
+
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id ami_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
+
+static struct platform_driver ami_sensor_driver =
+{
+	.probe      = ami_probe,
+	.remove     = ami_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = ami_of_match,
+		#endif
 	}
 };
 

@@ -69,9 +69,9 @@ module_param(lock_stat, int, 0644);
 
 static void lockdep_aee(void)
 {
-//    char aee_str[40];
- //   sprintf( aee_str, "[%s]LockProve Warning", current->comm);
-  //  aee_kernel_warning( aee_str,"LockProve Debug\n");
+    char aee_str[40];
+    snprintf( aee_str, 40, "[%s]LockProve Warning", current->comm);
+    aee_kernel_warning_api(__FILE__, __LINE__, DB_OPT_DUMMY_DUMP | DB_OPT_FTRACE, aee_str,"LockProve Debug\n");
 
 }
 
@@ -562,6 +562,9 @@ static void print_lock(struct held_lock *hlock)
         print_lock_name(lock);
         printk(", at: ");
         print_ip_sym(hlock->acquire_ip);
+#ifdef CONFIG_LOCK_STAT
+		printk("hold time: %lld.\n", hlock->holdtime_stamp);
+#endif
     }
 }
 
@@ -1163,8 +1166,9 @@ print_circular_bug_header(struct lock_list *entry, unsigned int depth,
 	if (debug_locks_silent)
 		return 0;
     //Add by Mtk
-    lockdep_aee();
-
+    if(depth < 5){
+    	lockdep_aee();
+    }
 	printk("\n");
 	printk("======================================================\n");
 	printk("[ ProveLock INFO: possible circular locking dependency detected ]\n");
@@ -3624,6 +3628,7 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (unlikely(current->lockdep_recursion))
 		return;
 
+
 	raw_local_irq_save(flags);
 	check_flags(flags);
 
@@ -3645,6 +3650,7 @@ void lock_release(struct lockdep_map *lock, int nested,
 
 	if (unlikely(current->lockdep_recursion))
 		return;
+
 
 	raw_local_irq_save(flags);
 	check_flags(flags);
@@ -4135,6 +4141,9 @@ static void print_held_locks_bug(void)
 		return;
 	if (debug_locks_silent)
 		return;
+	printk("[ ProveLock BUG: %s/%d still has locks held! ]\n",
+			   current->comm, task_pid_nr(current));
+	return;
 
     //Add by Mtk
     lockdep_aee();

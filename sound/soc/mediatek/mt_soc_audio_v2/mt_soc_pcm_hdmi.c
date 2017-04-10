@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include "AudDrv_Common.h"
 #include "AudDrv_Def.h"
 #include "AudDrv_Afe.h"
@@ -104,10 +105,11 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/pcm.h>
-#include <asm/mach-types.h>
+//#include <asm/mach-types.h>
 #endif
 
 //information about
+
 static AFE_MEM_CONTROL_T *pMemControl = NULL;
 static bool fake_buffer = 1;
 
@@ -441,7 +443,7 @@ static int Audio_hdmi_SideGen_Set(struct snd_kcontrol *kcontrol, struct snd_ctl_
         SetTDMLrckInverse(false);
         SetTDMBckInverse(false);
 
-		#if 0 // K2 removed
+		#if 0 // 6752 removed
         Afe_Set_Reg(AFE_TDM_CON2, 0, 0x0000000f); // tmp    0: Channel starts from O30/O31.
         Afe_Set_Reg(AFE_TDM_CON2, 1 << 4, 0x000000f0); // tmp    1: Channel starts from O32/O33.
         Afe_Set_Reg(AFE_TDM_CON2, 2 << 8, 0x00000f00); // tmp    2: Channel starts from O34/O35.
@@ -519,7 +521,7 @@ static int mtk_pcm_hdmi_stop(struct snd_pcm_substream *substream)
     SetMemoryPathEnable(Soc_Aud_Digital_Block_MEM_HDMI, false);
 
 #ifdef _DEBUG_TDM_KERNEL_
-    #if 0 // K2 removed
+    #if 0 // 6752 removed
     Afe_Set_Reg(AFE_TDM_CON2, 0, 0x00010000); // disable TDM to I2S path
     #endif
     Afe_Set_Reg(AFE_I2S_CON, 0, 0x00000001); // I2S disable
@@ -529,7 +531,7 @@ static int mtk_pcm_hdmi_stop(struct snd_pcm_substream *substream)
     SetHDMIEnable(false);
     Afe_Set_Reg(AUDIO_TOP_CON0, 0 << 20,  1 << 20); //  disable HDMI CK
     EnableAfe(false);
-    RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_HDMI);
+    RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_HDMI, substream);
 
 
     Afe_Block->u4DMAReadIdx  = 0;
@@ -550,7 +552,7 @@ static snd_pcm_uframes_t mtk_pcm_hdmi_pointer(struct snd_pcm_substream *substrea
 
     if (pMemControl->interruptTrigger == 1)
     {
-    	#if 0 // K2 removed
+    	#if 0 // 6752 removed
         HW_Cur_ReadIdx = Afe_Get_Reg(AFE_HDMI_CUR);
 		#endif
         if (HW_Cur_ReadIdx == 0)
@@ -588,7 +590,7 @@ static void SetHDMIBuffer(struct snd_pcm_substream *substream,
     pblock->uResetFlag      = true;
     PRINTK_AUD_HDMI("%s dma_bytes = %d dma_area = %p dma_addr = 0x%x\n", __func__, pblock->u4BufferSize, pblock->pucVirtBufAddr, pblock->pucPhysBufAddr);
 
-	#if 0 // K2 removed
+	#if 0 // 6752 removed
     Afe_Set_Reg(AFE_HDMI_BASE , pblock->pucPhysBufAddr , 0xffffffff);
     Afe_Set_Reg(AFE_HDMI_END  , pblock->pucPhysBufAddr + (pblock->u4BufferSize - 1), 0xffffffff);
 
@@ -802,7 +804,7 @@ static int mtk_pcm_hdmi_prepare(struct snd_pcm_substream *substream)
 
     // SET hdmi channels , samplerate and formats
 
-    if (runtime->format == SNDRV_PCM_FMTBIT_S32 || runtime->format == SNDRV_PCM_FMTBIT_U32)
+    if (runtime->format == SNDRV_PCM_FORMAT_S32_LE || runtime->format == SNDRV_PCM_FORMAT_U32_LE)
     {
 
         PRINTK_AUD_HDMI("mtk_pcm_hdmi_prepare 32bit \n ");
@@ -865,11 +867,11 @@ static int mtk_pcm_hdmi_start(struct snd_pcm_substream *substream)
     kal_uint32 volatile u4tmpValue;
     kal_uint32 volatile u4tmpValue1;
     kal_uint32 volatile u4tmpValue2;
-//    uint32 u32AudioI2S = 0;
+    //uint32 u32AudioI2S = 0;
 
     SetMemifSubStream(Soc_Aud_Digital_Block_MEM_HDMI, substream);
 
-    #if 0 // K2 removed
+    #if 0 // 6752 removed
     Afe_Set_Reg(AFE_TDM_CON2, 0, 0x0000000f); // tmp    0: Channel starts from O30/O31.
     Afe_Set_Reg(AFE_TDM_CON2, 1 << 4, 0x000000f0); // tmp    1: Channel starts from O32/O33.
     Afe_Set_Reg(AFE_TDM_CON2, 2 << 8, 0x00000f00); // tmp    2: Channel starts from O34/O35.
@@ -902,7 +904,7 @@ static int mtk_pcm_hdmi_start(struct snd_pcm_substream *substream)
     Afe_Set_Reg(AUDIO_TOP_CON1, 1,  0x00000002 ); // I2S_SOFT_Reset
     Afe_Set_Reg(AUDIO_TOP_CON1, 0,  0x00000002 ); // I2S_SOFT_Reset
 
-    #if 0 // K2 removed
+    #if 0 // 6752 removed
     Afe_Set_Reg(AFE_TDM_CON2, 0, 0x00060000); //  select loopback sdata0
     Afe_Set_Reg(AFE_TDM_CON2, 1, 0x00010000); // enable TDM to I2S path
     #endif
@@ -988,7 +990,6 @@ static int mtk_pcm_hdmi_copy(struct snd_pcm_substream *substream,
     unsigned long flags;
     char *data_w_ptr = (char *)dst;
     count = count << 2;
-//    int i;
 
     // check which memif nned to be write
     Afe_Block = &(pMemControl->rBlock);
@@ -996,8 +997,8 @@ static int mtk_pcm_hdmi_copy(struct snd_pcm_substream *substream,
 
     // handle for buffer management
 
-  //  PRINTK_AUD_HDMI("[mtk_pcm_hdmi_copy] count = %d WriteIdx=%x, ReadIdx=%x, DataRemained=%x \n",
-   //         count, Afe_Block->u4WriteIdx, Afe_Block->u4DMAReadIdx, Afe_Block->u4DataRemained);
+    PRINTK_AUD_HDMI("[mtk_pcm_hdmi_copy] count = %d WriteIdx=%x, ReadIdx=%x, DataRemained=%x \n",
+            (kal_uint32)count, Afe_Block->u4WriteIdx, Afe_Block->u4DMAReadIdx, Afe_Block->u4DataRemained);
 
     if (Afe_Block->u4BufferSize == 0)
     {
@@ -1161,15 +1162,21 @@ static struct snd_soc_platform_driver mtk_hdmi_soc_platform =
 
 static int mtk_hdmi_probe(struct platform_device *pdev)
 {
-    int ret = 0;
-
     PRINTK_AUD_HDMI("%s \n", __func__);
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_HDMI_PCM);
     }
 
     PRINTK_AUD_HDMI("%s: dev name %s\n", __func__, dev_name(&pdev->dev));
+
 
     return snd_soc_register_platform(&pdev->dev,
                                      &mtk_hdmi_soc_platform);
@@ -1190,7 +1197,7 @@ static int mtk_afe_hdmi_probe(struct snd_soc_platform *platform)
     memset((void *)HDMI_dma_buf, 0, sizeof(struct snd_dma_buffer));
     PRINTK_AUD_HDMI("mtk_afe_hdmi_probe dma_alloc_coherent HDMI_dma_buf->addr=0x%lx \n", (long)HDMI_dma_buf->addr);
 
-    HDMI_dma_buf->area = dma_alloc_coherent(0,
+    HDMI_dma_buf->area = dma_alloc_coherent(platform->dev,
                                             HDMI_MAX_BUFFER_SIZE,
                                             &HDMI_dma_buf->addr, GFP_KERNEL);  ///* virtual pointer */
     if (HDMI_dma_buf->area)
@@ -1209,22 +1216,36 @@ static int mtk_afe_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_pcm_hdmi_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_hdmi", },
+    {}
+};
+#endif
+
 static struct platform_driver mtk_hdmi_driver =
 {
     .driver = {
         .name = MT_SOC_HDMI_PCM,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_hdmi_of_ids,
+        #endif        
     },
     .probe = mtk_hdmi_probe,
     .remove = mtk_afe_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtkhdmi_dev;
+#endif
 
 static int __init mtk_hdmi_soc_platform_init(void)
 {
     int ret;
     PRINTK_AUD_HDMI("%s \n", __func__);
+	#ifndef CONFIG_OF
     soc_mtkhdmi_dev = platform_device_alloc(MT_SOC_HDMI_PCM, -1);
     if (!soc_mtkhdmi_dev)
     {
@@ -1237,7 +1258,7 @@ static int __init mtk_hdmi_soc_platform_init(void)
         platform_device_put(soc_mtkhdmi_dev);
         return ret;
     }
-
+    #endif
     ret = platform_driver_register(&mtk_hdmi_driver);
     return ret;
 

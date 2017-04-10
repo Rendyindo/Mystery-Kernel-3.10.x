@@ -104,7 +104,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 		return sprintf(buf, "%s\n", scope_text[value.intval]);
 	else if (off >= POWER_SUPPLY_PROP_MODEL_NAME)
 		return sprintf(buf, "%s\n", value.strval);
-        else if (off == POWER_SUPPLY_PROP_status_2nd)
+        else if (off == POWER_SUPPLY_PROP_status_smb)
 		return sprintf(buf, "%s\n", status_text[value.intval]);
 
 	if (off == POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT)
@@ -212,9 +212,9 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(ISenseVoltage),
 	POWER_SUPPLY_ATTR(ChargerVoltage),
 	/* Dual battery */
-	POWER_SUPPLY_ATTR(status_2nd),
-	POWER_SUPPLY_ATTR(capacity_2nd),
-	POWER_SUPPLY_ATTR(present_2nd),
+	POWER_SUPPLY_ATTR(status_smb),
+	POWER_SUPPLY_ATTR(capacity_smb),
+	POWER_SUPPLY_ATTR(present_smb),
 	/* ADB CMD Discharging */
 	POWER_SUPPLY_ATTR(adjust_power),
 	/* Properties of type `const char *' */

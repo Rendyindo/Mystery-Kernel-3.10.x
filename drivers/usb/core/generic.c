@@ -19,7 +19,16 @@
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/usb/otg.h>
 #include "usb.h"
+
+#if defined(CONFIG_USBIF_COMPLIANCE)
+#if defined(CONFIG_USB_XHCI_HCD)
+extern int usbif_u3h_send_event(char* event) ;
+#else
+extern void send_otg_event(enum usb_otg_event event);
+#endif
+#endif
 
 static inline const char *plural(int n)
 {
@@ -102,6 +111,7 @@ int usb_choose_configuration(struct usb_device *udev)
 		/* Rule out configs that draw too much bus current */
 		if (usb_get_max_power(udev, c) > udev->bus_mA) {
 			insufficient_power++;
+			MYDBG("insufficient available bus power to %d intf, the intf class is 0x%x \n", desc->bInterfaceNumber , desc->bInterfaceClass);
 			continue;
 		}
 
@@ -152,6 +162,16 @@ int usb_choose_configuration(struct usb_device *udev)
 		dev_warn(&udev->dev,
 			"no configuration chosen from %d choice%s\n",
 			num_configs, plural(num_configs));
+#if defined(CONFIG_USBIF_COMPLIANCE)
+		if ((insufficient_power>0) && (insufficient_power==num_configs)){
+			MYDBG("insufficient available bus power to all intf\n");
+#if defined(CONFIG_USB_XHCI_HCD)
+			usbif_u3h_send_event("DEV_OVER_CURRENT");
+#else
+			send_otg_event(OTG_EVENT_DEV_OVER_CURRENT);
+#endif
+		}
+#endif
 	}
 	return i;
 }
@@ -199,7 +219,7 @@ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 {
 	int rc;
 
-	MYDBG("udev : %x", (unsigned int)udev);
+  	MYDBG("udev : %lu", (unsigned long)udev);
 
 	/* Normal USB devices suspend through their upstream port.
 	 * Root hubs don't have upstream ports to suspend,
@@ -230,7 +250,7 @@ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 static int generic_resume(struct usb_device *udev, pm_message_t msg)
 {
 	int rc;
-	MYDBG("udev : %x", (unsigned int)udev);
+	MYDBG("udev : %lu", (unsigned long)udev);
 
 	/* Normal USB devices resume/reset through their upstream port.
 	 * Root hubs don't have upstream ports to resume or reset,
@@ -239,12 +259,12 @@ static int generic_resume(struct usb_device *udev, pm_message_t msg)
 	 */
 	if (!udev->parent)
 	{
-		MYDBG("udev : %x", (unsigned int)udev);
+		MYDBG("udev : %lu", (unsigned long)udev);
 		rc = hcd_bus_resume(udev, msg);
 	}
 	else
 	{
-		MYDBG("udev : %x", (unsigned int)udev);
+		MYDBG("udev : %lu", (unsigned long)udev);
 		rc = usb_port_resume(udev, msg);
 	}
 	return rc;

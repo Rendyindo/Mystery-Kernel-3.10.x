@@ -1,6 +1,8 @@
 
 ccflags-$(CONFIG_PM_DEBUG)	:= -DDEBUG
 
+include $(srctree)/drivers/misc/mediatek/Makefile.custom
+
 tuxonice_core-y := tuxonice_modules.o
 
 obj-$(CONFIG_TOI)		+= tuxonice_builtin.o
@@ -49,3 +51,5 @@ obj-$(CONFIG_SUSPEND_TIME)	+= suspend_time.o
 obj-$(CONFIG_MAGIC_SYSRQ)	+= poweroff.o
 
 obj-$(CONFIG_SUSPEND)	+= wakeup_reason.o
+
+obj-$(CONFIG_HAS_SBSUSPEND)	+= sbsuspend.o

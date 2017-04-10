@@ -17,7 +17,8 @@
 #include <trace/events/power.h>
 
 #include "power.h"
-
+//#ifndef CONFIG_ARM64
+#if 1
 int wakeup_debug = 0;
 #define _TAG_WAKEUP "WAKEUP"
 #define wakeup_log(fmt, ...)    do { if (wakeup_debug) pr_info("[%s][%s]" fmt, _TAG_WAKEUP, __func__, ##__VA_ARGS__); } while (0)
@@ -684,6 +685,22 @@ void pm_wakeup_event(struct device *dev, unsigned int msec)
 }
 EXPORT_SYMBOL_GPL(pm_wakeup_event);
 
+void pm_get_active_wakeup_sources(char *pending_wakeup_source, size_t max)
+{
+	struct wakeup_source *ws;
+	int len = 0;
+	rcu_read_lock();
+	len += snprintf(pending_wakeup_source, max, "Pending Wakeup Sources: ");
+	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
+		if (ws->active) {
+			len += snprintf(pending_wakeup_source + len, max,
+				"%s ", ws->name);
+		}
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(pm_get_active_wakeup_sources);
+
 static void print_active_wakeup_sources(void)
 {
 	struct wakeup_source *ws;
@@ -886,7 +903,11 @@ static int print_wakeup_source_stats(struct seq_file *m,
 
 	return ret;
 }
-
+#endif
+//#ifdef CONFIG_ARM64
+#if 1
+static struct dentry *wakeup_sources_stats_dentry;
+#endif
 /**
  * wakeup_sources_stats_show - Print wakeup sources statistics information.
  * @m: seq_file to print the statistics into.
@@ -900,8 +921,11 @@ static int wakeup_sources_stats_show(struct seq_file *m, void *unused)
 		"last_change\tprevent_suspend_time\n");
 
 	rcu_read_lock();
+//#ifndef CONFIG_ARM64 
+#if 1
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry)
 		print_wakeup_source_stats(m, ws);
+#endif
 	rcu_read_unlock();
 
 	return 0;

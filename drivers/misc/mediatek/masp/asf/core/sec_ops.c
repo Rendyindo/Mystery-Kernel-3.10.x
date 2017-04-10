@@ -7,39 +7,40 @@
 
 static int sec_get_rid(uint32 *rid)
 {
-	uint32 obuf[5];
-	uint32 ibuf[4];
+    uint32 obuf[5];
+    uint32 ibuf[4];
 
-	masp_hal_get_uuid(ibuf);
+    masp_hal_get_uuid(ibuf);
 
-	sha1((uchar *) ibuf, 16, (uchar *) obuf);
+    sha1((uchar*)ibuf, 16, (uchar*)obuf);
 
-	memcpy(rid, obuf, 16);
+    memcpy(rid, obuf, 16);
 
-#ifdef SEC_DEBUG
-	{
-		int i = 0;
+    #ifdef SEC_DEBUG
+    {
+        int i = 0;
 
-		for (i = 0; i < 4; i++) {
-			SMSG(TRUE, "IBUF[%d] = 0x%.8x\n", i, ibuf[i]);
-			SMSG(TRUE, "OBUF[%d] = 0x%.8x\n", i, obuf[i]);
-		}
-	}
-#endif
+        for (i = 0; i < 4; i++) 
+        {
+            SMSG(TRUE,"IBUF[%d] = 0x%.8x\n", i, ibuf[i]);
+            SMSG(TRUE,"OBUF[%d] = 0x%.8x\n", i, obuf[i]);
+        }
+    }
+    #endif
 
-	return 0;
+    return 0;
 }
 
 
 /**************************************************************************
  *  SEC RANDOM ID FUNCTION
- **************************************************************************/
+ **************************************************************************/ 
 int sec_get_random_id(unsigned int *rid)
 {
-	int ret;
+    int ret;
 
-	osal_rid_lock();
-	ret = sec_get_rid(rid);
-	osal_rid_unlock();
-	return ret;
+    osal_rid_lock();
+    ret = sec_get_rid(rid);
+    osal_rid_unlock();
+    return ret;
 }

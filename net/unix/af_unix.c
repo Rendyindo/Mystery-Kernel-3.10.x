@@ -1053,6 +1053,13 @@ restart:
 		unix_peer(sk) = other;
 		unix_state_double_unlock(sk, other);
 	}
+	
+#ifdef CONFIG_MTK_NET_LOGGING 
+    if((SOCK_INODE(sock)!= NULL) && (sunaddr != NULL) && (other->sk_socket != NULL) && (SOCK_INODE(other->sk_socket) != NULL))
+    {
+	       printk(KERN_INFO "[mtk_net][socket]unix_dgram_connect[%lu]:connect [%s] other[%lu]\n",SOCK_INODE(sock)->i_ino,sunaddr->sun_path,SOCK_INODE(other->sk_socket)->i_ino);
+	  }
+#endif 
             
 	return 0;
 
@@ -1243,6 +1250,14 @@ restart:
 	__skb_queue_tail(&other->sk_receive_queue, skb);
 	spin_unlock(&other->sk_receive_queue.lock);
 	unix_state_unlock(other);
+	
+	#ifdef CONFIG_MTK_NET_LOGGING 
+	if((SOCK_INODE(sock)!= NULL) && (sunaddr != NULL) && (other->sk_socket != NULL) && (SOCK_INODE(other->sk_socket) != NULL))
+  {
+	  printk(KERN_INFO "[mtk_net][socket]unix_stream_connect[%lu ]: connect [%s] other[%lu] \n",SOCK_INODE(sock)->i_ino,sunaddr->sun_path,SOCK_INODE(other->sk_socket)->i_ino);
+	}
+  #endif 
+
 	other->sk_data_ready(other, 0);
 	sock_put(other);
        
@@ -1663,6 +1678,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
+		
 	wait_for_unix_gc();
 	err = scm_send(sock, msg, siocb->scm, false);
 	if (err < 0)
@@ -1706,6 +1722,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 		skb = sock_alloc_send_skb(sk, size, msg->msg_flags&MSG_DONTWAIT,
 					  &err);
+		
 
 		if (skb == NULL)
 			goto out_err;

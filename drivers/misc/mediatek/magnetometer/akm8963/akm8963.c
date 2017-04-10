@@ -149,12 +149,34 @@ static struct i2c_driver akm8963_i2c_driver = {
 };
 
 /*----------------------------------------------------------------------------*/
+#if 0
 static struct platform_driver akm_sensor_driver = {
 	.probe      = akm_probe,
 	.remove     = akm_remove,    
 	.driver     = {
 		.name  = "msensor",
 		.owner = THIS_MODULE,
+	}
+};
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id akm8963_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+#endif
+
+static struct platform_driver akm_sensor_driver =
+{
+	.probe      = akm_probe,
+	.remove     = akm_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = akm8963_of_match,
+		#endif
 	}
 };
 
@@ -1180,7 +1202,7 @@ static long akm8963_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned 
 	int layout[3];
 	struct i2c_client *client = this_client;  
 	struct akm8963_i2c_data *data = i2c_get_clientdata(client);
-	hwm_sensor_data* osensor_data;
+	hwm_sensor_data osensor_data;
 	uint32_t enable;
 
   	//printk(KERN_ERR"akm8963 cmd:0x%x\n", cmd);	
@@ -1420,20 +1442,17 @@ static long akm8963_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned 
 			}
 			
 			//AKECS_GetRawData(buff, AKM8963_BUFSIZE);
-			osensor_data = (hwm_sensor_data *)buff;
 		    mutex_lock(&sensor_data_mutex);
 				
-			osensor_data->values[0] = sensor_data[0] * CONVERT_O;
-			osensor_data->values[1] = sensor_data[1] * CONVERT_O;
-			osensor_data->values[2] = sensor_data[2] * CONVERT_O;
-			osensor_data->status = sensor_data[4];
-			osensor_data->value_divide = CONVERT_O_DIV;
+			osensor_data.values[0] = sensor_data[0] * CONVERT_O;
+			osensor_data.values[1] = sensor_data[1] * CONVERT_O;
+			osensor_data.values[2] = sensor_data[2] * CONVERT_O;
+			osensor_data.status = sensor_data[4];
+			osensor_data.value_divide = CONVERT_O_DIV;
 					
 			mutex_unlock(&sensor_data_mutex);
 
-            sprintf(buff, "%x %x %x %x %x", osensor_data->values[0], osensor_data->values[1],
-				osensor_data->values[2],osensor_data->status,osensor_data->value_divide);
-			if(copy_to_user(argp, buff, strlen(buff)+1))
+			if(copy_to_user(argp, &osensor_data, sizeof(hwm_sensor_data)))          
 			{
 				return -EFAULT;
 			} 

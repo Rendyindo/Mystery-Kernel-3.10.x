@@ -224,6 +224,12 @@ typedef enum
 
 typedef enum
 {
+    AUDIO_MIC_BIAS0 = 0,
+    AUDIO_MIC_BIAS1,
+} AUDIO_MIC_BIAS;
+
+typedef enum
+{
     AUDIO_SDM_LEVEL_MUTE = 0,
     AUDIO_SDM_LEVEL_NORMAL= 0x1e,
 } AUDIO_SDM_LEVEL;

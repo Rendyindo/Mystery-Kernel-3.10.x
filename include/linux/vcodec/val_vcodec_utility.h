@@ -1,22 +1,3 @@
-/**
- * @file
- *   val_vcodec_utility.h
- *
- * @par Project:
- *   Video
- *
- * @par Description:
- *   video codec utility function interface
- *
- * @par Author:
- *   Jackal Chen (mtk02532)
- *
- * @par $Revision: #1 $
- * @par $Modtime:$
- * @par $Log:$
- *
- */
-
 #ifndef _VAL_VCODEC_UTILITY_H_
 #define _VAL_VCODEC_UTILITY_H_
 
@@ -43,7 +24,7 @@ extern "C" {
  * @par Returns
  *   VDDRV_MRESULT_T, return VDDRV_MRESULT_SUCCESS is success, return others if fail
  */
-	VDDRV_MRESULT_T BPDec(VAL_HANDLE_T hHandle, VAL_HANDLE_T * hBitHandle, WMV_BP_TYPE bpType);
+VDDRV_MRESULT_T BPDec(VAL_HANDLE_T hHandle, VAL_HANDLE_T *hBitHandle, WMV_BP_TYPE bpType);
 
 
 /**
@@ -60,8 +41,7 @@ extern "C" {
  * @par Returns
  *   VAL_UINT32_T, return bitstream pointer
  */
-	VAL_UINT32_T GetReadBSPt(VAL_HANDLE_T hHandle, VAL_HANDLE_T hBitsHandle,
-				 VAL_UINT32_T *pBits);
+VAL_UINT32_T GetReadBSPt(VAL_HANDLE_T hHandle, VAL_HANDLE_T hBitsHandle, VAL_UINT32_T *pBits);
 
 
 /**
@@ -74,7 +54,7 @@ extern "C" {
  * @par Returns
  *   VAL_UINT32_T, return decode bits
  */
-	VAL_UINT32_T GetBPDecBits(VAL_HANDLE_T hHandle);
+VAL_UINT32_T GetBPDecBits(VAL_HANDLE_T hHandle);
 
 
 /**
@@ -89,10 +69,11 @@ extern "C" {
  * @par Returns
  *   VDDRV_MRESULT_T, return VDDRV_MRESULT_SUCCESS is success, return others if fail
  */
-	VDDRV_MRESULT_T WMVDecode_HW(VAL_HANDLE_T hHandle, VAL_HANDLE_T *hBitHandle);
+VDDRV_MRESULT_T WMVDecode_HW(VAL_HANDLE_T hHandle, VAL_HANDLE_T *hBitHandle);
 /* for hardware vc1_dec - */
 
 #ifdef __cplusplus
 }
 #endif
-#endif				/* #ifndef _VAL_VCODEC_UTILITY_H_ */
+
+#endif /* #ifndef _VAL_VCODEC_UTILITY_H_ */

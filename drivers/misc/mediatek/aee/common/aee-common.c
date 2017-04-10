@@ -11,20 +11,19 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/stacktrace.h>
 #include <mach/wd_api.h>
 #include "aee-common.h"
+#include <linux/uaccess.h>
+#include <linux/fs.h>
+#include <linux/vmalloc.h>
+
 
 #ifdef CONFIG_SCHED_DEBUG
 extern int sysrq_sched_debug_show(void);
 #endif
 
-#define AEK_LOG_TAG "aee/aek"
-#define KERNEL_REPORT_LENGTH	1024
-#define KERNEL_REPORT_NR	4
 static struct aee_kernel_api *g_aee_api;
-static char *msgbuf;
-static char *oops_detail[KERNEL_REPORT_NR];
+#define KERNEL_REPORT_LENGTH 512
 
 #ifdef CONFIG_KGDB_KDB
 /* Press key to enter kdb */
@@ -84,7 +83,7 @@ void aee_dumpbasic(void)
 	LOGI("Stack traceback for current pid %d\n", p->pid);
 	show_stack(p, NULL);
 
-#ifdef CONFIG_MTK_AEE_IPANIC
+#ifdef CONFIG_MTK_AEE_IPANIC_64
 	aee_dumpnative();
 #endif
 
@@ -157,7 +156,10 @@ void aee_oops_free(struct aee_oops *oops)
 	if (oops->mini_rdump) {
 		kfree(oops->mini_rdump);
 	}
+	if(oops->userthread_stack.Userthread_Stack)
+		vfree(oops->userthread_stack.Userthread_Stack);
 	kfree(oops);
+	LOGE("aee_oops_free\n");
 }
 EXPORT_SYMBOL(aee_oops_free);
 
@@ -179,123 +181,60 @@ void aee_disable_api(void)
 }
 EXPORT_SYMBOL(aee_disable_api);
 
-#define MAX_STACK_TRACE_DEPTH 32
-static unsigned long *trace_entry_ptr;
-void aee_get_traces(char *msg)
-{
-	struct stack_trace trace;
-	int i;
-	int offset;
-	if (trace_entry_ptr == NULL)
-		return;
-	memset(trace_entry_ptr, 0, MAX_STACK_TRACE_DEPTH * 4);
-	trace.entries = trace_entry_ptr;
-	/*save backtraces */
-	trace.nr_entries = 0;
-	trace.max_entries = 32;
-	trace.skip = 0;
-	save_stack_trace_tsk(current, &trace);
-	for (i = 0; i < trace.nr_entries; i++) {
-		offset = strlen(msg);
-		snprintf(msg + offset, KERNEL_REPORT_LENGTH - offset, "[<%p>] %pS\n",
-			 (void *)trace.entries[i], (void *)trace.entries[i]);
-	}
-}
-
-static char **aee_get_detail_buffer(void)
-{
-	int i;
-	for (i = 0; i < KERNEL_REPORT_NR; i++) {
-		if (oops_detail[i] == NULL) {
-			oops_detail[i] = msgbuf + KERNEL_REPORT_LENGTH * i;
-			return &oops_detail[i];
-		}
-	}
-	LOGE("At most %d kernel warning allowed, to skip.\n", KERNEL_REPORT_NR);
-	return NULL;
-}
-
 void aee_kernel_exception_api(const char *file, const int line, const int db_opt,
 			      const char *module, const char *msg, ...)
 {
-#ifdef CONFIG_MTK_AEE_AED
-	char **pmsgbuf;
-	char str[80];
+	char msgbuf[KERNEL_REPORT_LENGTH];
 	int offset = 0;
 	va_list args;
 
 	va_start(args, msg);
-	pmsgbuf = aee_get_detail_buffer();
-	if (g_aee_api && g_aee_api->kernel_reportAPI && pmsgbuf) {
-		offset += snprintf(*pmsgbuf, KERNEL_REPORT_LENGTH, "<%s:%d> ", file, line);
-		offset += vsnprintf(*pmsgbuf + offset, KERNEL_REPORT_LENGTH - offset, msg, args);
-		offset +=
-		    snprintf(*pmsgbuf + offset, KERNEL_REPORT_LENGTH - offset, "\nBacktrace:\n");
-		aee_get_traces(*pmsgbuf);
-		g_aee_api->kernel_reportAPI(AE_DEFECT_EXCEPTION, db_opt, module, *pmsgbuf);
+	offset += snprintf(msgbuf, KERNEL_REPORT_LENGTH, "<%s:%d> ", file, line);
+	offset += vsnprintf(msgbuf + offset, KERNEL_REPORT_LENGTH - offset, msg, args);
+	if (g_aee_api && g_aee_api->kernel_reportAPI) {
+		g_aee_api->kernel_reportAPI(AE_DEFECT_EXCEPTION, db_opt, module, msgbuf);
 	} else {
-		LOGE("%s: ", module);
-		vsnprintf(str, 80, "%s", args);
-		LOGE("%s", str);
+		LOGE("AEE kernel exception: %s", msgbuf);
 	}
-	*pmsgbuf = NULL;
 	va_end(args);
-#endif
 }
 EXPORT_SYMBOL(aee_kernel_exception_api);
 
 void aee_kernel_warning_api(const char *file, const int line, const int db_opt, const char *module,
 			    const char *msg, ...)
 {
-#ifdef CONFIG_MTK_AEE_AED
-	char **pmsgbuf;
-	char str[80];
+	char msgbuf[KERNEL_REPORT_LENGTH];
 	int offset = 0;
 	va_list args;
 
 	va_start(args, msg);
-	pmsgbuf = aee_get_detail_buffer();
-	if (g_aee_api && g_aee_api->kernel_reportAPI && pmsgbuf) {
-		offset += snprintf(*pmsgbuf, KERNEL_REPORT_LENGTH, "<%s:%d> ", file, line);
-		offset += vsnprintf(*pmsgbuf + offset, KERNEL_REPORT_LENGTH - offset, msg, args);
-		offset +=
-		    snprintf(*pmsgbuf + offset, KERNEL_REPORT_LENGTH - offset, "\nBacktrace:\n");
-		aee_get_traces(*pmsgbuf);
-		g_aee_api->kernel_reportAPI(AE_DEFECT_WARNING, db_opt, module, *pmsgbuf);
+	offset += snprintf(msgbuf, KERNEL_REPORT_LENGTH, "<%s:%d> ", file, line);
+	offset += vsnprintf(msgbuf + offset, KERNEL_REPORT_LENGTH - offset, msg, args);
+	if (g_aee_api && g_aee_api->kernel_reportAPI) {
+		g_aee_api->kernel_reportAPI(AE_DEFECT_WARNING, db_opt, module, msgbuf);
 	} else {
-		LOGE("%s: ", module);
-		vsnprintf(str, 80, "%s", args);
-		LOGE("%s", str);
+		LOGE("AEE kernel warning: %s", msgbuf);
 	}
-	*pmsgbuf = NULL;
 	va_end(args);
-#endif
 }
 EXPORT_SYMBOL(aee_kernel_warning_api);
 
 void aee_kernel_reminding_api(const char *file, const int line, const int db_opt,
 			      const char *module, const char *msg, ...)
 {
-#ifdef CONFIG_MTK_AEE_AED
-	char **pmsgbuf;
-	char str[80];
+	char msgbuf[KERNEL_REPORT_LENGTH];
 	int offset = 0;
 	va_list args;
 
 	va_start(args, msg);
-	pmsgbuf = aee_get_detail_buffer();
-	if (g_aee_api && g_aee_api->kernel_reportAPI && pmsgbuf) {
-		offset += snprintf(*pmsgbuf, KERNEL_REPORT_LENGTH, "<%s:%d> ", file, line);
-		offset += vsnprintf(*pmsgbuf + offset, KERNEL_REPORT_LENGTH - offset, msg, args);
-		g_aee_api->kernel_reportAPI(AE_DEFECT_REMINDING, db_opt, module, *pmsgbuf);
+	offset += snprintf(msgbuf, KERNEL_REPORT_LENGTH, "<%s:%d> ", file, line);
+	offset += vsnprintf(msgbuf + offset, KERNEL_REPORT_LENGTH - offset, msg, args);
+	if (g_aee_api && g_aee_api->kernel_reportAPI) {
+		g_aee_api->kernel_reportAPI(AE_DEFECT_REMINDING, db_opt, module, msgbuf);
 	} else {
-		LOGE("%s: ", module);
-		vsnprintf(str, 80, "%s", args);
-		LOGE("%s", str);
+		LOGE("AEE kernel reminding: %s", msgbuf);
 	}
-	*pmsgbuf = NULL;
 	va_end(args);
-#endif
 }
 EXPORT_SYMBOL(aee_kernel_reminding_api);
 
@@ -390,26 +329,11 @@ EXPORT_SYMBOL(aee_sram_printk);
 static int __init aee_common_init(void)
 {
 	int ret = 0;
-
-	trace_entry_ptr = kmalloc(MAX_STACK_TRACE_DEPTH * 4, GFP_KERNEL);
-	if (!trace_entry_ptr) {
-		LOGE("allocate trace buffer fail:%d\n", (int)trace_entry_ptr);
-		ret = -ENOMEM;
-	}
-	msgbuf = kmalloc(KERNEL_REPORT_LENGTH * KERNEL_REPORT_NR, GFP_KERNEL);
-	if (!msgbuf) {
-		LOGE("allocate msgbuf fail\n");
-		ret = -ENOMEM;
-	}
 	return ret;
 }
 
 static void __exit aee_common_exit(void)
 {
-	if (trace_entry_ptr)
-		kfree(trace_entry_ptr);
-	if (msgbuf)
-		kfree(msgbuf);
 }
 module_init(aee_common_init);
 module_exit(aee_common_exit);

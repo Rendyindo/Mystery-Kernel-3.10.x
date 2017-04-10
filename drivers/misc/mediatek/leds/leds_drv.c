@@ -27,7 +27,6 @@
 /* #include <mach/mt_gpio.h> */
 #include <mach/upmu_common_sw.h>
 #include <mach/upmu_hw.h>
-#include <mach/mt_leds_cust.h>
 /* #include <mach/mt_pmic_feature_api.h> */
 /* #include <mach/mt_boot.h> */
 #include <leds_hal.h>
@@ -144,7 +143,8 @@ int setMaxbrightness(int max_level, int enable)
 
 #else
 	LEDS_DRV_DEBUG("setMaxbrightness go through AAL\n");
-	disp_bls_set_max_backlight(max_level);
+	disp_bls_set_max_backlight( ((((1 << LED_INTERNAL_LEVEL_BIT_CNT) - 1) * max_level +
+                     127) / 255) );
 #endif				/* endif CONFIG_MTK_AAL_SUPPORT */
 	return 0;
 
@@ -157,10 +157,10 @@ static void get_div_array(void)
 {
 	int i = 0;
 	unsigned int *temp = mt_get_div_array();
-	while (i < (sizeof(div_array[PWM_DIV_NUM]) * 2)) {
-		i++;
+	while (i < PWM_DIV_NUM) {
 		div_array[i] = *temp++;
 		LEDS_DRV_DEBUG("get_div_array: div_array=%d\n", div_array[i]);
+		i++;
 	}
 }
 
@@ -436,7 +436,7 @@ static ssize_t store_pwm_register(struct device *dev, struct device_attribute *a
 	unsigned int reg_value = 0;
 	unsigned int reg_address = 0;
 	if (buf != NULL && size != 0) {
-		LEDS_DRV_DEBUG("store_pwm_register: size:%d,address:0x%s\n", size, buf);
+		//LEDS_DRV_DEBUG("store_pwm_register: size:%d,address:0x%s\n", size, buf);
 		reg_address = simple_strtoul(buf, &pvalue, 16);
 
 		if (*pvalue && (*pvalue == '#')) {
@@ -470,14 +470,6 @@ static int __init mt65xx_leds_probe(struct platform_device *pdev)
 	int i;
 	int ret, rc;
 	struct cust_mt65xx_led *cust_led_list = mt_get_cust_led_list();
-	if(led_cust_data_fromtag.isInited == true) {
-		cust_led_list[0].mode = led_cust_data_fromtag.led_mode[0];
-		cust_led_list[1].mode = led_cust_data_fromtag.led_mode[1];
-		cust_led_list[2].mode = led_cust_data_fromtag.led_mode[2];
-		cust_led_list[0].data = led_cust_data_fromtag.led_pmic[0];
-		cust_led_list[1].data = led_cust_data_fromtag.led_pmic[1];
-		cust_led_list[2].data = led_cust_data_fromtag.led_pmic[2];
-	}
 	LEDS_DRV_DEBUG("[LED]%s\n", __func__);
 	get_div_array();
 	for (i = 0; i < MT65XX_LED_TYPE_TOTAL; i++) {
@@ -641,7 +633,7 @@ static struct platform_driver mt65xx_leds_driver = {
 	.shutdown = mt65xx_leds_shutdown,
 };
 
-#if 0
+#ifdef CONFIG_OF
 static struct platform_device mt65xx_leds_device = {
 	.name = "leds-mt65xx",
 	.id = -1
@@ -655,7 +647,7 @@ static int __init mt65xx_leds_init(void)
 
 	LEDS_DRV_DEBUG("[LED]%s\n", __func__);
 
-#if 0
+#ifdef CONFIG_OF
 	ret = platform_device_register(&mt65xx_leds_device);
 	if (ret)
 		printk("[LED]mt65xx_leds_init:dev:E%d\n", ret);

@@ -1,6 +1,8 @@
 #include <accdet_hal.h>
 #include <mach/mt_boot.h>
+#if defined(CONFIG_MTK_LEGACY)
 #include <cust_eint.h>
+#endif
 #include <cust_gpio_usage.h>
 #include <mach/mt_gpio.h>
 /* #include "accdet_drv.h" */
@@ -83,6 +85,18 @@ static struct dev_pm_ops accdet_pm_ops = {
 	.restore_noirq = accdet_pm_restore_noirq,
 };
 #endif
+
+#if defined(CONFIG_OF)
+struct platform_device accdet_device = {
+	.name	  ="Accdet_Driver",
+	.id		  = -1,
+	/* .dev    ={ */
+	/* .release = accdet_dumy_release, */
+	/* } */
+};
+
+#endif
+
 static struct platform_driver accdet_driver = {
 	.probe = accdet_probe,
 	/* .suspend      = accdet_suspend, */
@@ -91,7 +105,7 @@ static struct platform_driver accdet_driver = {
 	.driver = {
 		   .name = "Accdet_Driver",
 #ifdef CONFIG_PM
-		   .pm = &accdet_pm_ops,
+	.pm         = &accdet_pm_ops,
 #endif
 		   },
 };
@@ -106,6 +120,21 @@ static int accdet_mod_init(void)
 	int ret = 0;
 
 	ACCDET_DEBUG_DRV("[Accdet]accdet_mod_init begin!\n");
+
+#if defined(CONFIG_OF)
+    ret = platform_device_register(&accdet_device);
+    printk("[%s]: accdet_device, retval=%d \n!", __func__, ret);
+
+	if (ret != 0)
+	{
+		printk("platform_device_accdet_register error:(%d)\n", ret);
+		return ret;
+	}
+	else
+	{
+		printk("platform_device_accdet_register done!\n");
+	}
+#endif	
 
 	/* ------------------------------------------------------------------ */
 	/* Accdet PM */

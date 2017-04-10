@@ -33,7 +33,7 @@ static int toi_incremental_digestsize;
 
 static DEFINE_MUTEX(stats_lock);
 
-struct cpu_context {
+struct toi_cpu_context {
 	u8 *buffer_start;
 	struct hash_desc desc;
 	struct scatterlist sg[1];
@@ -42,7 +42,7 @@ struct cpu_context {
 
 #define OUT_BUF_SIZE (2 * PAGE_SIZE)
 
-static DEFINE_PER_CPU(struct cpu_context, contexts);
+static DEFINE_PER_CPU(struct toi_cpu_context, contexts);
 
 /*
  * toi_crypto_prepare
@@ -60,7 +60,7 @@ static int toi_incremental_crypto_prepare(void)
 	}
 
 	for_each_online_cpu(cpu) {
-		struct cpu_context *this = &per_cpu(contexts, cpu);
+		struct toi_cpu_context *this = &per_cpu(contexts, cpu);
 		this->desc.tfm = crypto_alloc_hash(toi_incremental_slow_cmp_name, 0, 0);
 		if (IS_ERR(this->desc.tfm)) {
 			printk(KERN_INFO "TuxOnIce: Failed to initialise the "
@@ -89,7 +89,7 @@ static int toi_incremental_rw_cleanup(int writing)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		struct cpu_context *this = &per_cpu(contexts, cpu);
+		struct toi_cpu_context *this = &per_cpu(contexts, cpu);
 		if (this->desc.tfm) {
 			crypto_free_hash(this->desc.tfm);
 			this->desc.tfm = NULL;
@@ -160,7 +160,7 @@ static int toi_incremental_write_page(unsigned long index, int buf_type,
 				      void *buffer_page, unsigned int buf_size)
 {
 	int ret = 0, cpu = smp_processor_id();
-	struct cpu_context *ctx = &per_cpu(contexts, cpu);
+	struct toi_cpu_context *ctx = &per_cpu(contexts, cpu);
 	int to_write = true;
 
 	if (ctx->desc.tfm) {

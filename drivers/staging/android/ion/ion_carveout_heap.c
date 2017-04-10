@@ -41,7 +41,7 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 
 	if (!offset)
 	{
-		IONMSG("ion_carveout alloc fail! size=0x%x, free=0x%x\n", size, 
+		IONMSG("ion_carveout alloc fail! size=0x%lu, free=0x%zu\n", size, 
 			gen_pool_avail(carveout_heap->pool));
 		return ION_CARVEOUT_ALLOCATE_FAIL;
 	}
@@ -184,8 +184,8 @@ static int ion_carveout_heap_debug_show(struct ion_heap *heap, struct seq_file *
     total_size = gen_pool_size(carveout_heap->pool);
     size_avail = gen_pool_avail(carveout_heap->pool);
 
-    seq_printf(s, "total_size=0x%x, free=0x%x, base=0x%x\n", 
-        total_size, size_avail, (unsigned int)carveout_heap->base);
+    seq_printf(s, "total_size=0x%zu, free=0x%zu, base=0x%lu\n", 
+        total_size, size_avail, carveout_heap->base);
 
     gen_pool_for_each_chunk(carveout_heap->pool, ion_carveout_chunk_show, s);
 

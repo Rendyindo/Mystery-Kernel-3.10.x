@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #ifndef _BATTERY_METER_HAL_H
 #define _BATTERY_METER_HAL_H
 
@@ -23,17 +9,10 @@
 #define BM_LOG_CRTI 1
 #define BM_LOG_FULL 2
 
-#define bm_init_print(num, fmt, args...)   \
-do {									\
-	if (Enable_FGADC_LOG >= (int)num) {				\
-		pr_notice(fmt, ##args); \
-	}								   \
-} while (0)
-
 #define bm_print(num, fmt, args...)   \
 do {									\
 	if (Enable_FGADC_LOG >= (int)num) {				\
-		pr_debug(fmt, ##args); \
+		pr_notice(fmt, ##args); \
 	}								   \
 } while (0)
 
@@ -56,9 +35,13 @@ typedef enum {
 	BATTERY_METER_CMD_GET_ADC_V_CHARGER,
 
 	BATTERY_METER_CMD_GET_HW_OCV,
-
 	BATTERY_METER_CMD_DUMP_REGISTER,
-
+	BATTERY_METER_CMD_SET_COLUMB_INTERRUPT,
+	BATTERY_METER_CMD_GET_BATTERY_PLUG_STATUS,
+	BATTERY_METER_CMD_GET_HW_FG_CAR_ACT,	/* fgauge_read_columb */
+	BATTERY_METER_CMD_SET_LOW_BAT_INTERRUPT,	
+	BATTERY_METER_CMD_GET_LOW_BAT_INTERRUPT_STATUS,	
+	BATTERY_METER_CMD_GET_REFRESH_HW_OCV,	
 	BATTERY_METER_CMD_NUMBER
 } BATTERY_METER_CTRL_CMD;
 

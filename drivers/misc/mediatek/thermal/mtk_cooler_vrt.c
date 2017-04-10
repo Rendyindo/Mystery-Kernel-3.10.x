@@ -13,7 +13,6 @@
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
 #include "mach/mtk_thermal_monitor.h"
-#include <mach/system.h>
 
 #define MAX_NUM_INSTANCE_MTK_COOLER_VRT  1
 

@@ -1,11 +1,5 @@
 #ifndef	_USB_OSAI_H_
 #define	_USB_OSAI_H_
-
-#ifdef pr_fmt
-#undef pr_fmt
-#endif
-#define pr_fmt(fmt) "["KBUILD_MODNAME"]" fmt
-
 #include <linux/delay.h>
 #include <linux/spinlock_types.h>
 #include <linux/spinlock.h>
@@ -15,6 +9,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/mu3d/hal/mu3d_hal_comm.h>
+#include <linux/mu3d/hal/mu3d_hal_hw.h>
 
 #undef EXTERN
 
@@ -24,6 +19,7 @@
 #define EXTERN extern
 #endif
 
+#define K_EMERG	(1<<7)
 #define K_QMU	(1<<7)
 #define K_ALET		(1<<6)
 #define K_CRIT		(1<<5)
@@ -38,24 +34,27 @@ extern u32 debug_level;
 
 #ifdef USE_SSUSB_QMU
 #define qmu_printk(level, fmt, args...) do { \
-		if (debug_level & (level|K_QMU)) { \
-			pr_debug("[U3D][Q]" fmt, ## args); \
+		if ( debug_level & (level|K_QMU) ) { \
+			printk("[U3D][Q]" fmt, ## args); \
 		} \
 	} while (0)
 #endif
 
 #define os_printk(level, fmt, args...) do { \
-		if (debug_level & level) { \
-			pr_debug("[U3D]" fmt, ## args); \
+		if ( debug_level & level ) { \
+			printk("[U3D]" fmt, ## args); \
 		} \
 	} while (0)
 
 #define OS_R_OK                    ((DEV_INT32)   0)
 
-EXTERN spinlock_t _lock;
-EXTERN DEV_INT32 os_reg_isr(DEV_UINT32 irq, irq_handler_t handler, void *isrbuffer);
-EXTERN void os_ms_delay(DEV_UINT32 ui4_delay);
-EXTERN void os_us_delay(DEV_UINT32 ui4_delay);
+EXTERN spinlock_t	_lock;
+EXTERN DEV_INT32  os_reg_isr(DEV_UINT32 irq,irq_handler_t handler,void *isrbuffer);
+// USBIF
+EXTERN void os_free_isr(DEV_UINT32 irq,void *isrbuffer);
+EXTERN void os_ms_delay (DEV_UINT32  ui4_delay);
+EXTERN void os_us_delay (DEV_UINT32  ui4_delay);
+EXTERN void os_ms_sleep (DEV_UINT32  ui4_sleep);
 
 void os_memcpy(DEV_INT8 *pv_to, DEV_INT8 *pv_from, size_t z_l);
 EXTERN void *os_memset(void *pv_to, DEV_UINT8 ui1_c, size_t z_l);
@@ -68,7 +67,7 @@ EXTERN void os_disableIrq(DEV_UINT32 irq);
 EXTERN void os_disableIrq(DEV_UINT32 irq);
 EXTERN void os_enableIrq(DEV_UINT32 irq);
 EXTERN void os_clearIrq(DEV_UINT32 irq);
-EXTERN void os_get_random_bytes(void *buf, DEV_INT32 nbytes);
+EXTERN void os_get_random_bytes(void *buf,DEV_INT32 nbytes);
 EXTERN void os_disableDcache(void);
 EXTERN void os_flushinvalidateDcache(void);
 

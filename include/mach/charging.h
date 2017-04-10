@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 /*****************************************************************************
  *
  * Filename:
@@ -37,6 +23,10 @@
  * $Revision:   1.0  $
  * $Modtime:   11 Aug 2005 10:28:16  $
  * $Log:   //mtkvs01/vmdata/Maui_sw/archives/mcu/hal/peripheral/inc/bmt_chr_setting.h-arc  $
+ *
+ * 03 04 2015 wy.chuang
+ * [ALPS01921641] [L1_merge] for PMIC and charging
+ * .
  *------------------------------------------------------------------------------
  * Upper this line, this part is controlled by PVCS VM. DO NOT MODIFY!!
  *============================================================================
@@ -45,6 +35,7 @@
 #define CHARGING_H
 
 #include <mach/mt_typedefs.h>
+#include <cust_charging.h>
 
 /* ============================================================ */
 /* define */
@@ -55,19 +46,20 @@
 #define BAT_LOG_CRTI 1
 #define BAT_LOG_FULL 2
 
-#define battery_xlog_init_printk(num, fmt, args...) \
-  do { \
-    if (Enable_BATDRV_LOG >= (int)num) { \
-      pr_notice(fmt, ##args); \
-    } \
-  } while (0)
-
 #define battery_xlog_printk(num, fmt, args...) \
   do { \
     if (Enable_BATDRV_LOG >= (int)num) { \
       pr_notice(fmt, ##args); \
     } \
   } while (0)
+
+#define battery_log(num, fmt, args...) \
+	  do { \
+		if (Enable_BATDRV_LOG >= (int)num) { \
+		  pr_notice(fmt, ##args); \
+		} \
+	  } while (0)
+
 
 /* ============================================================ */
 /* ENUM */
@@ -92,6 +84,11 @@ typedef enum {
 	CHARGING_CMD_GET_PLATFORM_BOOT_MODE,
 	CHARGING_CMD_SET_POWER_OFF,
 	CHARGING_CMD_GET_POWER_SOURCE,
+	CHARGING_CMD_GET_CSDAC_FALL_FLAG,
+	CHARGING_CMD_SET_TA_CURRENT_PATTERN,
+	CHARGING_CMD_SET_ERROR_STATE,
+	CHARGING_CMD_DISO_INIT,
+	CHARGING_CMD_GET_DISO_STATE,
 	CHARGING_CMD_NUMBER
 } CHARGING_CTRL_CMD;
 
@@ -465,14 +462,6 @@ typedef enum {
 	CHARGE_CURRENT_MAX
 } CHR_CURRENT_ENUM;
 
-typedef enum {
-	EXT_NONE	=	0x0,
-	EXT_BQ24158	=	0x1,
-	EXT_BQ24196	=	0x2,
-	EXT_FAN5405	=	0x4,
-	EXT_HW6333	=	0x8,
-} EXT_CHR_IC_ENUM;
-
 /* ============================================================ */
 /* structure */
 /* ============================================================ */
@@ -488,13 +477,11 @@ typedef kal_int32(*CHARGING_CONTROL) (CHARGING_CTRL_CMD cmd, void *data);
 /* External Variables */
 /* ============================================================ */
 extern int Enable_BATDRV_LOG;
+extern kal_bool chargin_hw_init_done;
 
 
 /* ============================================================ */
 /* External function */
 /* ============================================================ */
 extern kal_int32 chr_control_interface(CHARGING_CTRL_CMD cmd, void *data);
-extern kal_uint32 set_bat_charging_current_limit_linear(int current_limit);
-extern kal_uint32 set_bat_charging_current_limit_switch(int current_limit);
-
 #endif				/* #ifndef _CHARGING_H */

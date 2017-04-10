@@ -1,5 +1,4 @@
-ifeq ($(CONFIG_DEPRECATED_MTK_SYSTRACKER_SUPPORT),y)
-  obj-y += etm.o
-else
-  obj-y += etm_interface.o
-endif
+include $(srctree)/drivers/misc/mediatek/Makefile.custom
+obj-$(CONFIG_ARCH_MT8163) += $(MTK_PLATFORM)/
+obj-$(CONFIG_ARCH_MT6752) += $(MTK_PLATFORM)/
+obj-$(CONFIG_ARCH_MT6795) += $(MTK_PLATFORM)/

@@ -93,17 +93,26 @@ void *AFE_BASE_ADDRESS = 0;
 void *AFE_SRAM_ADDRESS = 0;
 void *AFE_TOP_ADDRESS = 0;
 void *AFE_CLK_ADDRESS = 0;
+void *AFE_INFRA_ADDRESS = 0;
+void *APLL_BASE_ADDRESS = 0;
 
 void Auddrv_Reg_map()
 {
     AFE_SRAM_ADDRESS = ioremap_nocache(AFE_INTERNAL_SRAM_PHY_BASE, AFE_INTERNAL_SRAM_SIZE);
+
+	#ifndef CONFIG_OF
     AFE_BASE_ADDRESS = ioremap_nocache(AUDIO_HW_PHYSICAL_BASE, 0x1000);
+	#endif
 
     // temp for hardawre code  set 0x1000629c = 0xd
     AFE_TOP_ADDRESS = ioremap_nocache(AUDIO_POWER_TOP , 0x1000);
+    AFE_INFRA_ADDRESS = ioremap_nocache(AUDIO_INFRA_BASE , 0x1000);	
 
     // temp for hardawre code  set clg cfg
     AFE_CLK_ADDRESS = ioremap_nocache(AUDIO_CLKCFG_PHYSICAL_BASE , 0x1000);
+
+    // temp for hardawre code  set pll cfg
+    APLL_BASE_ADDRESS = ioremap_nocache(APLL_PHYSICAL_BASE, 0x1000);
 }
 
 dma_addr_t  Get_Afe_Sram_Phys_Addr(void)
@@ -131,28 +140,37 @@ void *Get_Afe_Powertop_Pointer()
 {
     return AFE_TOP_ADDRESS;
 }
+
 void *Get_AudClk_Pointer()
 {
     return AFE_CLK_ADDRESS;
 }
 
-void Afe_Set_Reg(uint32 offset, uint32 value, uint32 mask)
-{    
-#ifdef AUDIO_MEM_IOREMAP
-    extern void *AFE_BASE_ADDRESS;
-    //PRINTK_AUDDRV("Afe_Set_Reg AUDIO_MEM_IOREMAP AFE_BASE_ADDRESS = %p\n",AFE_BASE_ADDRESS);
-    volatile long address = (long)((char *)AFE_BASE_ADDRESS + offset);
-#else
-    volatile long address = (long)(AFE_BASE + offset);
-#endif
+void *Get_Afe_Infra_Pointer()
+{
+    return AFE_INFRA_ADDRESS;
+}
 
-    volatile long *AFE_Register = (volatile long *)address;
+void Afe_Set_Reg(uint32 offset, uint32 value, uint32 mask)
+{
+    extern void *AFE_BASE_ADDRESS;
+    volatile long address;
+    volatile uint32 *AFE_Register;
     volatile uint32 val_tmp;
-    
+
     if (CheckOffset(offset) == false)
     {
         return;
     }
+
+#ifdef AUDIO_MEM_IOREMAP
+    //PRINTK_AUDDRV("Afe_Set_Reg AUDIO_MEM_IOREMAP AFE_BASE_ADDRESS = %p\n",AFE_BASE_ADDRESS);
+    address = (long)((char *)AFE_BASE_ADDRESS + offset);
+#else
+    address = (long)(AFE_BASE + offset);
+#endif
+
+    AFE_Register = (volatile uint32 *)address;
 
     //PRINTK_AFE_REG("Afe_Set_Reg offset=%x, value=%x, mask=%x \n",offset,value,mask);
     val_tmp = Afe_Get_Reg(offset);
@@ -163,19 +181,23 @@ void Afe_Set_Reg(uint32 offset, uint32 value, uint32 mask)
 
 uint32 Afe_Get_Reg(uint32 offset)
 {
-#ifdef AUDIO_MEM_IOREMAP
     extern void *AFE_BASE_ADDRESS;
-    //PRINTK_AUDDRV("Afe_Get_Reg AUDIO_MEM_IOREMAP AFE_BASE_ADDRESS = %p\ offset = %xn",AFE_BASE_ADDRESS,offset);
-    volatile long address = (long)((char *)AFE_BASE_ADDRESS + offset);
-#else
-    volatile long address = (AFE_BASE + offset);
-#endif
-    volatile long *value;
+    volatile long address;
+    volatile uint32 *value;	
+
     if (CheckOffset(offset) == false)
     {
-        return 0;
+        return 0xffffffff;
     }
-    value = (volatile long *)(address);
+
+#ifdef AUDIO_MEM_IOREMAP
+    //PRINTK_AUDDRV("Afe_Get_Reg AUDIO_MEM_IOREMAP AFE_BASE_ADDRESS = %p\ offset = %xn",AFE_BASE_ADDRESS,offset);
+    address = (long)((char *)AFE_BASE_ADDRESS + offset);
+#else
+    address = (long)(AFE_BASE + offset);
+#endif
+
+    value = (volatile uint32 *)(address);
     //PRINTK_AFE_REG("Afe_Get_Reg offset=%x address = %x value = 0x%x\n",offset,address,*value);
     return *value;
 }
@@ -202,10 +224,33 @@ void SetClkCfg(uint32 offset, uint32 value, uint32 mask)
     mt_reg_sync_writel(val_tmp, AFE_Register);
 }
 
+// function to Set Cfg
+uint32 GetInfraCfg(uint32 offset)
+{
+    volatile long address = (long)((char *)AFE_INFRA_ADDRESS + offset);
+    volatile uint32 *value;
+    value = (volatile uint32 *)(address);
+    //printk("GetInfraCfg offset=%x address = %x value = 0x%x\n", offset, address, *value);
+    return *value;
+}
+
+void SetInfraCfg(uint32 offset, uint32 value, uint32 mask)
+{
+    volatile long address = (long)((char *)AFE_INFRA_ADDRESS + offset);
+    volatile uint32 *AFE_Register = (volatile uint32 *)address;
+    volatile uint32 val_tmp;
+    //printk("SetInfraCfg offset=%x, value=%x, mask=%x \n",offset,value,mask);
+    val_tmp = GetInfraCfg(offset);
+    val_tmp &= (~mask);
+    val_tmp |= (value & mask);
+    mt_reg_sync_writel(val_tmp, AFE_Register);
+}
+
+
 // function to Set pll
 uint32 GetpllCfg(uint32 offset)
 {
-    volatile long address = (long)(APLL_BASE + offset);
+    volatile long address = (long)((char *)APLL_BASE_ADDRESS + offset);
     volatile uint32 *value;
     value = (volatile uint32 *)(address);
     //printk("GetClkCfg offset=%x address = %x value = 0x%x\n", offset, address, *value);
@@ -214,7 +259,7 @@ uint32 GetpllCfg(uint32 offset)
 
 void SetpllCfg(uint32 offset, uint32 value, uint32 mask)
 {
-    volatile long address = (long)(APLL_BASE + offset);
+    volatile long address = (long)((char *)APLL_BASE_ADDRESS + offset);
     volatile uint32 *AFE_Register = (volatile uint32 *)address;
     volatile uint32 val_tmp;
     //printk("SetpllCfg offset=%x, value=%x, mask=%x \n",offset,value,mask);
@@ -271,7 +316,6 @@ void Afe_Log_Print(void)
     printk("AFE_MEMIF_MON0  = 0x%x\n", Afe_Get_Reg(AFE_MEMIF_MON0));
     printk("AFE_MEMIF_MON1  = 0x%x\n", Afe_Get_Reg(AFE_MEMIF_MON1));
     printk("AFE_MEMIF_MON2  = 0x%x\n", Afe_Get_Reg(AFE_MEMIF_MON2));
-    //printk("AFE_MEMIF_MON3  = 0x%x\n",Afe_Get_Reg(AFE_MEMIF_MON3));
     printk("AFE_MEMIF_MON4  = 0x%x\n", Afe_Get_Reg(AFE_MEMIF_MON4));
 
     printk("AFE_ADDA_DL_SRC2_CON0  = 0x%x\n", Afe_Get_Reg(AFE_ADDA_DL_SRC2_CON0));
@@ -293,7 +337,6 @@ void Afe_Log_Print(void)
     printk("AFE_SIDETONE_CON1  = 0x%x\n", Afe_Get_Reg(AFE_SIDETONE_CON1));
     printk("AFE_SIDETONE_GAIN  = 0x%x\n", Afe_Get_Reg(AFE_SIDETONE_GAIN));
     printk("AFE_SGEN_CON0  = 0x%x\n", Afe_Get_Reg(AFE_SGEN_CON0));
-    //printk("AFE_SGEN_CON1  = 0x%x\n", Afe_Get_Reg(AFE_SGEN_CON1)); //K2 early porting removed
     printk("AFE_TOP_CON0  = 0x%x\n", Afe_Get_Reg(AFE_TOP_CON0));
 
     printk("AFE_ADDA_PREDIS_CON0  = 0x%x\n", Afe_Get_Reg(AFE_ADDA_PREDIS_CON0));
@@ -307,14 +350,6 @@ void Afe_Log_Print(void)
     printk("AFE_MOD_DAI_END  = 0x%x\n", Afe_Get_Reg(AFE_MOD_DAI_END));
     printk("AFE_MOD_DAI_CUR  = 0x%x\n", Afe_Get_Reg(AFE_MOD_DAI_CUR));
 
-#if 0 //K2 early porting removed
-    printk("AFE_HDMI_OUT_CON0  = 0x%x\n", Afe_Get_Reg(AFE_HDMI_OUT_CON0));
-    printk("AFE_HDMI_BASE  = 0x%x\n", Afe_Get_Reg(AFE_HDMI_BASE));
-    printk("AFE_HDMI_CUR  = 0x%x\n", Afe_Get_Reg(AFE_HDMI_CUR));
-    printk("AFE_HDMI_END  = 0x%x\n", Afe_Get_Reg(AFE_HDMI_END));
-    printk("AFE_HDMI_CONN0  = 0x%x\n", Afe_Get_Reg(AFE_HDMI_CONN0));
-#endif
-    //printk("AFE_IRQ_CON  = 0x%x\n",Afe_Get_Reg(AFE_IRQ_CON));
     printk("AFE_IRQ_MCU_CON  = 0x%x\n", Afe_Get_Reg(AFE_IRQ_MCU_CON));
     printk("AFE_IRQ_STATUS  = 0x%x\n", Afe_Get_Reg(AFE_IRQ_MCU_STATUS));
     printk("AFE_IRQ_CLR  = 0x%x\n", Afe_Get_Reg(AFE_IRQ_MCU_CLR));
@@ -322,11 +357,9 @@ void Afe_Log_Print(void)
     printk("AFE_IRQ_MCU_CNT2  = 0x%x\n", Afe_Get_Reg(AFE_IRQ_MCU_CNT2));
     printk("AFE_IRQ_MCU_EN  = 0x%x\n", Afe_Get_Reg(AFE_IRQ_MCU_EN));
     printk("AFE_IRQ_MON2  = 0x%x\n", Afe_Get_Reg(AFE_IRQ_MCU_MON2));
-    //printk("AFE_IRQ_CNT5  = 0x%x\n",Afe_Get_Reg(AFE_IRQ_CNT5));MT6582
     printk("AFE_IRQ1_CNT_MON  = 0x%x\n", Afe_Get_Reg(AFE_IRQ1_MCU_CNT_MON));
     printk("AFE_IRQ2_CNT_MON  = 0x%x\n", Afe_Get_Reg(AFE_IRQ2_MCU_CNT_MON));
     printk("AFE_IRQ1_EN_CNT_MON  = 0x%x\n", Afe_Get_Reg(AFE_IRQ1_MCU_EN_CNT_MON));
-    //printk("AFE_IRQ5_MCU_EN_CNT_MON  = 0x%x\n",Afe_Get_Reg(AFE_IRQ5_MCU_EN_CNT_MON));
     printk("AFE_MEMIF_MAXLEN  = 0x%x\n", Afe_Get_Reg(AFE_MEMIF_MAXLEN));
     printk("AFE_MEMIF_PBUF_SIZE  = 0x%x\n", Afe_Get_Reg(AFE_MEMIF_PBUF_SIZE));
 
@@ -389,6 +422,9 @@ EXPORT_SYMBOL(Afe_Get_Reg);
 
 EXPORT_SYMBOL(GetClkCfg);
 EXPORT_SYMBOL(SetClkCfg);
+
+EXPORT_SYMBOL(GetInfraCfg);
+EXPORT_SYMBOL(SetInfraCfg);
 
 EXPORT_SYMBOL(Afe_Log_Print);
 

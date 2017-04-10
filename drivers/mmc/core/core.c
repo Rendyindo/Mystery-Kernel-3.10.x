@@ -36,6 +36,11 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 
+#define FEATURE_STORAGE_PERF_INDEX
+#if !defined(CONFIG_MT_ENG_BUILD)
+#undef FEATURE_STORAGE_PERF_INDEX
+#endif
+
 #include "core.h"
 #include "bus.h"
 #include "host.h"
@@ -44,6 +49,19 @@
 #include "mmc_ops.h"
 #include "sd_ops.h"
 #include "sdio_ops.h"
+
+#if defined(FEATURE_MET_MMC_INDEX)
+#define MET_USER_EVENT_SUPPORT
+#include <linux/met_drv.h>
+extern void met_mmc_insert(struct mmc_host *host, struct mmc_async_req *areq);
+extern void met_mmc_dma_map(struct mmc_host *host, struct mmc_async_req *areq);
+extern void met_mmc_wait_xfr(struct mmc_host *host, struct mmc_async_req *areq);
+extern void met_mmc_complete(struct mmc_host *host, struct mmc_async_req *areq);
+extern void met_mmc_dma_unmap_start(struct mmc_host *host, struct mmc_async_req *areq);
+extern void met_mmc_dma_unmap_stop(struct mmc_host *host, struct mmc_async_req *areq);
+extern void met_mmc_continue_req_end(struct mmc_host *host, struct mmc_async_req *areq);
+#endif
+
 #define DAT_TIMEOUT         (HZ    * 5)
 /* If the device is not responding */
 #define MMC_CORE_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
@@ -53,6 +71,10 @@
  * operations the card has to perform.
  */
 #define MMC_BKOPS_MAX_TIMEOUT	(4 * 60 * 1000) /* max time to wait in ms */
+
+#ifdef CONFIG_MTK_HIBERNATION
+#define MMC_PM_RESTORE_WAIT_MS	(5000)	/* PM_RESTORE check mmc_rescan finish at most wait 5s */
+#endif
 
 static struct workqueue_struct *workqueue;
 static const unsigned freqs[] = { 300000, 260000, 200000, 100000 };
@@ -556,16 +578,51 @@ static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
  *	return the completed request. If there is no ongoing request, NULL
  *	is returned without waiting. NULL is not an error condition.
  */
+
+#if defined(FEATURE_STORAGE_PERF_INDEX)
+extern bool start_async_req[];
+extern unsigned long long start_async_req_time[];
+extern unsigned int find_mmcqd_index(void);
+extern unsigned long long mmcqd_t_usage_wr[];
+extern unsigned long long mmcqd_t_usage_rd[];
+extern unsigned int mmcqd_rq_size_wr[];
+extern unsigned int mmcqd_rq_size_rd[];
+extern unsigned int mmcqd_rq_count[]; 
+extern unsigned int mmcqd_wr_rq_count[];
+extern unsigned int mmcqd_rd_rq_count[];
+#endif
+
 struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 				    struct mmc_async_req *areq, int *error)
 {
 	int err = 0;
 	int start_err = 0;
+#if defined(FEATURE_STORAGE_PERF_INDEX)
+    unsigned long long time1 = 0;
+    unsigned int idx = 0;
+#endif
 	struct mmc_async_req *data = host->areq;
 
+#if defined(FEATURE_MET_MMC_INDEX)
+	if (areq == NULL) {
+		if (host->areq) {
+			met_mmc_continue_req_end(host, host->areq);
+		}
+	}
+#endif
+
 	/* Prepare a new request */
-	if (areq)
+	if (areq) {
+#if defined(FEATURE_MET_MMC_INDEX)
+		met_mmc_insert(host, areq);
+#endif
+
 		mmc_pre_req(host, areq->mrq, !host->areq);
+
+#if defined(FEATURE_MET_MMC_INDEX)
+		met_mmc_dma_map(host, areq);
+#endif
+	}
 
 	if (host->areq) {
 		err = mmc_wait_for_data_req_done(host, host->areq->mrq,	areq);
@@ -582,6 +639,33 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 			do{
 				host->ops->tuning(host, host->areq->mrq);	//add for MTK msdc host <Yuchi Xu>
 			}while(host->ops->check_written_data(host,host->areq->mrq));
+
+#if defined(FEATURE_STORAGE_PERF_INDEX)
+			time1 = sched_clock();
+
+        	idx = find_mmcqd_index();
+			if (start_async_req[idx] == 1)
+			{
+				//idx = find_mmcqd_index();
+				mmcqd_rq_count[idx]++;
+
+				if(host->areq->mrq->data->flags == MMC_DATA_WRITE)
+				{
+					mmcqd_wr_rq_count[idx]++;
+					mmcqd_rq_size_wr[idx] += ((host->areq->mrq->data->blocks) * (host->areq->mrq->data->blksz));
+					mmcqd_t_usage_wr[idx] += time1 - start_async_req_time[idx];
+				}
+				else if (host->areq->mrq->data->flags == MMC_DATA_READ)
+				{
+					mmcqd_rd_rq_count[idx]++;
+					mmcqd_rq_size_rd[idx] += ((host->areq->mrq->data->blocks) * (host->areq->mrq->data->blksz));
+					mmcqd_t_usage_rd[idx] += time1 - start_async_req_time[idx];
+				}
+
+				start_async_req[idx] = 0;
+			}
+#endif
+
 			err = host->areq->err_check(host->card, host->areq);
 		}
 		/*
@@ -592,6 +676,10 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		     (mmc_resp_type(host->areq->mrq->cmd) == MMC_RSP_R1B)) &&
 		    (host->areq->mrq->cmd->resp[0] & R1_EXCEPTION_EVENT))
 			mmc_start_bkops(host->card, true);
+
+#if defined(FEATURE_MET_MMC_INDEX)
+		met_mmc_complete(host, host->areq);
+#endif
 	}
 
 	if (!err && areq) {
@@ -599,10 +687,24 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 				       areq->mrq->cmd->arg,
 				       areq->mrq->data);
 		start_err = __mmc_start_data_req(host, areq->mrq);
+#if defined(FEATURE_STORAGE_PERF_INDEX)
+		start_async_req[idx] = 1;
+		start_async_req_time[idx] = sched_clock();
+#endif
+
 	}
 
-	if (host->areq)
+	if (host->areq) {
+#if defined(FEATURE_MET_MMC_INDEX)
+		met_mmc_dma_unmap_start(host, host->areq);
+#endif
+
 		mmc_post_req(host, host->areq->mrq, 0);
+
+#if defined(FEATURE_MET_MMC_INDEX)
+		met_mmc_dma_unmap_stop(host, host->areq);
+#endif
+    }
 
 	 /* Cancel a prepared request if it was not started. */
 	if ((err || start_err) && areq)
@@ -2657,9 +2759,6 @@ int mmc_detect_card_removed(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_detect_card_removed);
 
-#ifdef CONFIG_MTK_HIBERNATION
-extern void mmc_rescan_wait_finish(void);
-#endif
 void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
@@ -2738,11 +2837,6 @@ void mmc_rescan(struct work_struct *work)
 	host->rescan_entered = 1;
 
  out:
-#ifdef CONFIG_MTK_HIBERNATION
-    if (unlikely(host->index == 1)) {
-        mmc_rescan_wait_finish();
-    }
-#endif
 	if (extend_wakelock)
 		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
 	else
@@ -3062,6 +3156,10 @@ int mmc_resume_host(struct mmc_host *host)
 			pr_warning("%s: error %d during resume "
 					    "(card was removed?)\n",
 					    mmc_hostname(host), err);
+			if (host->card) {
+				mmc_card_set_removed(host->card);
+				pr_warning("%s: card resume fail and remove\n", mmc_hostname(host));
+			}
 			err = 0;
 		}
 	}
@@ -3083,6 +3181,9 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		notify_block, struct mmc_host, pm_notify);
 	unsigned long flags;
 	int err = 0;
+#ifdef CONFIG_MTK_HIBERNATION
+	unsigned long wait_time = 0;
+#endif
 
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
@@ -3121,6 +3222,33 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		mmc_release_host(host);
 		host->pm_flags = 0;
 		break;
+
+#ifdef CONFIG_MTK_HIBERNATION
+	case PM_RESTORE_PREPARE:
+		/* For hibernation boot-up, mmc rescan job MUST finish before entering hiberation restore flow.
+		   Or mmc rescan may call submit_bio(),  which will induce BUG_ON() in submit_bio() !!
+		*/
+		if (!host->card || !mmc_card_present(host->card)) {
+			pr_warn("[%s] %s card is not present.\n", __func__, mmc_hostname(host));
+			break;
+		}
+		while (wait_time < MMC_PM_RESTORE_WAIT_MS) {
+			if (host->rescan_disable || host->rescan_entered) {
+				pr_warn("[%s] %s (%d/%d) rescan done.\n", __func__,
+						mmc_hostname(host), host->rescan_disable, host->rescan_entered);
+				break;
+			}
+			msleep(200);
+			wait_time += 200;
+		}
+		if (unlikely(wait_time >= MMC_PM_RESTORE_WAIT_MS)) {
+			pr_warn("[%s] %s (%d/%d) rescan timeout !!\n", __func__,
+					mmc_hostname(host), host->rescan_disable, host->rescan_entered);
+			return notifier_from_errno(-EIO);
+		}
+		/* ///////// */
+		break;
+#endif	/* CONFIG_MTK_HIBERNATION */
 
 	case PM_POST_SUSPEND:
 	case PM_POST_HIBERNATION:

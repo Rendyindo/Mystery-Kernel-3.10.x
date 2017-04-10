@@ -859,6 +859,12 @@ static int adb_function_set_alt(struct usb_function *f, unsigned intf, unsigned 
 
 	DBG(cdev, "adb_function_set_alt intf: %d alt: %d\n", intf, alt);
 
+#ifdef CONFIG_USBIF_COMPLIANCE
+	if (dev->online){
+		return 0 ;
+	}
+#endif
+
 	ret = config_ep_by_speed(cdev->gadget, f, dev->ep_in);
 	if (ret)
 		return ret;

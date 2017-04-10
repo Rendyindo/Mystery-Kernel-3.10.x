@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include "AudDrv_Common.h"
 #include "AudDrv_Def.h"
 #include "AudDrv_Afe.h"
@@ -175,6 +176,7 @@ static int mtk_voice_md2_bt_pcm_open(struct snd_pcm_substream *substream)
     return 0;
 }
 
+#if 0 //not used
 static void ConfigAdcI2S(struct snd_pcm_substream *substream)
 {
     mAudioDigitalI2S.mLR_SWAP = Soc_Aud_LR_SWAP_NO_SWAP;
@@ -187,6 +189,7 @@ static void ConfigAdcI2S(struct snd_pcm_substream *substream)
     mAudioDigitalI2S.mI2S_WLEN = Soc_Aud_I2S_WLEN_WLEN_16BITS;
     mAudioDigitalI2S.mI2S_SAMPLERATE = (substream->runtime->rate);
 }
+#endif
 
 static int mtk_voice_md2_bt_close(struct snd_pcm_substream *substream)
 {
@@ -199,10 +202,10 @@ static int mtk_voice_md2_bt_close(struct snd_pcm_substream *substream)
     }
 
     // interconnection setting
-    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I02, Soc_Aud_InterConnectionOutput_O17);
-    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I02, Soc_Aud_InterConnectionOutput_O18);
-    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I14, Soc_Aud_InterConnectionOutput_O02);
-    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I21, Soc_Aud_InterConnectionOutput_O02);
+    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I02, Soc_Aud_InterConnectionOutput_O07);
+    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I02, Soc_Aud_InterConnectionOutput_O08);
+    SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I09, Soc_Aud_InterConnectionOutput_O02);
+    //SetConnection(Soc_Aud_InterCon_DisConnect, Soc_Aud_InterConnectionInput_I22, Soc_Aud_InterConnectionOutput_O02);
 
     // here start digital part
     SetMemoryPathEnable(Soc_Aud_Digital_Block_DAI_BT, false);
@@ -287,10 +290,10 @@ static int mtk_voice_md2_bt_prepare(struct snd_pcm_substream *substream)
     AudDrv_Clk_On();
 
     // here start digital part
-    SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I02, Soc_Aud_InterConnectionOutput_O17);
-    SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I02, Soc_Aud_InterConnectionOutput_O18);
-    SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I14, Soc_Aud_InterConnectionOutput_O02);
-    SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I21, Soc_Aud_InterConnectionOutput_O08);
+    SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I02, Soc_Aud_InterConnectionOutput_O07);
+    SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I02, Soc_Aud_InterConnectionOutput_O08);
+    SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I09, Soc_Aud_InterConnectionOutput_O02);
+    //SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I22, Soc_Aud_InterConnectionOutput_O08);
 
     if (GetMemoryPathEnable(Soc_Aud_Digital_Block_DAI_BT) == false)
     {
@@ -353,6 +356,13 @@ static struct snd_soc_platform_driver mtk_soc_voice_md2_bt_platform =
 static int mtk_voice_md2_bt_probe(struct platform_device *pdev)
 {
     printk("mtk_voice_md2_bt_probe\n");
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_VOICE_MD2_BT);
@@ -395,8 +405,7 @@ static int mtk_voice_md2_bt_pm_ops_suspend(struct device *device)
     AudDrv_Clk_Off();
     if (b_modem1_speech_on == true || b_modem2_speech_on == true)
     {
-        //clkmux_sel(MT_MUX_AUDINTBUS, 0, "AUDIO");
-        SetClkCfg(AUDIO_CLK_CFG_4, 0x00000000, 0x7000000);
+        clkmux_sel(MT_MUX_AUDINTBUS, 0, "AUDIO"); //select 26M
         return 0;
     }
     return 0;
@@ -412,8 +421,7 @@ static int mtk_voice_md2_bt_pm_ops_resume(struct device *device)
     AudDrv_Clk_Off();
     if (b_modem1_speech_on == true || b_modem2_speech_on == true)
     {
-        //clkmux_sel(MT_MUX_AUDINTBUS, 0, "AUDIO");
-        SetClkCfg(AUDIO_CLK_CFG_4, 0x1000000, 0x1000000);
+        clkmux_sel(MT_MUX_AUDINTBUS, 1, "AUDIO"); //mainpll
         return 0;
     }
 
@@ -431,12 +439,22 @@ struct dev_pm_ops mtk_voice_md2_bt_pm_ops =
     .restore_noirq = NULL,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_pcm_voice_md2_bt_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_voice_md2_bt", },
+    {}
+};
+#endif
 
 static struct platform_driver mtk_voice_md2_bt_driver =
 {
     .driver = {
         .name = MT_SOC_VOICE_MD2_BT,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_voice_md2_bt_of_ids,
+        #endif        
 #ifdef CONFIG_PM
         .pm     = &mtk_voice_md2_bt_pm_ops,
 #endif
@@ -445,12 +463,15 @@ static struct platform_driver mtk_voice_md2_bt_driver =
     .remove = mtk_voice_md2_bt_remove,
 };
 
+#ifndef CONFIG_OF	
 static struct platform_device *soc_mtk_voice_md2_bt_dev;
+#endif
 
 static int __init mtk_soc_voice_md2_bt_platform_init(void)
 {
     int ret = 0;
     printk("%s\n", __func__);
+    #ifndef CONFIG_OF	
     soc_mtk_voice_md2_bt_dev = platform_device_alloc(MT_SOC_VOICE_MD2_BT, -1);
     if (!soc_mtk_voice_md2_bt_dev)
     {
@@ -463,6 +484,7 @@ static int __init mtk_soc_voice_md2_bt_platform_init(void)
         platform_device_put(soc_mtk_voice_md2_bt_dev);
         return ret;
     }
+	#endif
     ret = platform_driver_register(&mtk_voice_md2_bt_driver);
 
     return ret;

@@ -56,21 +56,29 @@ typedef enum
 
 typedef struct ion_sys_cache_sync_param
 {
-    struct ion_handle* handle;
-    unsigned int va;
+	union
+	{
+	    ion_user_handle_t handle;
+	    struct ion_handle* kernel_handle;
+	};
+    void* va;
     unsigned int size;
     ION_CACHE_SYNC_TYPE sync_type;
 } ion_sys_cache_sync_param_t;
 
 typedef struct ion_sys_get_phys_param
 {
-    struct ion_handle* handle;
+	union
+	{
+	    ion_user_handle_t handle;
+	    struct ion_handle* kernel_handle;
+	};
     unsigned int phy_addr;
     unsigned int len;
 } ion_sys_get_phys_param_t;
 
 #define ION_MM_DBG_NAME_LEN 16
-#define ION_MM_SF_BUF_INFO_LEN 12
+#define ION_MM_SF_BUF_INFO_LEN 16
 
 typedef struct __ion_sys_client_name
 {
@@ -97,7 +105,11 @@ typedef struct ion_sys_data
 
 typedef struct ion_mm_config_buffer_param
 {
-    struct ion_handle* handle;
+	union
+	{
+	    ion_user_handle_t handle;
+	    struct ion_handle* kernel_handle;
+	};
     int eModuleID;
     unsigned int security;
     unsigned int coherent;
@@ -106,7 +118,11 @@ typedef struct ion_mm_config_buffer_param
 
 typedef struct __ion_mm_buf_debug_info
 {
-    struct ion_handle* handle;
+	union
+	{
+	    ion_user_handle_t handle;
+	    struct ion_handle* kernel_handle;
+	};
     char dbg_name[ION_MM_DBG_NAME_LEN];
     unsigned int value1;
     unsigned int value2;
@@ -116,7 +132,11 @@ typedef struct __ion_mm_buf_debug_info
 
 typedef struct __ion_mm_sf_buf_info
 {
-    struct ion_handle* handle;
+	union
+	{
+	    ion_user_handle_t handle;
+	    struct ion_handle* kernel_handle;
+	};
     unsigned int info[ION_MM_SF_BUF_INFO_LEN];
 }ion_mm_sf_buf_info_t;
 
@@ -135,8 +155,8 @@ typedef struct ion_mm_data
 
 #define ION_LOG_TAG "ion_dbg"
 #include <linux/xlog.h>
-#define IONMSG(string, args...)	xlog_printk(ANDROID_LOG_INFO, ION_LOG_TAG, string,##args)
-#define IONTMP(string, args...)  xlog_printk(ANDROID_LOG_INFO, ION_LOG_TAG, string,##args)
+#define IONMSG(string, args...)	printk("[ION]"string,##args)
+#define IONTMP(string, args...)  printk("[ION]"string,##args)
 #define ion_aee_print(string, args...) do{\
     char ion_name[100];\
     snprintf(ion_name,100, "["ION_LOG_TAG"]"string, ##args); \
@@ -148,7 +168,7 @@ extern struct ion_device *g_ion_device;
 
 // Exported functions
 long ion_kernel_ioctl(struct ion_client *client, unsigned int cmd, unsigned long arg);
-struct ion_handle* ion_drv_get_kernel_handle(struct ion_client* client, void *handle, int from_kernel);
+struct ion_handle* ion_drv_get_handle(struct ion_client* client, int user_handle, struct ion_handle* kernel_handle, int from_kernel);
 int ion_drv_put_kernel_handle(void *kernel_handle);
 
 /**
@@ -159,6 +179,11 @@ size_t ion_mm_heap_total_memory(void);
  * ion_mm_heap_total_memory() - get mm heap buffer detail info.
  */
 void ion_mm_heap_memory_detail(void);
+int ion_drv_create_FB_heap(ion_phys_addr_t fb_base, size_t fb_size);
+
+typedef int (ion_mm_buf_destroy_callback_t)(struct ion_buffer *buffer, unsigned int phyAddr);
+int ion_mm_heap_register_buf_destroy_callback(struct ion_buffer *buffer, ion_mm_buf_destroy_callback_t *fn);
+
 #endif
 
 #endif

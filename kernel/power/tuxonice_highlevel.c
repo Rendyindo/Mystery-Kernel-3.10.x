@@ -429,6 +429,10 @@ static void do_cleanup(int get_debug_info, int restarting)
 	get_debug_info = 0;
 #endif
 
+#ifdef CONFIG_TOI_ENHANCE
+	toi_actual_compression_ratio(); /* keep the actual compressed ratio for reference */
+#endif
+
 	free_checksum_pages();
 
 	if (get_debug_info)
@@ -532,7 +536,7 @@ static int toi_init(int restarting)
 {
 	int result, i, j;
 
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 	if (test_result_state(TOI_ABORTED))
 		return 1;
 #endif
@@ -1140,13 +1144,6 @@ int toi_try_hibernate(void)
 	if (sys_power_disk)
 		toi_finish_anything(SYSFS_HIBERNATING);
 
-#ifdef CONFIG_MTK_HIBERNATION
-	/* enhanced error handling */
-	if (test_result_state(TOI_ARCH_PREPARE_FAILED)) {
-		result = 0xdead;	/* magic code here */
-	}
-#endif
-
 	return result;
 }
 
@@ -1183,7 +1180,7 @@ int toi_launch_userspace_program(char *command, int channel_no, int wait, int de
 
 	/* Up to 6 args supported */
 	while (arg < 6) {
-		sscanf(orig_posn, "%s", test_read);
+		sscanf(orig_posn, "%254s", test_read);
 		size = strlen(test_read);
 		if (!(size))
 			break;
@@ -1227,7 +1224,7 @@ int toi_launch_userspace_program(char *command, int channel_no, int wait, int de
 	return retval;
 }
 
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_ENHANCE
 int toi_abort_hibernate(void)
 {
 	if (test_result_state(TOI_ABORTED))
@@ -1238,6 +1235,15 @@ int toi_abort_hibernate(void)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(toi_abort_hibernate);
+
+int toi_hibernate_fatalerror(void)
+{
+	if (test_result_state(TOI_ARCH_PREPARE_FAILED))
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(toi_hibernate_fatalerror);
 #endif
 
 /*

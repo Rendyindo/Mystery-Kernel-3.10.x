@@ -16,7 +16,7 @@
 #include <asm/traps.h>
 #include <linux/semaphore.h>
 #include <linux/delay.h>
-
+#include <linux/mrdump.h>
 #include "aed.h"
 
 struct bt_sync {
@@ -43,119 +43,79 @@ static void per_cpu_get_bt(void *info)
 	atomic_dec(&s->cpus_report);
 }
 
-int notrace aed_unwind_frame(struct stackframe *frame, unsigned long stack_address)
+static int aed_save_trace(struct stackframe *frame, void *d)
 {
-	unsigned long high, low;
-	unsigned long fp = frame->fp;
-
-	unsigned long thread_info = stack_address - THREAD_SIZE;
-
-	/* only go to a higher address on the stack */
-	low = frame->sp;
-	high = ALIGN(low, THREAD_SIZE);
-	if (high != stack_address) {
-		LOGD("%s: sp base(%lx) not equal to process stack base(%lx)\n", __func__, low,
-		     stack_address);
-		return -EINVAL;
+	struct aee_process_bt *trace = d;
+	unsigned long addr = frame->pc;
+	unsigned int id = trace->nr_entries;
+	struct pt_regs *excp_regs;
+	/* use static var, not support concurrency */
+	static unsigned long stack;
+	int ret = 0;
+	if (id >= AEE_NR_FRAME)
+		return -1;
+	if (id == 0)
+		stack = frame->sp;
+	if (frame->fp < stack || frame->fp > ALIGN(stack, THREAD_SIZE))
+		ret = -1;
+#if 0
+	if (ret == 0 && in_exception_text(addr)) {
+#ifdef __aarch64__
+		excp_regs = (void *)(frame->fp + 0x10);
+		frame->pc = excp_regs->reg_pc - 4;
+#else
+		excp_regs = (void *)(frame->fp + 4);
+		frame->pc = excp_regs->reg_pc;
+		frame->lr = excp_regs->reg_lr;
+#endif
+		frame->sp = excp_regs->reg_sp;
+		frame->fp = excp_regs->reg_fp;
 	}
-	/* check current frame pointer is within bounds */
-	if ((fp < (low + 12)) || ((fp + 4) >= high))
-		return -EINVAL;
-
-	if ((fp < thread_info) || (fp >= (stack_address - 4))) {
-		LOGD("%s: fp(%lx) out of process stack base(%lx)\n", __func__, fp, stack_address);
-		return -EINVAL;
-	}
-
-	/* restore the registers from the stack frame */
-	frame->fp = *(unsigned long *)(fp - 12);
-	frame->sp = *(unsigned long *)(fp - 8);
-	frame->lr = *(unsigned long *)(fp - 4);
-	frame->pc = *(unsigned long *)(fp);
-
-	return 0;
-}
-
-#define FUNCTION_OFFSET 12
-asmlinkage void __sched preempt_schedule_irq(void);
-static struct aee_bt_frame aed_backtrace_buffer[AEE_NR_FRAME];
-
-static int aed_walk_stackframe(struct stackframe *frame, struct aee_process_bt *bt,
-			       unsigned int stack_address)
-{
-	int count;
-	struct stackframe current_stk;
-	bt->entries = aed_backtrace_buffer;
-
-	memcpy(&current_stk, frame, sizeof(struct stackframe));
-	for (count = 0; count < AEE_NR_FRAME; count++) {
-		unsigned long prev_fp = current_stk.fp;
-		int ret;
-
-		bt->entries[bt->nr_entries].pc = current_stk.pc;
-		bt->entries[bt->nr_entries].lr = current_stk.lr;
-		snprintf(bt->entries[bt->nr_entries].pc_symbol, AEE_SZ_SYMBOL_S, "%pS",
-			 (void *)current_stk.pc);
-		snprintf(bt->entries[bt->nr_entries].lr_symbol, AEE_SZ_SYMBOL_L, "%pS",
-			 (void *)current_stk.lr);
-
-		bt->nr_entries++;
-		if (bt->nr_entries >= AEE_NR_FRAME) {
-			break;
-		}
-
-		ret = aed_unwind_frame(&current_stk, stack_address);
-		/* oops, reached end without exception. return original info */
-		if (ret < 0)
-			break;
-
-		if (in_exception_text(current_stk.pc)
-		    || ((current_stk.pc - FUNCTION_OFFSET) ==
-			(unsigned long)preempt_schedule_irq)) {
-			struct pt_regs *regs = (struct pt_regs *)(prev_fp + 4);
-
-			/* passed exception point, return this if unwinding is sucessful */
-			current_stk.pc = regs->ARM_pc;
-			current_stk.lr = regs->ARM_lr;
-			current_stk.fp = regs->ARM_fp;
-			current_stk.sp = regs->ARM_sp;
-		}
-
-	}
-
-	if (bt->nr_entries < AEE_NR_FRAME) {
-		bt->entries[bt->nr_entries].pc = ULONG_MAX;
-		bt->entries[bt->nr_entries].pc_symbol[0] = '\0';
-		bt->entries[bt->nr_entries].lr = ULONG_MAX;
-		bt->entries[bt->nr_entries++].lr_symbol[0] = '\0';
-	}
-	return 0;
+#endif
+	trace->entries[id].pc = frame->pc;
+	snprintf(trace->entries[id].pc_symbol, AEE_SZ_SYMBOL_S, "%pS", (void *)frame->pc);
+#ifndef __aarch64__
+	trace->entries[id].lr = frame->lr;
+	snprintf(trace->entries[id].lr_symbol, AEE_SZ_SYMBOL_L, "%pS", (void *)frame->lr);
+#endif
+	++trace->nr_entries;
+	return ret;
 }
 
 static void aed_get_bt(struct task_struct *tsk, struct aee_process_bt *bt)
 {
 	struct stackframe frame;
-	unsigned int stack_address;
+	unsigned long stack_address;
+	static struct aee_bt_frame aed_backtrace_buffer[AEE_NR_FRAME];
 
 	bt->nr_entries = 0;
+	bt->entries = aed_backtrace_buffer;
 
 	memset(&frame, 0, sizeof(struct stackframe));
 	if (tsk != current) {
 		frame.fp = thread_saved_fp(tsk);
-		frame.sp = thread_saved_sp(tsk);
+		frame.sp = thread_saved_sp(tsk);	
+#ifdef __aarch64__	
+		frame.pc = thread_saved_pc(tsk);
+#else
 		frame.lr = thread_saved_pc(tsk);
 		frame.pc = 0xffffffff;
+#endif
 	} else {
 		register unsigned long current_sp asm("sp");
 
 		frame.fp = (unsigned long)__builtin_frame_address(0);
 		frame.sp = current_sp;
+#ifdef __aarch64__
+		frame.pc = (unsigned long)__builtin_return_address(0);
+#else
 		frame.lr = (unsigned long)__builtin_return_address(0);
 		frame.pc = (unsigned long)aed_get_bt;
+#endif
 	}
 	stack_address = ALIGN(frame.sp, THREAD_SIZE);
 	if ((stack_address >= (PAGE_OFFSET + THREAD_SIZE)) && virt_addr_valid(stack_address)) {
-		aed_walk_stackframe(&frame, bt, stack_address);
+		walk_stackframe(&frame, aed_save_trace, bt);
 	} else {
 		LOGD("%s: Invalid sp value %lx\n", __func__, frame.sp);
 	}
@@ -195,6 +155,8 @@ int aed_get_process_bt(struct aee_process_bt *bt)
 		goto exit;
 	}
 
+	mutex_unlock(&task->signal->cred_guard_mutex);
+
 	get_online_cpus();
 	preempt_disable();
 
@@ -227,8 +189,6 @@ int aed_get_process_bt(struct aee_process_bt *bt)
 
 	preempt_enable();
 	put_online_cpus();
-
-	mutex_unlock(&task->signal->cred_guard_mutex);
 
  exit:
 	up(&process_bt_sem);

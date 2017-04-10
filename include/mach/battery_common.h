@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #ifndef BATTERY_COMMON_H
 #define BATTERY_COMMON_H
 
@@ -30,6 +16,9 @@
 #define CV_DROPDOWN_VOLTAGE                 4000
 #define CHARGER_THRESH_HOLD                 4300
 #define BATTERY_UVLO_VOLTAGE                2700
+#ifndef SHUTDOWN_SYSTEM_VOLTAGE
+#define SHUTDOWN_SYSTEM_VOLTAGE		3400
+#endif
 
 /*****************************************************************************
  *  BATTERY TIMER
@@ -94,6 +83,21 @@ typedef enum {
 	USB_CONFIGURED
 } usb_state_enum;
 
+typedef enum {
+	BATTERY_AVG_CURRENT = 0,
+	BATTERY_AVG_VOLT = 1,
+	BATTERY_AVG_TEMP = 2,
+	BATTERY_AVG_MAX
+} BATTERY_AVG_ENUM;
+
+typedef enum {
+	BATTERY_THREAD_TIME = 0,
+	CAR_TIME,
+	SUSPEND_TIME,
+	AP_SUSPEND_TIME,
+	DURATION_NUM
+} BATTERY_TIME_ENUM;
+
 /*****************************************************************************
 *   JEITA battery temperature standard
     charging info ,like temperatue, charging current, re-charging voltage, CV threshold would be reconfigurated.
@@ -116,6 +120,30 @@ typedef enum {
 	TEMP_ABOVE_POS_60
 } temp_state_enum;
 
+
+#define TEMP_POS_60_THRESHOLD  50
+#define TEMP_POS_60_THRES_MINUS_X_DEGREE 47
+
+#define TEMP_POS_45_THRESHOLD  45
+#define TEMP_POS_45_THRES_MINUS_X_DEGREE 39
+
+#define TEMP_POS_10_THRESHOLD  10
+#define TEMP_POS_10_THRES_PLUS_X_DEGREE 16
+
+#define TEMP_POS_0_THRESHOLD  0
+#define TEMP_POS_0_THRES_PLUS_X_DEGREE 6
+
+#ifdef CONFIG_MTK_FAN5405_SUPPORT
+#define TEMP_NEG_10_THRESHOLD  0
+#define TEMP_NEG_10_THRES_PLUS_X_DEGREE  0
+#elif defined(CONFIG_MTK_BQ24158_SUPPORT)
+#define TEMP_NEG_10_THRESHOLD  0
+#define TEMP_NEG_10_THRES_PLUS_X_DEGREE  0
+#else
+#define TEMP_NEG_10_THRESHOLD  0
+#define TEMP_NEG_10_THRES_PLUS_X_DEGREE  0
+#endif
+
 /*****************************************************************************
  *  Normal battery temperature state
  ****************************************************************************/
@@ -129,31 +157,32 @@ typedef enum {
  *  structure
  ****************************************************************************/
 typedef struct {
-	kal_bool		bat_exist;
-	kal_bool		bat_full;
-	INT32			bat_charging_state;
-	UINT32			bat_vol;
-	kal_bool			bat_in_recharging_state;
-	kal_uint32		Vsense;
-	kal_bool			charger_exist;
-	UINT32			charger_vol;
-	INT32			charger_protect_status;
-	INT32			ICharging;
-	INT32			IBattery;
-	INT32			temperature;
-	INT32			temperatureR;
-	INT32			temperatureV;
-	UINT32			total_charging_time;
-	UINT32			PRE_charging_time;
-	UINT32			CC_charging_time;
-	UINT32			TOPOFF_charging_time;
-	UINT32			POSTFULL_charging_time;
-	UINT32			charger_type;
-	INT32			SOC;
-	INT32			UI_SOC;
-	UINT32			nPercent_ZCV;
-	UINT32			nPrecent_UI_SOC_check_point;
-	UINT32			ZCV;
+	kal_bool bat_exist;
+	kal_bool bat_full;
+	INT32 bat_charging_state;
+	UINT32 bat_vol;
+	kal_bool bat_in_recharging_state;
+	kal_uint32 Vsense;
+	kal_bool charger_exist;
+	UINT32 charger_vol;
+	INT32 charger_protect_status;
+	INT32 ICharging;
+	INT32 IBattery;
+	INT32 temperature;
+	INT32 temperatureR;
+	INT32 temperatureV;
+	UINT32 total_charging_time;
+	UINT32 PRE_charging_time;
+	UINT32 CC_charging_time;
+	UINT32 TOPOFF_charging_time;
+	UINT32 POSTFULL_charging_time;
+	UINT32 charger_type;
+	INT32 SOC;
+	INT32 UI_SOC;
+	INT32 UI_SOC2;
+	UINT32 nPercent_ZCV;
+	UINT32 nPrecent_UI_SOC_check_point;
+	UINT32 ZCV;
 } PMU_ChargerStruct;
 
 /*****************************************************************************
@@ -165,18 +194,19 @@ extern kal_bool g_ftm_battery_flag;
 extern int charging_level_data[1];
 extern kal_bool g_call_state;
 extern kal_bool g_charging_full_reset_bat_meter;
-extern kal_uint32 g_bcct_flag;
-extern kal_uint32 g_bcct_value;
-extern kal_uint32 g_usb_state;
-extern bool usb_unlimited;
-extern int g_jeita_recharging_voltage;
-extern int g_temp_status;
-extern kal_bool temp_error_recovery_chr_flag;
+#if defined(CONFIG_MTK_PUMP_EXPRESS_SUPPORT) || defined(CONFIG_MTK_PUMP_EXPRESS_PLUS_SUPPORT)
+extern kal_bool ta_check_chr_type;
+extern kal_bool ta_cable_out_occur;
+extern kal_bool is_ta_connect;
+extern struct wake_lock TA_charger_suspend_lock;
+#endif
 
 
 /*****************************************************************************
  *  Extern Function
  ****************************************************************************/
+extern void charging_suspend_enable(void);
+extern void charging_suspend_disable(void);
 extern kal_bool bat_is_charger_exist(void);
 extern kal_bool bat_is_charging_full(void);
 extern kal_uint32 bat_get_ui_percentage(void);
@@ -185,18 +215,31 @@ extern kal_uint32 bat_is_recharging_phase(void);
 extern void do_chrdet_int_task(void);
 extern void set_usb_current_unlimited(bool enable);
 extern bool get_usb_current_unlimited(void);
+extern CHARGER_TYPE mt_get_charger_type(void);
+
+extern kal_uint32 mt_battery_get_duration_time(BATTERY_TIME_ENUM duration_type);
+extern void mt_battery_update_time(struct timespec * pre_time, BATTERY_TIME_ENUM duration_type);
+extern kal_uint32 mt_battery_shutdown_check(void);
+extern kal_uint8 bat_is_kpoc(void);
 
 #ifdef CONFIG_MTK_SMART_BATTERY
 extern void wake_up_bat(void);
+extern void wake_up_bat2(void);
+extern void wake_up_bat3(void);
+
 extern unsigned long BAT_Get_Battery_Voltage(int polling_mode);
-extern void mt_battery_charging_algorithm_linear(void);
-extern void mt_battery_charging_algorithm_switch(void);
-extern PMU_STATUS do_jeita_state_machine_linear(void);
-extern PMU_STATUS do_jeita_state_machine_switch(void);
+extern void mt_battery_charging_algorithm(void);
+#if defined(CONFIG_MTK_JEITA_STANDARD_SUPPORT)
+extern PMU_STATUS do_jeita_state_machine(void);
+#endif
 
 #else
 
 #define wake_up_bat()			do {} while (0)
+#define wake_up_bat2()			do {} while (0)
+#define wake_up_bat3()			do {} while (0)
+
+
 #define BAT_Get_Battery_Voltage(polling_mode)	({ 0; })
 
 #endif

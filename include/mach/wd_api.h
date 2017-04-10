@@ -34,7 +34,7 @@ typedef enum wk_req_mode {
 } WD_REQ_MODE;
 
 struct wd_api {
-	int ready;
+	long ready;
 	int (*wd_restart) (enum wd_restart_type type);
 	int (*wd_cpu_hot_plug_on_notify) (int);
 	int (*wd_cpu_hot_plug_off_notify) (int);

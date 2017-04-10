@@ -652,6 +652,23 @@ update_cfg_file_failed:
 #endif
 
 #if (GTP_AUTO_UPDATE && (!GTP_HEADER_FW_UPDATE || GTP_AUTO_UPDATE_CFG))
+
+u8 gup_check_rootfs_readonly(void)
+{
+    struct path root_path;
+    int err;
+    err = kern_path("/", LOOKUP_FOLLOW, &root_path);
+    if(err) {
+         path_put(&root_path);
+         return FAIL;
+    }
+    if(__mnt_is_readonly(root_path.mnt) == 1) {
+         path_put(&root_path);
+         return SUCCESS;
+    }
+    return FAIL;
+}
+
 static void gup_search_file(s32 search_type)
 {
     s32 i = 0;
@@ -660,6 +677,11 @@ static void gup_search_file(s32 search_type)
     got_file_flag = 0x00;
     
     searching_file = 1;
+    while(FAIL == gup_check_rootfs_readonly())
+    {
+	msleep(1000);
+	GTP_INFO("Check fs..");
+    }
     for (i = 0; i < GUP_SEARCH_FILE_TIMES; ++i)
     {            
         if (0 == searching_file)
@@ -2760,7 +2782,7 @@ static s32 gup_prepare_fl_fw(char *path, st_fw_head *fw_head)
     update_msg.fw_total_len = update_msg.file->f_op->llseek(update_msg.file, 0, SEEK_END);
     if (sizeof(gtp_default_FW_fl) != update_msg.fw_total_len)
     {
-        GTP_ERROR("Inconsistent firmware size. File size: %du, default fw size: %lu", update_msg.fw_total_len, sizeof(gtp_default_FW_fl));
+      //GTP_ERROR("Inconsistent firmware size. File size: %du, default fw size: %lu", update_msg.fw_total_len, sizeof(gtp_default_FW_fl));
         set_fs(update_msg.old_fs);
         _CLOSE_FILE(update_msg.file);
         return FAIL;
@@ -2927,7 +2949,7 @@ static s32 i2c_auto_read(struct i2c_client *client,u8 *rxbuf, int len)
     struct i2c_msg msg = 
     {
         //.addr = ((client->addr &I2C_MASK_FLAG) | (I2C_ENEXT_FLAG)),
-        .addr = ((client->addr &I2C_MASK_FLAG) | (I2C_PUSHPULL_FLAG)),
+        .addr = client->addr &I2C_MASK_FLAG,
         .flags = I2C_M_RD,
         .timing = I2C_MASTER_CLOCK
     };

@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 /*****************************************************************************
  *
  * Filename:
@@ -55,38 +41,38 @@
 
 
 //--------------logical channel attribute define-------------------//
-#define L_CH_ATTR_TX			(1<<0)		// This logic channel is a TX channel
-#define L_CH_ATTR_PRVLG0		(1<<1)		// This logic channel can send data even if runtime data not send
-#define L_CH_ATTR_PRVLG1		(1<<2)		// This logic channel can send data even if modem not boot ready
-#define L_CH_ATTR_PRVLG2		(1<<3)		// This logic channel can send data even if modem has exception
-#define L_CH_ATTR_DUMMY_WRITE	(1<<4)		// This logic channel using dummy write if modem has exception
-#define L_CH_ATTR_OPEN_CLEAR	(1<<5)		// Clear all fifo data when open
-#define L_CH_DROP_TOLERATED		(1<<6)		// Drop message is tolerated for this channel
-#define L_CH_MUST_RDY_FOR_BOOT	(1<<7)		// During modem boot up, the channel must be ready
+#define L_CH_ATTR_TX            (1<<0)        // This logic channel is a TX channel
+#define L_CH_ATTR_PRVLG0        (1<<1)        // This logic channel can send data even if runtime data not send
+#define L_CH_ATTR_PRVLG1        (1<<2)        // This logic channel can send data even if modem not boot ready
+#define L_CH_ATTR_PRVLG2        (1<<3)        // This logic channel can send data even if modem has exception
+#define L_CH_ATTR_DUMMY_WRITE    (1<<4)        // This logic channel using dummy write if modem has exception
+#define L_CH_ATTR_OPEN_CLEAR    (1<<5)        // Clear all fifo data when open
+#define L_CH_DROP_TOLERATED        (1<<6)        // Drop message is tolerated for this channel
+#define L_CH_MUST_RDY_FOR_BOOT    (1<<7)        // During modem boot up, the channel must be ready
 
-//#define MD_BOOT_STAGE_0				(1)		// Not set runtime data to MD
-//#define MD_BOOT_STAGE_1				(2)		// Has set runtime data to MD, but MD not ready yet
-//#define MD_BOOT_STAGE_2				(3)		// Modem is ready
+//#define MD_BOOT_STAGE_0                (1)        // Not set runtime data to MD
+//#define MD_BOOT_STAGE_1                (2)        // Has set runtime data to MD, but MD not ready yet
+//#define MD_BOOT_STAGE_2                (3)        // Modem is ready
 
 
 //--------------TX transfer function define-------------------//
 /* initialize a CCCI mailbox buffer */
 #define CCCI_INIT_MAILBOX(buff, mailbox_id) \
-		do {    \
-			((ccci_msg_t*)buff)->magic = 0xFFFFFFFF; \
-			((ccci_msg_t*)buff)->id = (mailbox_id);  \
-			((ccci_msg_t*)buff)->channel = CCCI_INVALID_CH_ID;  \
-			((ccci_msg_t*)buff)->reserved = 0;    \
-		} while (0)
+        do {    \
+            ((ccci_msg_t*)buff)->magic = 0xFFFFFFFF; \
+            ((ccci_msg_t*)buff)->id = (mailbox_id);  \
+            ((ccci_msg_t*)buff)->channel = CCCI_INVALID_CH_ID;  \
+            ((ccci_msg_t*)buff)->reserved = 0;    \
+        } while (0)
 
 /* initialize a CCCI stream buffer */
 #define CCCI_INIT_STREAM(buff, stream_addr, stream_len) \
-		do {    \
-			((ccci_msg_t*)buff)->addr = (stream_addr); \
-			((ccci_msg_t*)buff)->len = (stream_len);  \
-			((ccci_msg_t*)buff)->channel = CCCI_INVALID_CH_ID;  \
-			((ccci_msg_t*)buff)->reserved = 0;    \
-		} while (0)
+        do {    \
+            ((ccci_msg_t*)buff)->addr = (stream_addr); \
+            ((ccci_msg_t*)buff)->len = (stream_len);  \
+            ((ccci_msg_t*)buff)->channel = CCCI_INVALID_CH_ID;  \
+            ((ccci_msg_t*)buff)->reserved = 0;    \
+        } while (0)
 
 
 //-----------------data structure define-------------------------//
@@ -155,8 +141,8 @@ typedef enum
 /* CCCI control structure */
 
 typedef enum {
-	CCCI_ENABLED=0x0,
-	CCCI_RUNNING=0x1,
+    CCCI_ENABLED=0x0,
+    CCCI_RUNNING=0x1,
 
 } CCCI_STATE_T;
 typedef struct _CCCI_LOG_T
@@ -169,114 +155,114 @@ typedef struct _CCCI_LOG_T
 
 // CCCI mailbox channel structure
 typedef struct _ccci_mail_box{
-	unsigned int magic;   // 0xFFFFFFFF
-	unsigned int id;
+    unsigned int magic;   // 0xFFFFFFFF
+    unsigned int id;
 }ccci_mail_box_t;
 
 // CCCI stream channel structure
 typedef struct _ccci_stream_msg{
-	unsigned int addr;
-	unsigned int len;
+    unsigned int addr;
+    unsigned int len;
 }ccci_stream_msg_t;
 
 // CCCI common channel structure
 typedef struct _ccci_common_msg{
-	unsigned int data[2];
+    unsigned int data[2];
 }ccci_common_msg_t;
 
 typedef struct _ccci_msg{
-	union{
-		unsigned int magic;	// For mail box magic number
-		unsigned int addr;	// For stream start addr
-		unsigned int data0;	// For ccci common data[0]
-	};
-	union{
-		unsigned int id;	// For mail box message id
-		unsigned int len;	// For stream len
-		unsigned int data1;	// For ccci common data[1]
-	};
-	unsigned int channel;
-	unsigned int reserved;
+    union{
+        unsigned int magic;    // For mail box magic number
+        unsigned int addr;    // For stream start addr
+        unsigned int data0;    // For ccci common data[0]
+    };
+    union{
+        unsigned int id;    // For mail box message id
+        unsigned int len;    // For stream len
+        unsigned int data1;    // For ccci common data[1]
+    };
+    unsigned int channel;
+    unsigned int reserved;
 }ccci_msg_t;
 
 typedef struct dump_debug_info
 {
-	unsigned int type;
-	char *name;
-	unsigned int more_info;
-	union {
-		struct {
-			
-			char file_name[30];
-			int line_num;
-			unsigned int parameters[3];
-		} assert;	
-		struct {
-			int err_code1;
-    			int err_code2;
-		
-		}fatal_error;
-		ccci_msg_t data;
-		struct {
-			unsigned char execution_unit[9]; // 8+1
-			char file_name[30];
-			int line_num;
-			unsigned int parameters[3];
-		}dsp_assert;
-		struct {
-			unsigned char execution_unit[9];
-			unsigned int  code1;
-		}dsp_exception;
-		struct {
-			unsigned char execution_unit[9];
-			unsigned int  err_code[2];
-		}dsp_fatal_err;
-	};
-	int *ext_mem;
-	size_t ext_size;
-	int *md_image;
-	size_t md_size;
-	void *platform_data;
-	void (*platform_call)(void *data);
+    unsigned int type;
+    char *name;
+    unsigned int more_info;
+    union {
+        struct {
+            
+            char file_name[30];
+            int line_num;
+            unsigned int parameters[3];
+        } assert;    
+        struct {
+            int err_code1;
+                int err_code2;
+        
+        }fatal_error;
+        ccci_msg_t data;
+        struct {
+            unsigned char execution_unit[9]; // 8+1
+            char file_name[30];
+            int line_num;
+            unsigned int parameters[3];
+        }dsp_assert;
+        struct {
+            unsigned char execution_unit[9];
+            unsigned int  code1;
+        }dsp_exception;
+        struct {
+            unsigned char execution_unit[9];
+            unsigned int  err_code[2];
+        }dsp_fatal_err;
+    };
+    int *ext_mem;
+    size_t ext_size;
+    int *md_image;
+    size_t md_size;
+    void *platform_data;
+    void (*platform_call)(void *data);
 }DEBUG_INFO_T ;
 
 typedef struct _logic_channel_info{
-	unsigned int	m_ch_id;
-	unsigned int	m_attrs;
-	struct kfifo	m_kfifo;
-	unsigned int	m_kfifo_ready;
-	char*			m_ch_name;
-	char*			m_owner_name;
-	void*			m_owner;
-	void			(*m_call_back)(void*);
-	spinlock_t		m_lock;
-	unsigned int	m_register;
-	int				m_md_id;
+    unsigned int    m_ch_id;
+    unsigned int    m_attrs;
+    struct kfifo    m_kfifo;
+    unsigned int    m_kfifo_ready;
+    char*            m_ch_name;
+    char*            m_owner_name;
+    void*            m_owner;
+    void            (*m_call_back)(void*);
+    spinlock_t        m_lock;
+    unsigned int    m_register;
+    int                m_md_id;
 }logic_channel_info_t;
 
 typedef struct _logic_channel_static_info{
-	unsigned int	m_ch_id;
-	unsigned int	m_kfifo_size;
-	char*			m_ch_name;
-	unsigned int	m_attrs;
+    unsigned int    m_ch_id;
+    unsigned int    m_kfifo_size;
+    char*            m_ch_name;
+    unsigned int    m_attrs;
 }logic_channel_static_info_t;
 
 typedef struct _logic_dispatch_ctl_block{
-	logic_channel_info_t	m_logic_ch_table[CCCI_MAX_CH_NUM];
-	ccif_t					*m_ccif;
-	struct tasklet_struct	m_dispatch_tasklet;
-	volatile unsigned char	m_has_pending_data;
-	volatile unsigned char	m_freezed;
-	volatile unsigned char	m_running;
-	unsigned int			m_md_id;
-	struct wake_lock		m_wakeup_wake_lock;
-	char                    m_wakelock_name[16];
-	void					(*m_send_notify_cb)(int, unsigned int);	
-	unsigned long			m_last_send_ref_jiffies;	
-	unsigned long			m_status_flag;	
-	spinlock_t				m_lock;
+    logic_channel_info_t    m_logic_ch_table[CCCI_MAX_CH_NUM];
+    ccif_t                    *m_ccif;
+    struct tasklet_struct    m_dispatch_tasklet;
+    volatile unsigned char    m_has_pending_data;
+    volatile unsigned char    m_freezed;
+    volatile unsigned char    m_running;
+    unsigned int            m_md_id;
+    struct wake_lock        m_wakeup_wake_lock;
+    char                    m_wakelock_name[16];
+    void                    (*m_send_notify_cb)(int, unsigned int);    
+    unsigned long            m_last_send_ref_jiffies;    
+    unsigned long            m_status_flag;    
+    spinlock_t                m_lock;
 }logic_dispatch_ctl_block_t;
-//volatile unsigned char	m_privilege;
+//volatile unsigned char    m_privilege;
 
 
 //-----------------function define-------------------------//
@@ -318,7 +304,7 @@ int  ccci_write_runtime_data(int md_id, unsigned char buf[], int len);
 //extern ccci_base_req_func ccci_pcm_base_req_funcp;
 //extern ccci_base_req_func ccci_log_base_req_funcp;
 //extern void ccci_register_mdfunc(is_md_boot_func func1, reset_md_func func2,
-//		 ccci_base_req_func pcm_func,ccci_base_req_func log_func);
+//         ccci_base_req_func pcm_func,ccci_base_req_func log_func);
 extern int __init ccif_module_init(void);
 extern void __exit ccif_module_exit(void);
 

@@ -38,8 +38,13 @@
 #undef hib_err
 #define hib_err(fmt, ...)   pr_err("[%s] [%s()]" fmt, _TAG_HIB_M, __func__, ##__VA_ARGS__);
 
-/* for set_env() by MTK */
-#include <mach/env.h>
+#ifdef CONFIG_TOI_FIXUP
+#define HIB_SHOW_MEMINFO()                                              \
+    do {                                                                \
+        hib_warn("%d MEMINFO ---\n", __LINE__);                         \
+        show_mem(SHOW_MEM_FILTER_NODES|SHOW_MEM_FILTER_PAGE_COUNT);     \
+    } while (0)
+#endif
 
 struct toi_boot_kernel_data {
 	int version;
@@ -129,9 +134,12 @@ enum {
 	TOI_WAKEUP_EVENT,
 	TOI_SYSCORE_REFUSED,
 	TOI_DPM_PREPARE_FAILED,
-	/* FIXME: jonathan.jmchen: BUG here, TOI_DPM_SUSPEND_FAILED is the last 31-th bit here */
+#ifdef CONFIG_TOI_FIXUP
 	/* TOI_DPM_PREPARE_FAILED will exceed the # of bit when set_abort_result(TOI_DPM_SUSPEND_FAILED) is called!!! */
 	TOI_DPM_SUSPEND_FAILED = TOI_DPM_PREPARE_FAILED,
+#else
+    TOI_DPM_SUSPEND_FAILED,
+#endif
 	TOI_NUM_RESULT_STATES	/* Used in printing debug info only */
 };
 
@@ -243,4 +251,9 @@ extern char tuxonice_signature[9];
 
 extern int toi_start_other_threads(void);
 extern void toi_stop_other_threads(void);
+
+#ifdef CONFIG_TOI_ENHANCE
+extern int toi_ignore_late_initcall(void);
+#endif /* CONFIG_TOI_ENHANCE */
+
 #endif

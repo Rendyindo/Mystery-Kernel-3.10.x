@@ -24,7 +24,6 @@
 struct mutex fuse_iolog_lock;
 
 static struct fuse_proc_info fuse_iolog[FUSE_IOLOG_MAX];
-static struct timespec	fuse_iolog_time;
 static struct task_struct *fuse_iolog_thread=NULL;
 
 void fuse_time_diff(
@@ -154,13 +153,12 @@ int fuse_iolog_print(void)
     }
 
     if (i>0)
-        xlog_printk(ANDROID_LOG_DEBUG, "BLOCK_TAG", "FUSEIO %s\n", buf);
+        pr_warn("[BLOCK_TAG] FUSEIO %s\n", buf);
 
     return ptr - &buf[0];
 
 overflow:
-    xlog_printk(ANDROID_LOG_DEBUG, "BLOCK_TAG",
-        "FUSEIO log buffer overflow \n");
+    pr_warn("[BLOCK_TAG] FUSEIO log buffer overflow \n");
 
     return -1;
 }
@@ -168,13 +166,20 @@ overflow:
 void fuse_iolog_proc_clear(void)
 {
     memset(&fuse_iolog[0], 0, sizeof(struct fuse_proc_info)*FUSE_IOLOG_MAX);
-    get_monotonic_boottime(&fuse_iolog_time);
 }
 
 inline __u32 fuse_iolog_timeus(struct timespec *t)
 {
     __u32 _t;
-    _t = t->tv_sec * 1000 + do_div(t->tv_nsec, 1000);
+    long us;
+
+    us = t->tv_nsec;
+    do_div(us, 1000);
+
+    if (t->tv_sec > 3600)
+        return 0xD693A400; /* 3600000000 */
+    else
+        _t = t->tv_sec * 1000000 + us;
 
     if (_t)
         return _t;
@@ -221,27 +226,42 @@ static int fuse_iolog_watch(void *arg)
 {
     unsigned int timeout;
     int n;
-    struct timespec curr, diff;
+    int empty=0;  /* how many seconds that log is empty */
 
     while (1) {
-        if (kthread_should_stop()) break;
+        if (kthread_should_stop())
+            break;
 
-        get_monotonic_boottime(&curr);
+        /* log is empty for last 1 seconds => sleep till next io comming */
+        if (empty>1)
+        {
+                set_current_state(TASK_INTERRUPTIBLE);
+                schedule();
+        }
+        /* otherwise, check 1 seconds later */
+        else
+        {
+            do {
+                set_current_state(TASK_INTERRUPTIBLE);
+                timeout = schedule_timeout(FUSE_IOLOG_LATENCY*HZ);
+             } while(timeout);
+        }
 
         mutex_lock(&fuse_iolog_lock);
-        fuse_time_diff(&fuse_iolog_time, &curr, &diff);
 
         n=fuse_iolog_print();
 
         if (n>0)
+        {
             fuse_iolog_proc_clear();
+            empty=0;
+        }
+        else
+        {
+            empty++;
+        }
 
         mutex_unlock(&fuse_iolog_lock);
-
-        do {
-            set_current_state(TASK_INTERRUPTIBLE);
-            timeout = schedule_timeout(FUSE_IOLOG_LATENCY*HZ);
-         } while(timeout);
     }
 
     return 0;
@@ -259,12 +279,10 @@ void fuse_iolog_init(void)
     fuse_iolog_thread=kthread_create(fuse_iolog_watch, NULL, "fuse_log");
     if (IS_ERR(fuse_iolog_thread)) {
         ret = PTR_ERR(fuse_iolog_thread);
-        xlog_printk(ANDROID_LOG_DEBUG, "BLOCK_TAG",
-            "Fail to create fuse_log thread %d\n", ret);
+        pr_warn("[BLOCK_TAG] Fail to create fuse_log thread %d\n", ret);
         fuse_iolog_thread = NULL;
         goto out;
     }
-    wake_up_process(fuse_iolog_thread);
 out:
     return;
 }
@@ -305,8 +323,11 @@ void fuse_iolog_add(__u32 io_bytes, int type,
             info->valid=1;
             info->pid=pid;
             fuse_iolog_proc_update(info, io_bytes, type, &diff);
-            if (i==0)
-                get_monotonic_boottime(&fuse_iolog_time);
+            if (i==0)  /* this is the first entry, wake up the handler */
+            {
+                if (fuse_iolog_thread)
+                    wake_up_process(fuse_iolog_thread);
+            }
             goto out;
         }
     }

@@ -12,8 +12,6 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/delay.h>
-#include <cust_eint.h>
-#include <mach/eint.h>
 #include <emd_ctl.h>
 /******************************************************************************************
  *   Macro definition region
@@ -180,8 +178,9 @@ static void emd_wdt_work_func(struct work_struct *data)
 void ext_md_wdt_irq_cb(void)
 {
     EMD_MSG_INF("chr","ext_md_wdt_irq_cb:Ext MD WDT rst!\n");
-    //cm_do_md_power_off();
-    //schedule_work(&emd_wdt_work);
+    cm_hold_rst_signal();
+    cm_do_md_power_off();
+    schedule_work(&emd_wdt_work);
 }
 
 void ext_md_wakeup_irq_cb(void)

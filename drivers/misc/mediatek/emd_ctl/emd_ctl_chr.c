@@ -37,6 +37,8 @@
 #define CCCI_IOC_SIM_SWITCH_TYPE        _IOR(CCCI_IOC_MAGIC, 22, unsigned int) // RILD
 #define CCCI_IOC_STORE_SIM_MODE            _IOW(CCCI_IOC_MAGIC, 23, unsigned int) // RILD
 #define CCCI_IOC_GET_SIM_MODE            _IOR(CCCI_IOC_MAGIC, 24, unsigned int) // RILD
+#define CCCI_IOC_GET_MD_PROTOCOL_TYPE	   _IOR(CCCI_IOC_MAGIC, 42, char[16]) /*metal tool to get modem protocol type: AP_TST or DHL*/
+#define CCCI_IOC_IGNORE_MD_EXCP            _IO(CCCI_IOC_MAGIC, 44) // RILD
 
 #define CCCI_IOC_GET_MD_ASSERTLOG       _IOW(CCCI_IOC_MAGIC, 200, unsigned int)    /*Block to get extern md assert flag for mdlogger */
 #define CCCI_IOC_GET_MD_ASSERTLOG_STATUS  _IOW(CCCI_IOC_MAGIC, 201, unsigned int)    /*get extern md assert log status*/
@@ -99,7 +101,7 @@ static struct emd_reset_sta emd_reset_sta[NR_EMD_RESET_USER];
 /******************************************************************************************
  *   External customization functions region
  ******************************************************************************************/
-#ifdef CONFIG_MTK_DT_USB_SUPPORT
+#if defined(CONFIG_MTK_DT_SUPPORT) && !defined(CONFIG_MTK_C2K_SUPPORT)
 bool usb_h_acm_all_clear(void);
 #else
 static char usb_h_acm_all_clear(void)
@@ -255,7 +257,7 @@ int request_ext_md_reset()
 {
     int ret = 0;
 
-    if(atomic_inc_and_test(&rst_on_going) == 0){
+    if(atomic_add_return(1, &rst_on_going) == 1){
         ret = send_message_to_user(&drv_client[0], EMD_MSG_REQUEST_RST);
         if(ret!=0){
             EMD_MSG_INF("chr","request_ext_md_reset fail, msg does not send\n");
@@ -266,7 +268,7 @@ int request_ext_md_reset()
     }
     return ret;
 }
-#ifdef CONFIG_MTK_DT_USB_SUPPORT
+#if defined(CONFIG_MTK_DT_SUPPORT) && !defined(CONFIG_MTK_C2K_SUPPORT)
 #ifdef CONFIG_PM_RUNTIME
 void usb11_auto_resume(void);
 #endif
@@ -274,10 +276,10 @@ void usb11_auto_resume(void);
 static void emd_power_off(void)
 {
     EMD_MSG_INF("chr","emd_power_off\n");
-#ifdef CONFIG_MTK_DT_USB_SUPPORT
+#if defined(CONFIG_MTK_DT_SUPPORT) && !defined(CONFIG_MTK_C2K_SUPPORT)
 #ifdef CONFIG_PM_RUNTIME
 	/* make sure usb device tree is waked up so that usb is ready */
-	usb11_auto_resume();													
+	usb11_auto_resume();
 #endif
 #endif
     cm_do_md_power_off();
@@ -286,19 +288,25 @@ static void emd_power_off(void)
 
 static int emd_power_on(int bootmode)
 {
+	static int irq_registered = 0;
     EMD_MSG_INF("chr","emd_power_on, bootmode=%d\n",bootmode);
-#ifdef CONFIG_MTK_DT_USB_SUPPORT
+#if defined(CONFIG_MTK_DT_SUPPORT) && !defined(CONFIG_MTK_C2K_SUPPORT)
 #ifdef CONFIG_PM_RUNTIME
 	/* make sure usb device tree is waked up so that usb is ready */
-	usb11_auto_resume();													
+	usb11_auto_resume();
 #endif
 #endif
     cm_do_md_power_on(bootmode);
-    cm_register_irq_cb(0,ext_md_wdt_irq_cb);    
-    cm_register_irq_cb(1,ext_md_wakeup_irq_cb);
-    cm_register_irq_cb(2,ext_md_exception_irq_cb);
+
     EMD_MSG_INF("chr","let_ext_md_go...\n");
     let_ext_md_go();
+
+	if(!irq_registered) {
+        irq_registered = 1;
+    	cm_register_irq_cb(0,ext_md_wdt_irq_cb);    
+    	cm_register_irq_cb(1,ext_md_wakeup_irq_cb);
+    	cm_register_irq_cb(2,ext_md_exception_irq_cb);
+	}
 
     return 0;
 }
@@ -399,9 +407,11 @@ static int client_deinit(emd_dev_client_t *client)
     return 0;
 }
 
+extern void mtk_uart_dump_history(void);
+
 static void emd_aseert_log_work_func(struct work_struct *data)
 {
-#if defined (CONFIG_MTK_AEE_FEATURE) && defined (CONFIG_MT_ENG_BUILD)
+#if defined (CONFIG_MTK_AEE_FEATURE)
     char log[]="ExtMD exception\nMD:G*MT6261_S01*11C.unknown*0000/00/00 00:00\nAP:WG*MT6595_S00\n(MD)Debug";
     EMD_MSG_INF("chr","Ext MD exception,%s\n",log);
     emd_aseert_log_wait_timeout = 1;
@@ -413,6 +423,7 @@ static void emd_aseert_log_work_func(struct work_struct *data)
     wake_up_interruptible(&emd_aseert_log_wait);
     emd_request_reset();    
 #endif    
+	mtk_uart_dump_history();  
 }
 
 
@@ -438,7 +449,7 @@ static int emd_send_leave_flight_mode(void)
         EMD_MSG_INF("chr","emd_send_leave_flight_mode:ext md is ready,cannot leave flight mode!\n");
         return -EPERM;
     }    
-    if(atomic_inc_and_test(&rst_on_going) == 0){
+    if(atomic_add_return(1, &rst_on_going) == 1){
         ret = send_message_to_user(&drv_client[0], EMD_MSG_LEAVE_FLIGHT_MODE);
         if(ret!=0){
             EMD_MSG_INF("chr","emd_send_leave_flight_mode fail, msg does not send\n");
@@ -537,6 +548,24 @@ static long emd_dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg
     int value;
     emd_dev_client_t *client=(emd_dev_client_t *)file->private_data;
     switch (cmd) {
+		case CCCI_IOC_GET_MD_PROTOCOL_TYPE:
+		{
+			char md_protol[] = "AP_TST";
+			unsigned int data_size = sizeof(md_protol) / sizeof(char);
+
+			EMD_MSG_INF("chr","Call CCCI_IOC_GET_MD_PROTOCOL_TYPE!\n");
+
+
+            if (copy_to_user((void __user *)arg, md_protol, data_size)) 
+			{
+				EMD_MSG_INF("chr","copy_to_user MD_PROTOCOL failed !!\n");
+
+                return -EFAULT;
+			}
+			
+			break;
+		}
+
     case CCCI_IOC_GET_MD_STATE:
         EMD_MSG_INF("chr", "Get md state ioctl called by %s\n", current->comm);
         if(arg!=0)
@@ -556,7 +585,6 @@ static long emd_dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg
         } else {
             ret = emd_power_on(boot_mode);
             EMD_MSG_INF("chr", "CCCI_IOC_DO_START_MD,%d\n",boot_mode);
-            ret = let_ext_md_go();
         }
         break;
     case CCCI_IOC_ENTER_MD_DL_MODE:        
@@ -639,6 +667,13 @@ static long emd_dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg
         ret = put_user(sim_mode, (unsigned int __user *)arg);
         break;
 
+	case CCCI_IOC_IGNORE_MD_EXCP:
+        EMD_MSG_INF("chr", "ignore md excp ioctl called by %s\n", current->comm);
+        cm_disable_ext_md_wdt_irq();
+	    cm_disable_ext_md_wakeup_irq();
+    	cm_disable_ext_md_exp_irq();
+        break;
+
     default:
         ret = -EMD_ERR_UN_DEF_CMD;
         EMD_MSG_INF("chr","undefined ioctl called by %s\n", current->comm);
@@ -663,7 +698,6 @@ static int emd_ctl_drv_remove(struct platform_device *dev)
 static void emd_ctl_drv_shutdown(struct platform_device *dev)
 {
     EMD_MSG_INF("chr","shutdown!!\n" );
-    emd_power_off();
 }
 
 static int emd_ctl_drv_suspend(struct platform_device *dev, pm_message_t state)
@@ -720,8 +754,22 @@ int emd_request_reset(void)
     EMD_MSG_INF("chr","Ext MD request MD reboot!\n");
     request_ext_md_reset();
 }
+
+#if defined(CONFIG_MTK_DT_SUPPORT) && !defined(CONFIG_MTK_C2K_SUPPORT)
+#ifdef	CONFIG_PM_RUNTIME
+void issue_usb11_keep_resume_work(void);
+#endif
+#endif
 int emd_md_exception(void)
 {
+	/* keep usb is awaken becoz ext MD will lose remote wakeup ability (becomes single-thread mode)when EE happens */
+
+#if defined(CONFIG_MTK_DT_SUPPORT) && !defined(CONFIG_MTK_C2K_SUPPORT)
+#ifdef	CONFIG_PM_RUNTIME
+	issue_usb11_keep_resume_work();
+#endif
+#endif
+
     emd_status=EMD_STATE_EXCEPTION;
     EMD_MSG_INF("chr","emd_md_exception happened!\n");
     schedule_work(&emd_aseert_log_work);

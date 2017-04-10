@@ -160,9 +160,9 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_ISenseVoltage,
 	POWER_SUPPLY_PROP_ChargerVoltage,
 	/* Dual battery */
-	POWER_SUPPLY_PROP_status_2nd,
-	POWER_SUPPLY_PROP_capacity_2nd,
-	POWER_SUPPLY_PROP_present_2nd,
+	POWER_SUPPLY_PROP_status_smb,
+	POWER_SUPPLY_PROP_capacity_smb,
+	POWER_SUPPLY_PROP_present_smb,
 	/* ADB CMD Discharging */
 	POWER_SUPPLY_PROP_adjust_power,
 	/* Properties of type `const char *' */

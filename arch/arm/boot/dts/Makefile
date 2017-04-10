@@ -214,6 +214,7 @@ dtb-$(CONFIG_ARCH_VT8500) += vt8500-bv07.dtb \
 	wm8650-mid.dtb \
 	wm8850-w70v2.dtb
 dtb-$(CONFIG_ARCH_ZYNQ) += zynq-zc702.dtb
+
 DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE_NAMES))
 ifneq ($(DTB_NAMES),)
 DTB_LIST := $(addsuffix .dtb,$(DTB_NAMES))
@@ -231,3 +232,14 @@ dtbs: $(addprefix $(obj)/, $(DTB_LIST))
 	$(Q)rm -f $(obj)/../*.dtb
 
 clean-files := *.dtb
+
+MTK_PLATFORM := $(subst ",,$(CONFIG_MTK_PLATFORM))
+ARCH_MTK_PROJECT := $(subst ",,$(CONFIG_ARCH_MTK_PROJECT))
+ifneq ($(filter y,$(CONFIG_ARCH_MT6580) $(CONFIG_ARCH_MT6752) $(CONFIG_ARCH_MT6732) $(CONFIG_ARCH_MT6595) $(CONFIG_ARCH_MT6795) $(CONFIG_ARCH_MT6735) $(CONFIG_ARCH_MT6735M) $(CONFIG_ARCH_MT6753) $(CONFIG_ARCH_MT8163)),)
+# For armv8 32bit
+DCT_EXTRA_PATH := $(objtree)/drivers/misc/mediatek/mach/$(MTK_PLATFORM)/$(ARCH_MTK_PROJECT)/dct/dct/
+else
+DCT_EXTRA_PATH := $(objtree)/arch/arm/mach-$(MTK_PLATFORM)/$(ARCH_MTK_PROJECT)/dct/dct/
+endif
+
+DTC_FLAGS ?= -i $(DCT_EXTRA_PATH)

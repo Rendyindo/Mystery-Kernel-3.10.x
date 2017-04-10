@@ -1,5 +1,4 @@
 /*
-
 SiI8348 Linux Driver
 
 Copyright (C) 2013 Silicon Image, Inc.
@@ -9,10 +8,13 @@ modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation version 2.
 This program is distributed AS-IS WITHOUT ANY WARRANTY of any
 kind, whether express or implied; INCLUDING without the implied warranty
-of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See
-the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.
-
+of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See 
+the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.             
 */
+#include <linux/init.h>
+//#include <linux/string.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -23,6 +25,9 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #include <linux/err.h>
 #include <linux/semaphore.h>
 #include <linux/cdev.h>
+
+#include <linux/semaphore.h>
+#include <linux/mutex.h>
 
 #include "sii_hal.h"
 #include "si_fw_macros.h"
@@ -41,52 +46,56 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #include "si_8348_regs.h"
 #include "si_timing_defs.h"
 
-
 #include <mach/irqs.h>
 #include "mach/eint.h"
 #include <mach/mt_gpio.h>
 #include <cust_gpio_usage.h>
 #include <cust_eint.h>
+#include <mach/mt_pm_ldo.h>
+#include <pmic_drv.h>
 
+#include "hdmi_cust.h"
 
 /* GPIOs assigned to control various starter kit signals */
 #ifdef CUST_EINT_MHL_NUM
-#define GPIO_MHL_INT		CUST_EINT_MHL_NUM	/* BeagleBoard pin ID for TX interrupt          // 135 is pin 'SDMMC2_DAT3', which is pin 11 of EXP_HDR on BeagleBoard */
+#define GPIO_MHL_INT		CUST_EINT_MHL_NUM		// BeagleBoard pin ID for TX interrupt		// 135 is pin 'SDMMC2_DAT3', which is pin 11 of EXP_HDR on BeagleBoard
 #else
 #define GPIO_MHL_INT 0
 #endif
 
 #ifdef GPIO_MHL_RST_B_PIN
-#define GPIO_MHL_RESET		GPIO_MHL_RST_B_PIN	/* BeagleBoard pin ID for TX reset              // 139 is pin 'SDMMC2_DAT7', which is pin 03 of EXP_HDR on BeagleBoard */
+#define GPIO_MHL_RESET		GPIO_MHL_RST_B_PIN		// BeagleBoard pin ID for TX reset		// 139 is pin 'SDMMC2_DAT7', which is pin 03 of EXP_HDR on BeagleBoard
 #else
 #define GPIO_MHL_RESET 0
 #endif
 
-
-/* static char *buildTime = "Build: " __DATE__"-" __TIME__ "\n"; */
-/* static char *buildVersion = "0.80."BUILD_NUM_STRING; */
-/*
-static char lcd_text_line1[LCD_TEXT_LENGTH_MAX] = "No Video Info";
-static char lcd_text_line2[LCD_TEXT_LENGTH_MAX] = "No Audio Info";
-
-typedef enum {
-	gpio_expander_none
-	,gpio_expander_PCA950x
-}gpio_expander;
-gpio_expander gpio_expander_type = gpio_expander_none;
+/**
+* LOG For HDMI Driver
 */
-static struct i2c_adapter *i2c_bus_adapter;
-static struct i2c_client *gpio_client;
+static size_t hdmi_log_on = true;
+#define HDMI_LOG(fmt, arg...)  \
+	do { \
+		if (hdmi_log_on) printk("[HDMI_Platform]%s,%d ", __func__, __LINE__); printk(fmt, ##arg); \
+	}while (0)
+
+#define HDMI_FUNC()    \
+	do { \
+		if(hdmi_log_on) printk("[HDMI_Platform] %s\n", __func__); \
+	}while (0)
+
+
+static struct i2c_adapter	*i2c_bus_adapter = NULL;
+static struct i2c_client	*gpio_client=NULL;
 
 struct i2c_dev_info {
-	uint8_t dev_addr;
-	struct i2c_client *client;
+	uint8_t			dev_addr;
+	struct i2c_client	*client;
 };
 
 #define I2C_DEV_INFO(addr) \
 	{.dev_addr = addr >> 1, .client = NULL}
 
-/* I2C Page config */
+// I2C Page config
 static struct i2c_dev_info device_addresses[] = {
 	I2C_DEV_INFO(TX_PAGE_L0),
 	I2C_DEV_INFO(TX_PAGE_L1),
@@ -96,384 +105,344 @@ static struct i2c_dev_info device_addresses[] = {
 	I2C_DEV_INFO(TX_PAGE_DDC_EDID)
 };
 
-/* int   debug_msgs      = 5;    // print all msgs, default should be '0' */
-int debug_msgs = 2;		/* TODO: FD, debug, print all msgs, excluding EDID */
+extern int I2S_Enable;
+int	debug_msgs	= 3;	// print all msgs, default should be '0'
+//int	debug_msgs	= 3;	// print all msgs, default should be '0'
 
-static bool reset_on_exit;	/* request to reset hw before unloading driver */
+static bool reset_on_exit = 0; // request to reset hw before unloading driver
 
 module_param(debug_msgs, int, S_IRUGO);
 module_param(reset_on_exit, bool, S_IRUGO);
-/*
-bool	siimon_request	= 0;
-int	aud_ctrl	= AUDIO_INITIAL;
-int	vid_ctrl_all	= VIDEO_INITIAL | VIDEO_3D_INITIAL;
-int	vid_ctrl	= VIDEO_INITIAL;
-int	vid_ctrl_3d	= VIDEO_3D_INITIAL;
 
-struct platform_signals_list platform_signals[] = {
-
-		// PORT 0 - ALL OUTPUTS
-		{	.name			= "LED_MHL",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_0_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_0_OUTPUT_LED_MHL,
-			.param			= NULL
-		},
-		{	.name			= "LED_USB",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_0_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_0_OUTPUT_LED_USB,
-			.param			= NULL
-		},
-		{	.name			= "LED_SRC_VBUS_ON",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_0_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_0_OUTPUT_LED_SRC_VBUS_ON,
-			.param			= NULL
-		},
-		{	.name			= "LED_SINK_VBUS_ON",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_0_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_0_OUTPUT_LED_SINK_VBUS_ON,
-			.param			= NULL
-		},
-		{	.name			= "LED_3D",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_0_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_0_OUTPUT_LED_3D,
-			.param			= NULL
-		},
-		{	.name			= "LED_PKD_PXL",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_0_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_0_OUTPUT_LED_PKD_PXL,
-			.param			= NULL
-		},
-		{	.name			= "LED_HDCP_ON",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_0_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_0_OUTPUT_LED_HDCP_ON,
-			.param			= NULL
-		},
-		{	.name			= "LED_D0",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_0_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_0_OUTPUT_LED_D0,
-			.param			= NULL
-		},
-
-		// PORT 1 - ALL OUTPUTS except for BIT7~BIT5
-		{	.name			= "LED_D2",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_1_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_1_OUTPUT_LED_D2,
-			.param			= NULL
-		},
-		{	.name			= "LED_D3",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_1_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_1_OUTPUT_LED_D3,
-			.param			= NULL
-		},
-		{	.name			= "LED_SPR_0",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_1_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_1_OUTPUT_LED_SPR_0,
-			.param			= NULL
-		},
-		{	.name			= "LED_SPR_1",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_1_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_1_OUTPUT_LED_SPR_1,
-			.param			= NULL
-		},
-		{	.name			= "LED_SPR_2",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_1_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_1_OUTPUT_LED_SPR_2,
-			.param			= NULL
-		},
-		{	.name			= "AUD_CTRL_0",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_1_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_1_INPUT_AUD_CTRL_0,
-			.param			= NULL
-		},
-		{	.name			= "AUD_CTRL_1",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_1_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_1_INPUT_AUD_CTRL_1,
-			.param			= NULL
-		},
-		{	.name			= "VID_CTRL_RSVD",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_1_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_1_INPUT_VID_CTRL_RSVD,
-			.param			= NULL
-		},
-
-		// PORT 2 - ALL INPUTS
-		{	.name			= "VID_CTRL_0",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_2_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_2_INPUT_VID_CTRL_0,
-			.param			= NULL
-		},
-		{	.name			= "VID_CTRL_1",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_2_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_2_INPUT_VID_CTRL_1,
-			.param			= NULL
-		},
-		{	.name			= "VID_CTRL_2",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_2_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_2_INPUT_VID_CTRL_2,
-			.param			= NULL
-		},
-		{	.name			= "VID_CTRL_3",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_2_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_2_INPUT_VID_CTRL_3,
-			.param			= NULL
-		},
-		{	.name			= "VID_CTRL_4",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_2_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_2_INPUT_VID_CTRL_4,
-			.param			= NULL
-		},
-		{	.name			= "VID_CTRL_5",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_2_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_2_INPUT_VID_CTRL_5,
-			.param			= NULL
-		},
-		{	.name			= "VID_CTRL_3D_0",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_2_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_2_INPUT_VID_CTRL_3D_0,
-			.param			= NULL
-		},
-		{	.name			= "VID_CTRL_3D_1",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_2_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_2_INPUT_VID_CTRL_3D_1,
-			.param			= NULL
-		},
-
-		// PORT 3 - ALL INPUTS except for BIT5~BIT4, BIT1~BIT0
-		{	.name			= "VBUS_EN",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_3_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_3_OUTPUT_VBUS_EN,
-			.param			= NULL
-		},
-		{	.name			= "DS_PWR_1A_EN",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_3_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_3_OUTPUT_DS_PWR_1A_EN,
-			.param			= NULL
-		},
-		{	.name			= "DBG_MSGS",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_3_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_3_INPUT_DBG_MSGS,
-			.param			= NULL
-		},
-		{	.name			= "RSVD",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_3_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_3_INPUT_RSVD,
-			.param			= NULL
-		},
-		{	.name			= "I2C_SCL",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_3_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_3_OUTPUT_I2C_SCL,
-			.param			= NULL
-		},
-		{	.name			= "I2C_SDA",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_3_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_3_OUTPUT_I2C_SDA,
-			.param			= NULL
-		},
-		{	.name			= "SIIMON_REQ_N",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_3_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_3_INPUT_SIIMON_REQ_N,
-			.param			= NULL
-		},
-		{	.name			= "VID_CTRL_INT",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_3_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_3_INPUT_VID_CTRL_INT,
-			.param			= NULL
-		},
-
-		// PORT 4 - ALL OUTPUTS
-		{	.name			= "TX2MHLRX_PWR_M",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_4_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_4_OUTPUT_TX2MHLRX_PWR_M,
-			.param			= NULL
-		},
-		{	.name			= "M2U_VBUS_CTRL_M",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_4_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_4_OUTPUT_M2U_VBUS_CTRL_M,
-			.param			= NULL
-		},
-		{	.name			= "B_RST_M_N",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_4_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_4_OUTPUT_B_RST_M_N,
-			.param			= NULL
-		},
-		{	.name			= "SIIMON_GNT_N",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_4_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_4_OUTPUT_SIIMON_GNT_N,
-			.param			= NULL
-		},
-		{	.name			= "LCD_PWM0_STB",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_4_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_4_OUTPUT_LCD_PWM0_STB,
-			.param			= NULL
-		},
-		{	.name			= "LCD_RS",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_4_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_4_OUTPUT_LCD_RS,
-			.param			= NULL
-		},
-		{	.name			= "LCD_CSB",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_4_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_4_OUTPUT_LCD_CSB,
-			.param			= NULL
-		},
-		{	.name			= "LCD_RESET",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_4_OUTPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_4_OUTPUT_LCD_RESET,
-			.param			= NULL
-		},
-
-
-		// AUD_CTRL: PORT 1 - BIT6 | BIT5
-		{	.name			= "AUD_CTRL",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_1_INPUT},
-			.gpio_mask_PCA950x	= BIT_PCA_950x_PORT_1_INPUT_AUD_CTRL_0 | BIT_PCA_950x_PORT_1_INPUT_AUD_CTRL_1,
-			.param			= NULL
-		},
-
-
-		// VID_CTRL_ALL: PORT 2 - all 8 bits
-		{	.name			= "VID_CTRL_ALL",
-			.gpio_number		= GPIO_NOT_PRESENT,
-			.gpio_reg_PCA950x	= {REG_PCA_950x_PORT_2_INPUT},
-			.gpio_mask_PCA950x	= 0xFF,
-			.param			= NULL
-		},
-
-
-		{	.name			= "W_RST#",
-			.gpio_number		= GPIO_MHL_RESET,
-			.gpio_reg_PCA950x	= {0,GPIO_MHL_RESET},
-			.gpio_mask_PCA950x	= 0,
-			.param			= NULL
-		},
-
-};
-*/
 #define USE_DEFAULT_I2C_CODE 0
 extern struct mhl_dev_context *si_dev_context;
 
-uint8_t I2C_ReadBlock(uint8_t deviceID, uint8_t offset, uint8_t *buf, uint8_t len)
+static int mhl_i2c_status = 0;
+
+static struct mutex mhl_lock;
+int mhl_mutex_init(struct mutex *m)
 {
-	/* pr_debug("hdmi enter %s (0x%02x, 0x%02x, 0x%02x)\n", __func__, deviceID, offset, len); */
-	int i;
-	uint8_t accessI2cAddr;
-	int32_t status;
-	u32 client_main_addr;
-	accessI2cAddr = deviceID >> 1;
+	mutex_init(m);
+	return 0;
+}
+int mhl_sw_mutex_lock(struct mutex*m)
+{
+	mutex_lock(m);
+	return 0;
+}
+int mhl_sw_mutex_unlock(struct mutex*m)
+{
+	mutex_unlock(m);
+	return 0;
+}
 
-	/* backup addr */
-	client_main_addr = si_dev_context->client->addr;
-	si_dev_context->client->addr = accessI2cAddr;
+#if 0   ///SII_I2C_ADDR==(0x76)
+static struct i2c_board_info __initdata i2c_mhl = { 
+	.type = "Sil_MHL",
+	.addr = 0x3B,
+	.irq = 8,
+};
+#else
+static struct i2c_board_info __initdata i2c_mhl = { 
+	.type = "Sil_MHL",
+	.addr = 0x39,
+	.irq = 8,
+};
+#endif
+/*********************dynamic switch I2C address*******************************/
+extern int IMM_GetOneChannelValue(int dwChannel, int data[4], int* rawdata);
+static uint8_t Need_Switch_I2C_to_High_Address;
+void dynamic_switch_i2c_address()
+{
+	printk("dynamic_switch_i2c_address +\n");
+	int res;
+	int data[4];
+	res = IMM_GetOneChannelValue(12, data, NULL);
+	if(res == 0)
+	{
+		printk("data: %d,%d, %d, %d\n", data[0], data[1], data[2], data[3]);
+		if((data[1] >= 73 && data[1] <= 81)  ||  //ID 2.5
+		   (data[1] >= 95 && data[1] <= 103) ||  //ID 3
+		   (data[1] >= 131 && data[1] <= 139))   //ID 4
+		{
+			printk("ID 2.5, ID 3, ID 4, Need switch I2C address\n");
+			Need_Switch_I2C_to_High_Address = 1;
 
-	memset(buf, 0xff, len);
-	for (i = 0; i < len; i++) {
-
-		u8 tmp;
-		tmp = offset + i;
-		/* /gMhlDevice.pI2cClient->ext_flag |= I2C_DIRECTION_FLAG; */
-		status = i2c_master_send(si_dev_context->client, (const char *)&tmp, 1);
-		if (status < 0) {
-			pr_debug("I2C_ReadByte(0x%02x, 0x%02x), i2c_transfer error: %d\n",
-				 deviceID, offset, status);
+			i2c_mhl.addr = 0x3B;
 		}
-
-		status = i2c_master_recv(si_dev_context->client, (char *)&tmp, 1);
-		*buf = tmp;
-
-		buf++;
+		else
+		{
+			printk("ID 2, Do not need switch I2C address\n");
+			Need_Switch_I2C_to_High_Address = 0;
+		}
 	}
-	/* restore default client address */
-	si_dev_context->client->addr = client_main_addr;
-	return len;
+}
+uint8_t reGetI2cAddress(uint8_t device_ID)
+{
+	uint8_t address;
+	switch(device_ID)
+	{
+		case 0x72:
+			address = 0x76;
+			break;
+		case 0x7A:
+			address = 0x7E;
+			break;
+		case 0x9A:
+			address = 0x9E;
+			break;
+		case 0x92:
+			address = 0x96;
+			break;
+		case 0xC8:
+			address = 0xCC;
+			break;
+		case 0xA0:
+			address = 0xA0;
+			break;
+		default:
+			printk("Error: invaild device ID\n");
+	}
+
+	return address;
+}
+/****************************Platform I2C Read/Write*****************************/
+#define MAX_I2C_READ_NUM 8
+#define MAX_I2C_WRITE_NUM 7
+
+uint8_t mhl_i2c_read_len_bytes(struct i2c_client *client, uint8_t offset, uint8_t *buf, uint8_t len)
+{
+	uint8_t regAddress = offset;
+	int ret = 0;
+
+	while(len > 0)
+	{
+		if(len > MAX_I2C_READ_NUM)
+		{
+			printk("mhl_i2c_read_len_bytes, len: %d\n", len);
+			ret = i2c_master_send(client, (const char*)&regAddress, sizeof(uint8_t));  
+			if(ret < 0)
+			{
+		        printk("[Error]mhl i2c sends command error!\n");
+				return 0;
+			}
+			else
+			{
+				ret = i2c_master_recv(client, (char*)buf, MAX_I2C_READ_NUM);
+				if(ret < 0)
+				{
+			        printk("[Error]mhl i2c recv data error!\n");
+				}
+
+				regAddress += MAX_I2C_READ_NUM;
+				buf += MAX_I2C_READ_NUM;
+
+				len -= MAX_I2C_READ_NUM;
+			}
+		}
+		else
+		{
+			ret = i2c_master_send(client, (const char*)&regAddress, sizeof(uint8_t));  
+			if(ret < 0)
+			{
+		        printk("[Error1]mhl i2c sends command error!\n");
+				return 0;
+			}
+			else
+			{
+				ret = i2c_master_recv(client, (char*)buf, len);
+				if(ret < 0)
+				{
+			        printk("[Error1]mhl i2c recv data error!\n");
+				}
+
+				regAddress += len;
+				buf += len;
+
+				len -= len;
+			}	
+		}
+	}
+
+	return 1;
+}
+uint8_t mhl_i2c_write_len_bytes(struct i2c_client *client, uint8_t offset, uint8_t *buf, uint8_t len)
+{
+	uint8_t regAddress = offset;
+	int ret = 0;
+	int i=0;
+	char write_data[8];
+
+	while(len > 0)
+	{
+		if(len > MAX_I2C_WRITE_NUM)
+		{
+			printk("mhl_i2c_write_len_bytes, len: %d\n", len);
+
+			write_data[0] = regAddress;
+			for(i=0; i< MAX_I2C_WRITE_NUM; i++)
+				write_data[i+1] = *(buf+i);
+			
+			ret = i2c_master_send(client, write_data, MAX_I2C_WRITE_NUM+1);  
+			if(ret < 0)
+			{
+				printk("[Error]mhl i2c write command/data error!\n");
+				return 0;
+			}
+
+			regAddress += MAX_I2C_WRITE_NUM;
+			len -= MAX_I2C_WRITE_NUM;
+			buf += MAX_I2C_WRITE_NUM;
+		}
+		else
+		{
+			write_data[0] = regAddress;
+			for(i=0; i< len; i++)
+				write_data[i+1] = *(buf+i);
+			
+			ret = i2c_master_send(client, write_data, len+1);  
+			if(ret < 0)
+			{
+				printk("[Error1]mhl i2c write command/data error!\n");
+				return 0;
+			}
+
+			regAddress += len;
+			len -= len;
+			buf += len;
+		}
+	}
+
+	return 1;
+}
+
+uint8_t I2C_ReadBlock(uint8_t deviceID, uint8_t offset,uint8_t *buf, uint8_t len)
+{
+
+    
+    int i;
+    uint8_t					accessI2cAddr;
+    int32_t					status;
+    u32 client_main_addr;
+	uint8_t slave_addr = deviceID;
+    mhl_sw_mutex_lock(&mhl_lock);
+    
+    mhl_i2c_status |= 1;
+
+	if(Need_Switch_I2C_to_High_Address)
+	{
+		slave_addr = reGetI2cAddress(deviceID);
+	}
+    accessI2cAddr = slave_addr>>1;
+
+    //backup addr
+    client_main_addr = si_dev_context->client->addr;
+    si_dev_context->client->addr = accessI2cAddr;
+    //si_dev_context->client->addr = (accessI2cAddr & I2C_MASK_FLAG)|I2C_WR_FLAG;
+    si_dev_context->client->timing = 100;
+
+    memset(buf,0xff,len);
+	mhl_i2c_read_len_bytes(si_dev_context->client, offset, buf, len);
+/*
+    memset(buf,0xff,len);
+    for(i = 0 ;i < len;i++)
+    {
+
+        u8 tmp;
+        tmp = offset + i;
+        ///gMhlDevice.pI2cClient->ext_flag |= I2C_DIRECTION_FLAG;
+        #if 0
+        status = i2c_master_send(si_dev_context->client, (const char*)&tmp, 1);
+        if (status < 0)
+        {
+            printk("I2C_ReadByte(0x%02x, 0x%02x), i2c_transfer error: %d\n",
+                    deviceID, offset, status);
+        }
+
+        status = i2c_master_recv(si_dev_context->client, (char*)&tmp, 1);
+        #else
+        status = i2c_master_send(si_dev_context->client, &tmp, 0x101);    
+        #endif
+		
+        *buf = tmp; 
+        buf++;
+    }
+*/
+
+    /* restore default client address */
+    si_dev_context->client->addr = client_main_addr;
+    mhl_i2c_status &= 0xfe;
+    mhl_sw_mutex_unlock(&mhl_lock);
+    return len;
 }
 
 void I2C_WriteBlock(uint8_t deviceID, uint8_t offset, uint8_t *buf, uint16_t len)
 {
-	/* pr_debug("hdmi enter %s (0x%02x, 0x%02x, 0x%02x)\n",__func__, deviceID, offset, len); */
-	int i;
-	uint8_t accessI2cAddr;
+    //printk("hdmi enter %s (0x%02x, 0x%02x, 0x%02x)\n",__func__, deviceID, offset, len);
+    int i;
+    uint8_t					accessI2cAddr;
 #if USE_DEFAULT_I2C_CODE
-	union i2c_smbus_data data;
+    union i2c_smbus_data	data;
 #endif
-	int32_t status;
-	u8 tmp[2] = { 0 };
-	u32 client_main_addr;
+    int32_t					status;
+    u8 tmp[2] = {0};
+    u32 client_main_addr;
+	uint8_t slave_addr = deviceID;
 
-	accessI2cAddr = deviceID >> 1;
-
-	/* backup addr */
-	client_main_addr = si_dev_context->client->addr;
-	si_dev_context->client->addr = accessI2cAddr;
-
-
-	for (i = 0; i < len; i++) {
-#if USE_DEFAULT_I2C_CODE
-		data.byte = *buf;
-		status = i2c_smbus_xfer(si_dev_context->client->adapter, accessI2cAddr,
-					0, I2C_SMBUS_WRITE, offset + i, I2C_SMBUS_BYTE_DATA, &data);
-#else
-		tmp[0] = offset + i;
-		tmp[1] = *buf;
-		/* /gMhlDevice.pI2cClient->ext_flag |= I2C_DIRECTION_FLAG; */
-		status = i2c_master_send(si_dev_context->client, (const char *)tmp, 2);
-
-#endif
-		if (status < 0) {
-			/* restore default client address */
-			si_dev_context->client->addr = client_main_addr;
-			return;
-		}
-		buf++;
+    mhl_sw_mutex_lock(&mhl_lock);
+        
+    mhl_i2c_status |= 2;
+	if(Need_Switch_I2C_to_High_Address)
+	{
+		slave_addr = reGetI2cAddress(deviceID);
 	}
-	/* restore default client address */
-	si_dev_context->client->addr = client_main_addr;
-	return;
+    accessI2cAddr = slave_addr>>1;
+
+    //backup addr
+    client_main_addr = si_dev_context->client->addr;
+    si_dev_context->client->addr = accessI2cAddr;
+    si_dev_context->client->timing = 100;
+
+	mhl_i2c_write_len_bytes(si_dev_context->client, offset, buf, len);
+/*
+    for(i = 0 ;i < len;i++)
+    {
+#if USE_DEFAULT_I2C_CODE
+        data.byte = *buf;
+        status = i2c_smbus_xfer(si_dev_context->client->adapter, accessI2cAddr,
+                0, I2C_SMBUS_WRITE, offset + i, I2C_SMBUS_BYTE_DATA,
+                &data);
+#else
+        tmp[0] = offset + i;
+        tmp[1] = *buf;
+        ///gMhlDevice.pI2cClient->ext_flag |= I2C_DIRECTION_FLAG;
+        status = i2c_master_send( si_dev_context->client, (const char*)tmp, 2);
+#endif
+        if (status < 0)
+        {
+            si_dev_context->client->addr = client_main_addr;
+            printk("mhl I2C_WriteBlock error %s ret %d\n",__func__, status);
+            goto done ;
+        }
+        buf++;
+    }
+done:
+*/
+
+    /* restore default client address */
+    si_dev_context->client->addr = client_main_addr;
+    mhl_i2c_status &= 0xfd;
+    mhl_sw_mutex_unlock(&mhl_lock);
+
+    return ;
 }
 
-
-static inline int platform_read_i2c_block(struct i2c_adapter *i2c_bus, u8 page, u8 offset, u8 count,
-					  u8 *values)
+static inline int platform_read_i2c_block(struct i2c_adapter *i2c_bus
+		, u8 page
+		, u8 offset
+		, u8 count
+		, u8 *values
+		)
 {
 #if 0
 	struct i2c_msg msg[2];
@@ -490,25 +459,29 @@ static inline int platform_read_i2c_block(struct i2c_adapter *i2c_bus, u8 page, 
 
 	return i2c_transfer(i2c_bus_adapter, msg, 2);
 #endif
-
-	I2C_ReadBlock(page, offset, values, count);
-	/* /pr_debug("%s:%d I2c read page:0x%02x,offset:0x%02x,values:0x%02X,count:0x%02X\n" */
-	/* /                ,__FUNCTION__,__LINE__, page, offset, values, count); */
-	return 2;
-
+   
+	I2C_ReadBlock(page, offset,values, count);
+	///printk("%s:%d I2c read page:0x%02x,offset:0x%02x,values:0x%02X,count:0x%02X\n"
+    ///                ,__FUNCTION__,__LINE__, page, offset, values, count);
+    return 2;
+    
 }
 
-static inline int platform_write_i2c_block(struct i2c_adapter *i2c_bus, u8 page, u8 offset,
-					   u16 count, u8 *values)
+static inline int platform_write_i2c_block(struct i2c_adapter *i2c_bus
+		, u8 page
+		, u8 offset
+		, u16 count
+		, u8 *values
+		)
 {
 #if 0
-	struct i2c_msg msg;
-	u8 *buffer;
-	int ret;
+	struct i2c_msg	msg;
+	u8		*buffer;
+	int		ret;
 
 	buffer = kmalloc(count + 1, GFP_KERNEL);
 	if (!buffer) {
-		pr_debug("%s:%d buffer allocation failed\n", __func__, __LINE__);
+		printk("%s:%d buffer allocation failed\n",__FUNCTION__,__LINE__);
 		return -ENOMEM;
 	}
 
@@ -525,49 +498,51 @@ static inline int platform_write_i2c_block(struct i2c_adapter *i2c_bus, u8 page,
 	kfree(buffer);
 
 	if (ret != 1) {
-		pr_debug("%s:%d I2c write failed 0x%02x:0x%02x\n", __func__, __LINE__, page,
-			 offset);
+		printk("%s:%d I2c write failed 0x%02x:0x%02x\n"
+				,__FUNCTION__,__LINE__, page, offset);
 		ret = -EIO;
 	} else {
 		ret = 0;
 	}
 
 	return ret;
-#endif
-	/* /pr_debug("%s:%d I2c write page:0x%02x,offset:0x%02x,values:0x%02X,count:0x%02X\n" */
-	/* /                     ,__FUNCTION__,__LINE__, page, offset, values, count); */
+	#endif
+	
 	I2C_WriteBlock(page, offset, values, count);
 	return 0;
-
+	
 }
+
+/***************************End*******************************/
 
 void mhl_tx_vbus_control(enum vbus_power_state power_state)
 {
-	return;
-
+    return ;
+    
 	struct mhl_dev_context *dev_context;
-	dev_context = i2c_get_clientdata(device_addresses[0].client);	/* TODO: FD, TBC, it seems the 'client' is always 'NULL', is it right here??? */
+	dev_context = i2c_get_clientdata(device_addresses[0].client);	// TODO: FD, TBC, it seems the 'client' is always 'NULL', is it right here???
 
 	switch (power_state) {
 	case VBUS_OFF:
-		/* set_pin(dev_context,TX2MHLRX_PWR_M,1); */
-		/* set_pin(dev_context,LED_SRC_VBUS_ON,GPIO_LED_OFF); */
+		//set_pin(dev_context,TX2MHLRX_PWR_M,1);
+		//set_pin(dev_context,LED_SRC_VBUS_ON,GPIO_LED_OFF);
 		break;
 
 	case VBUS_ON:
-		/* set_pin(dev_context,TX2MHLRX_PWR_M,0); */
-		/* set_pin(dev_context,LED_SRC_VBUS_ON,GPIO_LED_ON); */
+		//set_pin(dev_context,TX2MHLRX_PWR_M,0);
+		//set_pin(dev_context,LED_SRC_VBUS_ON,GPIO_LED_ON);
 		break;
 
 	default:
 		dev_err(dev_context->mhl_dev,
-			"%s: Invalid power state %d received!\n", __func__, power_state);
+				"%s: Invalid power state %d received!\n",
+				__func__, power_state);
 		break;
 	}
 }
 
-int si_device_dbg_i2c_reg_xfer(void *dev_context, u8 page, u8 offset, u8 count, bool rw_flag,
-			       u8 *buffer)
+/******************************Debug Start*****************************/
+int si_device_dbg_i2c_reg_xfer(void *dev_context, u8 page, u8 offset, u8 count, bool rw_flag, u8 *buffer)
 {
 	if (rw_flag == DEBUG_I2C_WRITE)
 		return mhl_tx_write_reg_block(dev_context, page, offset, count, buffer);
@@ -602,20 +577,22 @@ char *find_file_name(const char *path_spec)
 }
 
 void print_formatted_debug_msg(int level,
-			       char *file_spec, const char *func_name, int line_num, char *fmt, ...)
+		char *file_spec, const char *func_name,
+		int line_num, 
+		char *fmt, ...)
 {
-	uint8_t *msg = NULL;
-	uint8_t *msg_offset;
-	char *file_spec_sep = NULL;
-	int remaining_msg_len = MAX_DEBUG_MSG_SIZE;
-	int len;
-	va_list ap;
+	uint8_t		*msg = NULL;
+	uint8_t		*msg_offset;
+	char		*file_spec_sep = NULL;
+	int		remaining_msg_len = MAX_DEBUG_MSG_SIZE;
+	int		len;
+	va_list		ap;
 
 	/*
 	 * Allow informational level debug messages to be turned off
 	 * by a switch on the starter kit board
 	 */
-	if (level > debug_msgs) {
+	if (level > debug_msgs){
 		return;
 	}
 
@@ -630,7 +607,7 @@ void print_formatted_debug_msg(int level,
 		file_spec = find_file_name(file_spec);
 
 	msg = kmalloc(remaining_msg_len, GFP_KERNEL);
-	if (msg == NULL)
+	if(msg == NULL)
 		return;
 
 	msg_offset = msg;
@@ -642,7 +619,7 @@ void print_formatted_debug_msg(int level,
 			file_spec_sep = ":";
 	}
 
-	len = scnprintf(msg_offset, remaining_msg_len, "mhl sii-8348: ");
+	len = scnprintf(msg_offset, remaining_msg_len, "mhl ");
 	msg_offset += len;
 	remaining_msg_len -= len;
 
@@ -678,21 +655,21 @@ void print_formatted_debug_msg(int level,
 	len = vscnprintf(msg_offset, remaining_msg_len, fmt, ap);
 	va_end(ap);
 
-	/* pr_debug(msg); */
+	printk(msg);
 
 	kfree(msg);
 }
 
 void dump_i2c_transfer(void *context, u8 page, u8 offset, u16 count, u8 *values, bool write)
 {
-	int buf_size = 64;
-	u16 idx;
-	int buf_offset;
-	char *buf;
+	int		buf_size = 64;
+	u16		idx;
+	int		buf_offset;
+	char		*buf;
 
 	if (count > 1) {
-		buf_size += count * 3;	/* 3 characters per byte displayed */
-		buf_size += ((count / 16) + 1) * 8;	/* plus per display row overhead */
+		buf_size += count * 3; 				/* 3 characters per byte displayed */
+		buf_size += ((count / 16) + 1) * 8;		/* plus per display row overhead */
 	}
 
 	buf = kmalloc(buf_size, GFP_KERNEL);
@@ -702,19 +679,22 @@ void dump_i2c_transfer(void *context, u8 page, u8 offset, u16 count, u8 *values,
 	if (count == 1) {
 
 		scnprintf(buf, buf_size, "   I2C_%s %02X:%02X %s %02X\n",
-			  write ? "W" : "R", page, offset, write ? "<-" : "==", values[0]);
+				write ? "W" : "R",
+				page, offset,
+				write ? "<-" : "==",
+				values[0]);
 	} else {
 		idx = 0;
 		buf_offset = scnprintf(buf, buf_size, "I2C_%sB %02X:%02X - %d bytes:",
-				       write ? "W" : "R", page, offset, count);
+				write ? "W" : "R", page, offset, count);
 
 		for (idx = 0; idx < count; idx++) {
 			if (0 == (idx & 0x0F))
 				buf_offset += scnprintf(&buf[buf_offset], buf_size - buf_offset,
-							"\n%04X: ", idx);
+						"\n%04X: ", idx);
 
 			buf_offset += scnprintf(&buf[buf_offset], buf_size - buf_offset,
-						"%02X ", values[idx]);
+					"%02X ", values[idx]);
 		}
 		buf_offset += scnprintf(&buf[buf_offset], buf_size - buf_offset, "\n");
 	}
@@ -723,24 +703,17 @@ void dump_i2c_transfer(void *context, u8 page, u8 offset, u16 count, u8 *values,
 
 	kfree(buf);
 }
-#endif				/* #if defined(DEBUG) */
+#endif /* #if defined(DEBUG) */
+/******************************Debug End*******************************/
 
-
-static struct mhl_drv_info drv_info = {
-	.drv_context_size = sizeof(struct drv_hw_context),
-	.mhl_device_initialize = si_mhl_tx_chip_initialize,
-	.mhl_device_isr = si_mhl_tx_drv_device_isr,
-	.mhl_device_dbg_i2c_reg_xfer = si_device_dbg_i2c_reg_xfer,
-	.mhl_start_video = si_mhl_tx_drv_enable_video_path,
-};
-
-
-static struct gpio starter_kit_control_gpios[] = {
+struct i2c_client *mClient = NULL;
+static struct gpio starter_kit_control_gpios[] =
+{
 	/*
 	 * GPIO signals needed for the starter kit board.
 	 */
-	{GPIO_MHL_INT, GPIOF_IN, "MHL_intr"},
-	{GPIO_MHL_RESET, GPIOF_OUT_INIT_HIGH, "MHL_tx_reset"},
+	{GPIO_MHL_INT,		GPIOF_IN,		        "MHL_intr"},
+	{GPIO_MHL_RESET,	GPIOF_OUT_INIT_HIGH,	"MHL_tx_reset"},
 };
 
 bool is_reset_on_exit_requested(void)
@@ -752,7 +725,7 @@ int mhl_tx_write_reg_block(void *drv_context, u8 page, u8 offset, u16 count, u8 
 {
 	DUMP_I2C_TRANSFER(drv_context, page, offset, count, values, true);
 
-	return platform_write_i2c_block(i2c_bus_adapter, page, offset, count, values);
+	return platform_write_i2c_block(i2c_bus_adapter,page, offset, count,values);
 }
 
 
@@ -765,7 +738,12 @@ int mhl_tx_write_reg(void *drv_context, u8 page, u8 offset, u8 value)
 int mhl_tx_read_reg_block(void *drv_context, u8 page, u8 offset, u8 count, u8 *values)
 {
 	int ret;
-	ret = platform_read_i2c_block(i2c_bus_adapter, page, offset, count, values);
+	ret = platform_read_i2c_block(i2c_bus_adapter
+			, page
+			, offset
+			, count
+			, values
+			);
 	if (ret != 2) {
 		MHL_TX_DBG_ERR(drv_context, "I2c read failed, 0x%02x:0x%02x\n", page, offset);
 		ret = -EIO;
@@ -779,8 +757,8 @@ int mhl_tx_read_reg_block(void *drv_context, u8 page, u8 offset, u8 count, u8 *v
 
 int mhl_tx_read_reg(void *drv_context, u8 page, u8 offset)
 {
-	u8 byte_read;
-	int status;
+	u8		byte_read;
+	int		status;
 
 	status = mhl_tx_read_reg_block(drv_context, page, offset, 1, &byte_read);
 
@@ -789,8 +767,8 @@ int mhl_tx_read_reg(void *drv_context, u8 page, u8 offset)
 
 int mhl_tx_modify_reg(void *drv_context, u8 page, u8 offset, u8 mask, u8 value)
 {
-	int reg_value;
-	int write_status;
+	int	reg_value;
+	int	write_status;
 
 	reg_value = mhl_tx_read_reg(drv_context, page, offset);
 	if (reg_value < 0)
@@ -807,45 +785,21 @@ int mhl_tx_modify_reg(void *drv_context, u8 page, u8 offset, u8 mask, u8 value)
 		return reg_value;
 }
 
-static int32_t si_8348_mhl_tx_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
-{
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	int ret;
-
-	pr_debug("%s, client=0x%08x\n", __func__, (unsigned int)client);
-
-	i2c_bus_adapter = to_i2c_adapter(client->dev.parent);
-	/*
-	 * On some boards the configuration switches
-	 *      are connected via an I2C controlled GPIO expander.
-	 * At this point in the initialization, we're not
-	 *      ready to to I2C yet, so don't try to read any config
-	 *  switches here.  Instead, wait until gpio_expander_init().
-	 */
-
-	ret = mhl_tx_init(&drv_info, client);
-
-	pr_debug("%s, mhl_tx_init ret %d\n", __func__, ret);
-	if (ret) {
-
-	}
-	return ret;
-}
-
-
+/*
 static int32_t si_8348_mhl_tx_remove(struct i2c_client *client)
 {
-#if 1				/* ( */
-	if (gpio_client) {
+#if 1 //(
+	if (gpio_client){
 		struct mhl_dev_context *dev_context = i2c_get_clientdata(client);
-		free_irq(gpio_client->irq, dev_context);
+		free_irq(gpio_client->irq,dev_context);
 	}
-#endif				/* ) */
+#endif //)
 	i2c_unregister_device(gpio_client);
 	gpio_client = NULL;
-	/* gpio_free_array(starter_kit_control_gpios_for_expander, */
-	/* array_size_of_starter_kit_control_gpios_for_expander); */
-	gpio_free_array(starter_kit_control_gpios, ARRAY_SIZE(starter_kit_control_gpios));
+	//gpio_free_array(starter_kit_control_gpios_for_expander,
+	//		array_size_of_starter_kit_control_gpios_for_expander);
+	gpio_free_array(starter_kit_control_gpios,
+			ARRAY_SIZE(starter_kit_control_gpios));
 	return 0;
 }
 
@@ -854,7 +808,6 @@ static const struct i2c_device_id si_8348_mhl_tx_id[] = {
 	{MHL_DEVICE_NAME, 0},
 	{}
 };
-
 
 MODULE_DEVICE_TABLE(i2c, si_8348_mhl_tx_id);
 
@@ -869,71 +822,17 @@ static struct i2c_driver si_8348_mhl_tx_i2c_driver = {
 	.command = NULL,
 };
 
-static struct i2c_board_info si_8348_i2c_boardinfo[] __initdata = {
+static struct i2c_board_info __initdata si_8348_i2c_boardinfo[] = {
 	{
-	 I2C_BOARD_INFO(MHL_DEVICE_NAME, (TX_PAGE_L0 >> 1)),
-	 .flags = I2C_CLIENT_WAKE,
-	 .irq = CUST_EINT_MHL_NUM,
-	 }
+	   	I2C_BOARD_INFO(MHL_DEVICE_NAME, (TX_PAGE_L0 >> 1)),
+		.flags = I2C_CLIENT_WAKE,
+		.irq = CUST_EINT_MHL_NUM,
+	}
 };
-
-
-int si_8348_init(void)
-{
-	struct i2c_client *client;
-	int idx;
-	int ret = -EFAULT;
-
-	pr_info("%s driver starting!!\n", MHL_DRIVER_NAME);
-
-#if 0
-	/* "Hotplug" the MHL transmitter device onto the 2nd I2C bus */
-	i2c_bus_adapter = i2c_get_adapter(HDMI_I2C_CHANNEL);
-	if (i2c_bus_adapter == NULL) {
-		pr_err("%s() failed to get i2c adapter\n", __func__);
-		goto done;
-	}
-
-	for (idx = 0; idx < ARRAY_SIZE(device_addresses); idx++) {
-		if (idx == 0) {
-			client = i2c_new_device(i2c_bus_adapter, &si_8348_i2c_boardinfo[idx]);
-			device_addresses[idx].client = client;
-		} else {
-			device_addresses[idx].client = i2c_new_dummy(i2c_bus_adapter,
-								     device_addresses[idx].
-								     dev_addr);
-		}
-		/* TODO: FD, TBC, device_addresses should be initialized with care... */
-		if (device_addresses[idx].client == NULL) {
-			pr_err("[ERROR] %s():%d failed !\n", __func__, __LINE__);
-			goto err_exit;
-		}
-	}
-
-	ret = i2c_add_driver(&si_8348_mhl_tx_i2c_driver);
-	if (ret < 0) {
-		pr_info("[ERROR] %s():%d failed !\n", __func__, __LINE__);
-		goto err_exit;
-	}
-
-	goto done;
-
- err_exit:
-/*
-	for (idx = 0; idx < ARRAY_SIZE(device_addresses); idx++) {
-		if (device_addresses[idx].client != NULL)
-			i2c_unregister_device(device_addresses[idx].client);
-	}
-*/
- done:
-	MHL_TX_DBG_INFO(dev_context, "returning %d\n", ret);
-#endif
-	return ret;
-}
 
 static void __exit si_8348_exit(void)
 {
-	int idx;
+	int	idx;
 
 	mhl_tx_remove(device_addresses[0].client);
 	MHL_TX_DBG_INFO(NULL, "client removed\n");
@@ -942,83 +841,145 @@ static void __exit si_8348_exit(void)
 
 	for (idx = 0; idx < ARRAY_SIZE(device_addresses); idx++) {
 		MHL_TX_DBG_INFO(NULL, "\n");
-		if (device_addresses[idx].client != NULL) {
-			MHL_TX_DBG_INFO(NULL, "unregistering device:%p\n",
-					device_addresses[idx].client);
+		if (device_addresses[idx].client != NULL){
+			MHL_TX_DBG_INFO(NULL, "unregistering device:%p\n",device_addresses[idx].client);
 			i2c_unregister_device(device_addresses[idx].client);
 		}
 	}
 }
-
-struct i2c_device_id gMhlI2cIdTable[] = {
-	{
-	 "Sil_MHL", 0}
-};
-
-#if SII_I2C_ADDR == (0x76)
-static struct i2c_board_info i2c_mhl __initdata = {
-	.type = "Sil_MHL",
-	.addr = 0x3B,
-	.irq = 8,
-};
-#else
-static struct i2c_board_info i2c_mhl __initdata = {
-	.type = "Sil_MHL",
-	.addr = 0x39,
-	.irq = 8,
-};
-#endif
-
-struct i2c_driver mhl_i2c_driver = {
-	.probe = si_8348_mhl_tx_i2c_probe,
-/* /    .remove = , ///MhlI2cRemove, */
-	/* .detect = hdmi_i2c_detect, */
-	.driver = {.name = "Sil_MHL",},
-	.id_table = gMhlI2cIdTable,
-	/* .address_list = (const unsigned short*) forces, */
-};
-
-int HalOpenI2cDevice(char const *DeviceName, char const *DriverName)
+*/
+/************************** HAL To Platform****************************************/
+void Mask_MHL_Intr(void)
 {
-	halReturn_t retStatus;
-	int32_t retVal;
+#ifdef 	CUST_EINT_MHL_NUM
+	mt_eint_mask(CUST_EINT_MHL_NUM);
+#endif  
 
-	pr_debug("HalOpenI2cDevice done +\n");
-	retVal = strnlen(DeviceName, I2C_NAME_SIZE);
-	if (retVal >= I2C_NAME_SIZE) {
-		pr_debug("I2c device name too long!\n");
-		return HAL_RET_PARAMETER_ERROR;
-	}
-
-	i2c_register_board_info(HDMI_I2C_CHANNEL, &i2c_mhl, 1);
-
-	memcpy(gMhlI2cIdTable[0].name, DeviceName, retVal);
-	gMhlI2cIdTable[0].name[retVal] = 0;
-	gMhlI2cIdTable[0].driver_data = 0;
-
-	/* pr_debug("gMhlDevice.driver.driver.name=%s\n", gMhlDevice.driver.driver.name); */
-	/* pr_debug("gMhlI2cIdTable.name=%s\n", gMhlI2cIdTable[0].name); */
-	retVal = i2c_add_driver(&mhl_i2c_driver);
-	/* pr_debug("gMhlDevice.pI2cClient =%p\n", gMhlDevice.pI2cClient); */
-	if (retVal != 0) {
-		pr_debug("I2C driver add failed, retVal=%d\n", retVal);
-		retStatus = HAL_RET_FAILURE;
-	} else {
-		{
-			retStatus = HAL_RET_SUCCESS;
-		}
-	}
-
-	return retStatus;
+	return ;
 }
+
+void Unmask_MHL_Intr(void)
+{
+#ifdef 	CUST_EINT_MHL_NUM
+	mt_eint_unmask(CUST_EINT_MHL_NUM);
+#endif  
+
+	return ;
+}
+
+static struct mhl_drv_info drv_info = {
+	.drv_context_size = sizeof(struct drv_hw_context),
+	.mhl_device_initialize = si_mhl_tx_chip_initialize,
+	.mhl_device_isr = si_mhl_tx_drv_device_isr,
+	.mhl_device_dbg_i2c_reg_xfer = si_device_dbg_i2c_reg_xfer,
+	.mhl_start_video= si_mhl_tx_drv_enable_video_path,
+};
+
+int32_t sii_8348_tx_init()
+{
+	int32_t ret = 0;
+
+	ret = mhl_tx_init(&drv_info, mClient);
+	printk("sii_8348_init, mClient is %p\n", mClient);
+	
+	return ret;
+}
+
+struct i2c_device_id gMhlI2cIdTable[] = 
+{
+	{
+		"Sil_MHL",0
+	}
+};
+
+static int32_t si_8348_mhl_tx_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+{
+	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	int ret;
+ 
+	printk("%s, client=%p\n", __func__, (void *)client);
+
+    client->timing = 100;
+    
+    i2c_bus_adapter = to_i2c_adapter(client->dev.parent);
+	/*
+	 * On some boards the configuration switches 
+	 *	are connected via an I2C controlled GPIO expander.
+	 * At this point in the initialization, we're not 
+	 *	ready to to I2C yet, so don't try to read any config
+	 *  switches here.  Instead, wait until gpio_expander_init().
+	 */	 
+	 
+	ret = mhl_tx_init(&drv_info, client);
+	mClient = client;
+	
+	printk("%s, mhl_tx_init ret %d\n", __func__, ret);
+	if (ret){
+
+	}
+
+	Unmask_MHL_Intr();
+	
+	return ret;
+}
+
+struct i2c_driver mhl_i2c_driver = {                       
+    .probe = si_8348_mhl_tx_i2c_probe,                                            
+    .driver = { .name = "Sil_MHL",}, 
+    .id_table = gMhlI2cIdTable,
+}; 
 
 halReturn_t HalCloseI2cDevice(void)
 {
 	return HAL_RET_SUCCESS;
 }
 
-/* /module_init(si_8348_init); */
-/* /module_exit(si_8348_exit); */
+int HalOpenI2cDevice(char const *DeviceName, char const *DriverName)
+{
+	halReturn_t		retStatus;
+    int32_t 		retVal;
+
+	///dynamic_switch_i2c_address();
+    if(get_hdmi_i2c_addr()==0x76)
+	{
+        Need_Switch_I2C_to_High_Address = 1;
+		i2c_mhl.addr = 0x3B;
+	}
+    printk("HalOpenI2cDevice done +\n" );
+    retVal = strnlen(DeviceName, I2C_NAME_SIZE);
+    if (retVal >= I2C_NAME_SIZE)
+    {
+    	printk("I2c device name too long!\n");
+    	return HAL_RET_PARAMETER_ERROR;
+    }
+
+    i2c_register_board_info(get_hdmi_i2c_channel(), &i2c_mhl, 1);
+
+    memcpy(gMhlI2cIdTable[0].name, DeviceName, retVal);
+    gMhlI2cIdTable[0].name[retVal] = 0;
+    gMhlI2cIdTable[0].driver_data = 0;
+
+	//printk("gMhlDevice.driver.driver.name=%s\n", gMhlDevice.driver.driver.name);
+	//printk("gMhlI2cIdTable.name=%s\n", gMhlI2cIdTable[0].name);
+    retVal = i2c_add_driver(&mhl_i2c_driver);
+    //printk("gMhlDevice.pI2cClient =%p\n", gMhlDevice.pI2cClient);
+    if (retVal != 0)
+    {
+    	printk("I2C driver add failed, retVal=%d\n", retVal);
+        retStatus = HAL_RET_FAILURE;
+    }
+    else
+    {
+    	{
+    		retStatus = HAL_RET_SUCCESS;
+    	}
+    }
+
+    mhl_mutex_init(&mhl_lock);
+    
+    return retStatus;
+}
+/************************** ****************************************************/
 
 MODULE_DESCRIPTION("Silicon Image MHL Transmitter driver");
 MODULE_AUTHOR("Silicon Image <http://www.siliconimage.com>");

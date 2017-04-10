@@ -22,11 +22,12 @@ struct clock_data {
 	ktime_t wrap_kt;
 	u64 epoch_ns;
 	u64 epoch_cyc;
+	u64 epoch_cyc_copy; /*add this to protect read & write share data (cd.epoch_ns/cd.epoch_cyc) sync (same as arch/arm/sched_clock.c)*/
 	seqcount_t seq;
 	unsigned long rate;
 	u32 mult;
 	u32 shift;
-	bool suspended;
+	bool suspended;	
 };
 
 static struct hrtimer sched_clock_timer;
@@ -65,13 +66,19 @@ unsigned long long notrace sched_clock(void)
 
 	if (cd.suspended)
 		return cd.epoch_ns;
-
+    /*
+       * used cd.epoch_cyc_copy instead of read/write seqcount
+       * because of read/write seqcount cannot sync the read/write flow
+       * race condition will happen for epoch_cyc/epoch_ns
+       */
 	do {
 		//seq = raw_read_seqcount_begin(&cd.seq);
-		seq = read_seqcount_begin(&cd.seq);
+		//seq = read_seqcount_begin(&cd.seq);
 		epoch_cyc = cd.epoch_cyc;
+		smp_rmb();
 		epoch_ns = cd.epoch_ns;
-	} while (read_seqcount_retry(&cd.seq, seq));
+		smp_rmb();
+	} while (epoch_cyc != cd.epoch_cyc_copy);
 
 	cyc = read_sched_clock();
 	cyc = (cyc - epoch_cyc) & sched_clock_mask;
@@ -93,12 +100,19 @@ static void notrace update_sched_clock(void)
 			  cd.mult, cd.shift);
 
 	raw_local_irq_save(flags);
+	/*
+	*  same with sched_clock() comment
+	*/
+       
 	//raw_write_seqcount_begin(&cd.seq);
-	write_seqcount_begin(&cd.seq);
+	//write_seqcount_begin(&cd.seq);
+	cd.epoch_cyc_copy = cyc;
+	smp_wmb();
 	cd.epoch_ns = ns;
+	smp_wmb();
 	cd.epoch_cyc = cyc;
 	//raw_write_seqcount_end(&cd.seq);
-	write_seqcount_end(&cd.seq);
+	//write_seqcount_end(&cd.seq);
 	raw_local_irq_restore(flags);
 }
 
@@ -200,7 +214,8 @@ void __init sched_clock_postinit(void)
 
 static int sched_clock_suspend(void)
 {
-	sched_clock_poll(&sched_clock_timer);
+	update_sched_clock();
+	hrtimer_cancel(&sched_clock_timer);
 	cd.suspended = true;
 	return 0;
 }
@@ -208,6 +223,8 @@ static int sched_clock_suspend(void)
 static void sched_clock_resume(void)
 {
 	cd.epoch_cyc = read_sched_clock();
+	cd.epoch_cyc_copy = cd.epoch_cyc;	
+	hrtimer_start(&sched_clock_timer, cd.wrap_kt, HRTIMER_MODE_REL);
 	cd.suspended = false;
 }
 

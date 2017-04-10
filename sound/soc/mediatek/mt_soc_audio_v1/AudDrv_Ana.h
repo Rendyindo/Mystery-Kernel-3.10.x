@@ -124,19 +124,19 @@
 #define AFE_MBIST_CFG1                                  ((UINT32)(PMIC_REG_BASE+0x2000+0x6a))
 #define AFE_MBIST_CFG2                                  ((UINT32)(PMIC_REG_BASE+0x2000+0x6c))
 #define AFE_MBIST_CFG3                                  ((UINT32)(PMIC_REG_BASE+0x2000+0x6e))
-#define AFE_MAD_TOP                                        ((UINT32)(PMIC_REG_BASE+0x2000+0x70))
-#define AFE_MAD_CFG0                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x72))
-#define AFE_MAD_CFG1                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x74))
-#define AFE_MAD_CFG2                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x76))
-#define AFE_MAD_CFG3                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x78))
-#define AFE_MAD_CFG4                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x7a))
-#define AFE_MAD_CFG5                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x7c))
-#define AFE_MAD_MON0                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x7e))
-#define AFE_MAD_MON1                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x80))
-#define AFE_MAD_MON2                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x82))
-#define AFE_MAD_MON3                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x84))
-#define AFE_MAD_MON4                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x86))
-#define AFE_MAD_MON5                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x88))
+#define AFE_VOW_TOP                                        ((UINT32)(PMIC_REG_BASE+0x2000+0x70))
+#define AFE_VOW_CFG0                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x72))
+#define AFE_VOW_CFG1                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x74))
+#define AFE_VOW_CFG2                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x76))
+#define AFE_VOW_CFG3                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x78))
+#define AFE_VOW_CFG4                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x7a))
+#define AFE_VOW_CFG5                                     ((UINT32)(PMIC_REG_BASE+0x2000+0x7c))
+#define AFE_VOW_MON0                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x7e))
+#define AFE_VOW_MON1                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x80))
+#define AFE_VOW_MON2                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x82))
+#define AFE_VOW_MON3                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x84))
+#define AFE_VOW_MON4                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x86))
+#define AFE_VOW_MON5                                    ((UINT32)(PMIC_REG_BASE+0x2000+0x88))
 #define AFE_CLASSH_CFG0                               ((UINT32)(PMIC_REG_BASE+0x2000+0x8a))
 #define AFE_CLASSH_CFG1                               ((UINT32)(PMIC_REG_BASE+0x2000+0x8c))
 #define AFE_CLASSH_CFG2                               ((UINT32)(PMIC_REG_BASE+0x2000+0x8e))
@@ -249,20 +249,49 @@
 #define AUDMICBIAS_CFG1                                     ((UINT32)(PMIC_REG_BASE+0x69e))
 #define AUDENCSPARE_CFG0                                  ((UINT32)(PMIC_REG_BASE+0x6a0))
 #define AUDPREAMPGAIN_CFG0                             ((UINT32)(PMIC_REG_BASE+0x6a2))
-#define AUDMADPLL_CFG0                                      ((UINT32)(PMIC_REG_BASE+0x6a4))
-#define AUDMADPLL_CFG1                                       ((UINT32)(PMIC_REG_BASE+0x6a6))
-#define AUDMADPLL_CFG2                                       ((UINT32)(PMIC_REG_BASE+0x6a8))
+#define AUDVOWPLL_CFG0                                      ((UINT32)(PMIC_REG_BASE+0x6a4))
+#define AUDVOWPLL_CFG1                                       ((UINT32)(PMIC_REG_BASE+0x6a6))
+#define AUDVOWPLL_CFG2                                       ((UINT32)(PMIC_REG_BASE+0x6a8))
 #define AUDLDO_NVREG_CFG0                                ((UINT32)(PMIC_REG_BASE+0x6aa))
 #define AUDLDO_NVREG_CFG1                                ((UINT32)(PMIC_REG_BASE+0x6ac))
 #define AUDLDO_NVREG_CFG2                                ((UINT32)(PMIC_REG_BASE+0x6ae))
 
-#define SPK_TOP_CKPDN_CON0                                        ((UINT32)(0x8094))
-#define SPK_TOP_CKPDN_CON1                                        ((UINT32)(0x809A))
+#define SPK_TOP_CKPDN_CON0                                   ((UINT32)(0x8094))
+#define SPK_TOP_CKPDN_CON0_SET                          ((UINT32)(0x8096))
+#define SPK_TOP_CKPDN_CON0_CLR                          ((UINT32)(0x8098))
+#define SPK_TOP_CKPDN_CON1                                   ((UINT32)(0x809a))
+#define SPK_TOP_CKPDN_CON1_SET                          ((UINT32)(0x809c))
+#define SPK_TOP_CKPDN_CON1_CLR                          ((UINT32)(0x809e))
+
+
+#define SPK_INT_CON2                                            ((UINT32)(0x80d4))
+#define SPK_INT_CON2_SET                                   ((UINT32)(0x80d4))
+#define SPK_INT_CON2_CLR                                   ((UINT32)(0x809A))
+
 #define VSBST_CON5                                                  ((UINT32)(0x8534))
+
+#define VSBST_CON0                                                  ((UINT32)(0x852a))
+#define VSBST_CON1                                                  ((UINT32)(0x852c))
+#define VSBST_CON2                                                  ((UINT32)(0x852e))
+#define VSBST_CON3                                                  ((UINT32)(0x8530))
+#define VSBST_CON4                                                  ((UINT32)(0x8532))
+#define VSBST_CON5                                                  ((UINT32)(0x8534))
+#define VSBST_CON6                                                  ((UINT32)(0x8536))
+#define VSBST_CON7                                                  ((UINT32)(0x8538))
 #define VSBST_CON8                                                  ((UINT32)(0x853a))
+#define VSBST_CON9                                                  ((UINT32)(0x853c))
 #define VSBST_CON10                                               ((UINT32)(0x853e))
+#define VSBST_CON11                                               ((UINT32)(0x8540))
 #define VSBST_CON12                                               ((UINT32)(0x8542))
+#define VSBST_CON13                                               ((UINT32)(0x8544))
+#define VSBST_CON14                                               ((UINT32)(0x8546))
+#define VSBST_CON15                                               ((UINT32)(0x8548))
+#define VSBST_CON16                                               ((UINT32)(0x854a))
+#define VSBST_CON17                                               ((UINT32)(0x854c))
+#define VSBST_CON18                                               ((UINT32)(0x854e))
+#define VSBST_CON19                                               ((UINT32)(0x8550))
 #define VSBST_CON20                                               ((UINT32)(0x8552))
+#define VSBST_CON21                                               ((UINT32)(0x8554))
 
 
 #define SPK_CON0                                                      ((UINT32)(0x8cf2))
@@ -285,6 +314,15 @@
 
 
 #define MT6332_PMIC_REG_BASE (0x8000)
+
+#define MT6332_TOP_CKPDN_CON0     ((UINT32)(MT6332_PMIC_REG_BASE+0x0094))
+
+#define MT6332_TOP_CKHWEN_CON     ((UINT32)(MT6332_PMIC_REG_BASE+0x00B2))
+#define MT6332_TOP_RST_CON     ((UINT32)(MT6332_PMIC_REG_BASE+0x00BC))
+
+#define MT6332_TOP_RST_CON0	      ((UINT32)(MT6332_PMIC_REG_BASE+0x0280))
+#define MT6332_LDO_CON1	      ((UINT32)(MT6332_PMIC_REG_BASE+0x0CB6))
+
 
 #define MT6332_AUXADC_ADC0        ((UINT32)(MT6332_PMIC_REG_BASE+0x0800))
 #define MT6332_AUXADC_ADC1        ((UINT32)(MT6332_PMIC_REG_BASE+0x0802))
@@ -389,16 +427,18 @@
 
 
 #if 1
-/* register number */
+//register number
 
 #else
 #include <mach/upmu_hw.h>
 #endif
 
 void Ana_Set_Reg(uint32 offset, uint32 value, uint32 mask);
-uint32 Ana_Get_Reg(uint32 offset);
+uint32  Ana_Get_Reg(uint32 offset);
 
-/* for debug usage */
+// for debug usage
 void Ana_Log_Print(void);
 
 #endif
+
+

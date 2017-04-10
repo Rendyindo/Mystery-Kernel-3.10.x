@@ -25,7 +25,7 @@
 #include <linux/hardirq.h>
 #include <linux/mmzone.h>
 #include <linux/console.h>
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 #include <linux/syscalls.h>	/* for sys_sync() */
 #include <linux/oom.h>
 #endif
@@ -74,7 +74,7 @@ static int build_attention_list(void)
 	int i, task_count = 0;
 	struct task_struct *p;
 	struct attention_list *next;
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 	int task_count2 = 0, task_count3 = 0;
 #endif
 	/*
@@ -107,7 +107,7 @@ static int build_attention_list(void)
 	toi_read_lock_tasklist();
 	for_each_process(p)
 	    if ((p->flags & PF_NOFREEZE) || p == current) {
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 		task_count2++;
 		if (next == NULL)
 			goto ERR;
@@ -118,7 +118,7 @@ static int build_attention_list(void)
 	toi_read_unlock_tasklist();
 	return 0;
 
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
  ERR:
 	hib_err("WARN (%d/%d)\n", task_count, task_count2);
 	hib_err("DUMP tasks......\n");
@@ -206,11 +206,13 @@ static void toi_mark_task_as_pageset(struct task_struct *t, int pageset2)
 
 	mm = t->active_mm;
 
-	if (mm == (void *)0x6b6b6b6b) {
+#ifdef CONFIG_TOI_FIXUP
+	if (mm == (void *)0x6b6b6b6b || mm == (void *)0x6b6b6b6b6b6b6b6b) {
 		pr_err("[%s] use after free: task %s rq(%d)\n", __func__, t->comm, t->on_rq);
 		WARN_ON(1);
 		return;
 	}
+#endif
 
 	if (!mm || !mm->mmap)
 		return;
@@ -334,6 +336,10 @@ void toi_free_extra_pagedir_memory(void)
 		for (i = 0; i < (1 << this->order); i++)
 			ClearPageNosave(this->page + i);
 
+#ifdef CONFIG_TOI_ENHANCE
+		/* keep clean contents for better compression next time */
+		clear_page(page_address(this->page));
+#endif
 		toi_free_pages(9, this->page, this->order);
 		toi_kfree(7, this, sizeof(*this));
 	}
@@ -341,24 +347,19 @@ void toi_free_extra_pagedir_memory(void)
 	extra_pages_allocated = 0;
 }
 
-#ifdef CONFIG_MTK_HIBERNATION
-int is_memory_low(unsigned long delta)
-{
-	struct zone *zone;
+#ifdef CONFIG_TOI_FIXUP
+#define TOI_BUFFER_RESERVED ((24*1024*1024) / PAGE_SIZE)
 
-	for_each_populated_zone(zone) {
-		unsigned long free_pages, min_pages, high_pages;
-		if (!strcmp(zone->name, "Normal")) {
-			free_pages = zone_page_state(zone, NR_FREE_PAGES);
-			min_pages = min_wmark_pages(zone);
-			high_pages = high_wmark_pages(zone);
-			if (free_pages < (min_pages + high_pages + delta)) {
-				hib_warn
-				    ("memory status: free(%lu) < min(%lu)+high(%lu)+delta(%lu)\n",
-				     free_pages, min_pages, high_pages, delta);
-				return 1;
-			}
-		}
+static int is_memory_low(unsigned long wanted)
+{
+	unsigned long free_pages;
+
+	free_pages = real_nr_free_low_pages();
+	if (free_pages < (wanted + TOI_BUFFER_RESERVED)) {
+		hib_warn("memory status: free(%lu) < wanted(%lu)+reserved(%lu)\n",
+				 free_pages, wanted, TOI_BUFFER_RESERVED);
+		HIB_SHOW_MEMINFO();
+		return 1;
 	}
 
 	return 0;
@@ -375,7 +376,11 @@ int is_memory_low(unsigned long delta)
 static int toi_allocate_extra_pagedir_memory(int extra_pages_needed)
 {
 	int j, order, num_to_alloc = extra_pages_needed - extra_pages_allocated;
+#ifdef CONFIG_TOI_FIXUP
+	gfp_t flags = TOI_ATOMIC_GFP | __GFP_NO_KSWAPD;
+#else
 	gfp_t flags = TOI_ATOMIC_GFP;
+#endif
 
 	if (num_to_alloc < 1)
 		return 0;
@@ -392,7 +397,7 @@ static int toi_allocate_extra_pagedir_memory(int extra_pages_needed)
 		while ((1 << order) > num_to_alloc)
 			order--;
 
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 		if (is_memory_low(4)) {
 			return extra_pages_allocated;
 		}
@@ -409,7 +414,7 @@ static int toi_allocate_extra_pagedir_memory(int extra_pages_needed)
 			order--;
 			virt = toi_get_free_pages(9, flags, order);
 		}
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 		if (virt && is_memory_low(0)) {
 			toi_free_pages(9, virt_to_page((void *)virt), order);
 			virt = 0;
@@ -893,7 +898,7 @@ void toi_recalculate_image_contents(int atomic_copy)
 
 	if (!atomic_copy) {
 		storage_limit = toiActiveAllocator->storage_available();
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 		display_stats(1, 0);
 #else
 		display_stats(0, 0);
@@ -903,16 +908,18 @@ void toi_recalculate_image_contents(int atomic_copy)
 
 int try_allocate_extra_memory(void)
 {
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 	int wanted = pagedir1.size + extra_pd1_pages_allowance - get_lowmem_size(pagedir2);
-	if (wanted > extra_pages_allocated) {
+	if ((wanted > 0) && (wanted > extra_pages_allocated)) {
 		int got = toi_allocate_extra_pagedir_memory(wanted);
-		if (wanted > got) {
-			hib_warn("Want %d extra pages for pageset1, but only got %d\n", wanted,
-				 got);
+		hib_warn("%s: Want %d extra pages for pageset1, got %d, free:%lu\n",
+				 wanted > got ? "FAIL" : "PASS",  wanted, got, real_nr_free_low_pages());
+		if (unlikely(wanted > got))
 			return 1;
-		}
-	}
+	} else
+		hib_warn("PASS: Want %lu extra pages for pageset1, got %lu, free:%lu\n",
+				 pagedir1.size + extra_pd1_pages_allowance,
+				 extra_pages_allocated + get_lowmem_size(pagedir2), real_nr_free_low_pages());
 #else /* buggy codes, (1) why wanted < got and return 1 ? ; (2) wanted might be negative value. */
 	unsigned long wanted = pagedir1.size + extra_pd1_pages_allowance -
 	    get_lowmem_size(pagedir2);
@@ -998,7 +1005,7 @@ static int attempt_to_freeze(void)
 
 	/* Stop processes before checking again */
 	toi_prepare_status(CLEAR_BAR, "Freezing processes & syncing " "filesystems.");
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_FIXUP
 	hib_warn("Syncing filesystems ... ");
 	sys_sync();
 	hib_warn("done.\n");
@@ -1010,6 +1017,12 @@ static int attempt_to_freeze(void)
 		set_abort_result(TOI_FREEZING_FAILED);
 
 	result = freeze_kernel_threads();
+
+#ifdef CONFIG_MTK_HIBERNATION
+  if (!result){
+		shrink_all_memory(0); // purpose for early trigger PASR to release userspace memory pages.
+	}
+#endif
 
 	if (result)
 		set_abort_result(TOI_FREEZING_FAILED);
@@ -1128,10 +1141,6 @@ int toi_prepare_image(void)
 
 	main_storage_allocated = 0;
 	no_ps2_needed = 0;
-
-#ifdef CONFIG_MTK_HIBERNATION
-	shrink_all_memory(0);	/* purpose for early trigger PASR to release userspace memory pages. */
-#endif
 
 	if (attempt_to_freeze())
 		return 1;

@@ -57,6 +57,10 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	return 0;
 }
 
+#ifdef CONFIG_MTK_SCHED_TRACERS
+#include <trace/events/mtk_events.h>
+#endif
+
 /*
  * handle_IRQ handles all hardware IRQ's.  Decoded IRQs should
  * not come via this function.  Instead, they should provide their
@@ -66,9 +70,17 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 void handle_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
+#ifdef CONFIG_MTK_SCHED_TRACERS
+    struct irq_desc *desc;
+#endif
 
-    mt_trace_ISR_start(irq);
 	irq_enter();
+    mt_trace_ISR_start(irq);
+#ifdef CONFIG_MTK_SCHED_TRACERS
+    desc = irq_to_desc(irq);
+    trace_irq_entry(irq,
+            (desc && desc->action && desc->action->name) ? desc->action->name : "-");
+#endif
 
 	/*
 	 * Some hardware gives randomly wrong interrupts.  Rather
@@ -81,6 +93,9 @@ void handle_IRQ(unsigned int irq, struct pt_regs *regs)
 	} else {
 		generic_handle_irq(irq);
 	}
+#ifdef CONFIG_MTK_SCHED_TRACERS
+    trace_irq_exit(irq);
+#endif
     mt_trace_ISR_end(irq);
 	irq_exit();
 	set_irq_regs(old_regs);

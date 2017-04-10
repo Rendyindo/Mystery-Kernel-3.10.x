@@ -35,7 +35,14 @@ typedef enum {
 #define CCCI_SMEM_DUMP_SIZE      4096// smem size we dump when EE
 #define CCCI_SMEM_SIZE_EXCEPTION 0x200000//exception smem total size 
 #define CCCI_SMEM_OFFSET_EXREC 2048// where the exception record begain in smem
+#define CCCC_SMEM_CCIF_SRAM_SIZE 16
+#define CCCI_SMEM_OFFSET_CCIF_SRAM (CCCI_SMEM_OFFSET_EXREC+1024-CCCC_SMEM_CCIF_SRAM_SIZE)
 #define CCCI_SMEM_OFFSET_EPON 0xC64
+#define CCCI_SMEM_OFFSET_SEQERR 0x34
+#define CCCI_SMEM_OFFSET_CCCI_DEBUG 0 // where the MD CCCI debug info begain in smem
+#define CCCI_SMEM_CCCI_DEBUG_SIZE 2048 // MD CCCI debug info size
+#define CCCI_SMEM_OFFSET_MDSS_DEBUG 2048 // where the MD SS debug info begain in smem
+#define CCCI_SMEM_MDSS_DEBUG_SIZE 2048 // MD SS debug info size
 
 // MD type defination
 typedef enum {
@@ -69,6 +76,19 @@ typedef enum {
 #define RELEASE_STR        "Release"
 #define INVALID_STR        "INVALID"
 
+struct ccci_header{
+	u32 data[2]; // do NOT assump data[1] is data length in Rx
+//#ifdef FEATURE_SEQ_CHECK_EN
+	u16 channel:16;
+	u16 seq_num:15;
+	u16 assert_bit:1;
+//#else
+//	u32 channel;
+//#endif
+	u32 reserved;
+} __attribute__ ((packed)); // not necessary, but it's a good gesture, :)
+
+
 struct md_check_header {
 	unsigned char check_header[12];  /* magic number is "CHECK_HEADER"*/
 	unsigned int  header_verno;      /* header structure version number */
@@ -77,14 +97,41 @@ struct md_check_header {
 	unsigned char platform[16];      /* MT6573_S01 or MT6573_S02 */
 	unsigned char build_time[64];    /* build time string */
 	unsigned char build_ver[64];     /* project version, ex:11A_MD.W11.28 */
+	
 	unsigned char bind_sys_id;       /* bind to md sys id, MD SYS1: 1, MD SYS2: 2 */
 	unsigned char ext_attr;          /* no shrink: 0, shrink: 1*/
 	unsigned char reserved[2];       /* for reserved */
+	
 	unsigned int  mem_size;          /* md ROM/RAM image size requested by md */
 	unsigned int  md_img_size;       /* md image size, exclude head size*/
 	unsigned int  reserved_info;     /* for reserved */
 	unsigned int  size;              /* the size of this structure */
 } __attribute__ ((packed));
+
+struct md_check_header_v3 {
+	unsigned char check_header[12];  /* magic number is "CHECK_HEADER"*/
+	unsigned int  header_verno;      /* header structure version number */
+	unsigned int  product_ver;       /* 0x0:invalid; 0x1:debug version; 0x2:release version */
+	unsigned int  image_type;        /* 0x0:invalid; 0x1:2G modem; 0x2: 3G modem */
+	unsigned char platform[16];      /* MT6573_S01 or MT6573_S02 */
+	unsigned char build_time[64];    /* build time string */
+	unsigned char build_ver[64];     /* project version, ex:11A_MD.W11.28 */
+	
+	unsigned char bind_sys_id;       /* bind to md sys id, MD SYS1: 1, MD SYS2: 2, MD SYS5: 5 */
+	unsigned char ext_attr;          /* no shrink: 0, shrink: 1 */
+	unsigned char reserved[2];       /* for reserved */
+
+	unsigned int  mem_size;          /* md ROM/RAM image size requested by md */
+	unsigned int  md_img_size;       /* md image size, exclude head size */
+	unsigned int  rpc_sec_mem_addr;  /* RPC secure memory address */
+
+	unsigned int  dsp_img_offset;
+	unsigned int  dsp_img_size;
+	unsigned char reserved2[88];
+	
+	unsigned int  size;              /* the size of this structure */
+} __attribute__ ((packed));
+
 
 //=================================================================================
 // IOCTL defination
@@ -125,7 +172,7 @@ struct md_check_header {
 #define CCCI_IOC_GET_MD_TYPE			_IOR(CCCI_IOC_MAGIC, 31, unsigned int) // RILD
 #define CCCI_IOC_STORE_MD_TYPE			_IOW(CCCI_IOC_MAGIC, 32, unsigned int) // RILD
 #define CCCI_IOC_GET_MD_TYPE_SAVING		_IOR(CCCI_IOC_MAGIC, 33, unsigned int) // META
-#define CCCI_IOC_GET_EXT_MD_POST_FIX		_IOR(CCCI_IOC_MAGIC, 34, char[32]) // eemcs_fsd // mdlogger
+#define CCCI_IOC_GET_EXT_MD_POST_FIX		_IOR(CCCI_IOC_MAGIC, 34, unsigned int) // char[32] eemcs_fsd // mdlogger
 #define CCCI_IOC_FORCE_FD			_IOW(CCCI_IOC_MAGIC, 35, unsigned int) // RILD(6577)
 #define CCCI_IOC_AP_ENG_BUILD			_IOW(CCCI_IOC_MAGIC, 36, unsigned int) // md_init(6577)
 #define CCCI_IOC_GET_MD_MEM_SIZE		_IOR(CCCI_IOC_MAGIC, 37, unsigned int) // md_init(6577)
@@ -134,6 +181,8 @@ struct md_check_header {
 
 #define CCCI_IOC_SET_MD_SBP_CFG			_IOW(CCCI_IOC_MAGIC, 40, unsigned int) // md_init
 #define CCCI_IOC_GET_MD_SBP_CFG			_IOW(CCCI_IOC_MAGIC, 41, unsigned int) // md_init
+#define CCCI_IOC_GET_MD_PROTOCOL_TYPE	_IOR(CCCI_IOC_MAGIC, 42, char[16]) /*metal tool to get modem protocol type: AP_TST or DHL*/
+#define CCCI_IOC_SEND_SIGNAL_TO_USER	_IOW(CCCI_IOC_MAGIC, 43, unsigned int) // md_init
 
 
 #define CCCI_IOC_SET_HEADER				_IO(CCCI_IOC_MAGIC,  112)				// emcs_va
@@ -146,6 +195,9 @@ struct md_check_header {
 #define CCCI_IPC_RESET_SEND			_IO(CCCI_IPC_MAGIC,1)
 #define CCCI_IPC_WAIT_MD_READY			_IO(CCCI_IPC_MAGIC,2)
 #define CCCI_IPC_KERN_WRITE_TEST		_IO(CCCI_IPC_MAGIC,3)
+#define CCCI_IPC_UPDATE_TIME			_IO(CCCI_IPC_MAGIC,4)
+#define CCCI_IPC_WAIT_TIME_UPDATE		_IO(CCCI_IPC_MAGIC,5)
+#define CCCI_IPC_UPDATE_TIMEZONE		_IO(CCCI_IPC_MAGIC,6)
 
 //=================================================================================
 // CCCI Error number defination
@@ -360,10 +412,23 @@ enum {
 	ID_STORE_SIM_SWITCH_MODE = 10,
 	ID_GET_SIM_SWITCH_MODE = 11,
 	ID_GET_MD_STATE = 12,		// for DVFS
+	ID_THROTTLING_CFG = 13,		// For MD SW throughput throttling
+	ID_RESET_MD = 14,			// for SVLTE MD3 reset MD1
+	ID_DUMP_MD_REG = 15,
+
+	ID_UPDATE_TX_POWER = 100,   // for SWTP
+
 };
 
 enum {
+	/*bit0-bit15: for modem capability related with ccci or ccci&ccmni driver*/
 	MODEM_CAP_NAPI = (1<<0),
+	MODEM_CAP_TXBUSY_STOP = (1<<1),
+	/*bit16-bit31: for modem capability only related with ccmni driver*/
+	MODEM_CAP_CCMNI_DISABLE = (1<<16),
+	MODEM_CAP_DATA_ACK_DVD = (1<<17),
+	MODEM_CAP_CCMNI_SEQNO = (1<<18),
+	MODEM_CAP_CCMNI_IRAT = (1<<19),
 };
 
 /* AP<->MD messages on control or system channel */
@@ -396,6 +461,16 @@ enum {
 	MD_LOW_BATTERY_LEVEL = 0x10A,
 	// 0x10B-0x10C occupied by EEMCS
 	MD_PAUSE_LTE = 0x10D,
+	//used for throttling feature - start
+	MD_THROTTLING = 0x112, // SW throughput throttling
+	//used for throttling feature - end
+
+	/* swtp */
+	MD_SW_MD1_TX_POWER = 0x10E,
+	MD_SW_MD2_TX_POWER = 0x10F,
+	MD_SW_MD1_TX_POWER_REQ = 0x110,
+	MD_SW_MD2_TX_POWER_REQ = 0x111,	
+
 	// System channel, MD->AP message start from 0x1000
 	MD_WDT_MONITOR = 0x1000,
 	// System channel, AP->MD message
@@ -404,6 +479,21 @@ enum {
 
 #define NORMAL_BOOT_ID 0
 #define META_BOOT_ID 1
+
+typedef enum {
+	INVALID = 0, // no traffic
+	GATED, // broadcast by modem driver, no traffic
+	BOOTING, // broadcast by modem driver
+	READY, // broadcast by port_kernel
+	EXCEPTION, // broadcast by port_kernel
+	RESET, // broadcast by modem driver, no traffic
+	
+	RX_IRQ, // broadcast by modem driver, illegal for md->md_state, only for NAPI!
+	TX_IRQ, // broadcast by modem driver, illegal for md->md_state, only for network!
+	TX_FULL, // broadcast by modem driver, illegal for md->md_state, only for network!
+	BOOT_FAIL, // broadcast by port_kernel, illegal for md->md_state
+}MD_STATE; // for CCCI internal
+
 
 //=================================================================================
 // Image type and header defination part
@@ -440,9 +530,11 @@ struct ccci_image_info
 	MD_IMG_TYPE type;
 	char file_name[IMG_PATH_LEN];
 	phys_addr_t address; // phy memory address to load this image
-	ssize_t size; // image size without signature, cipher and check header, read form check header
-	loff_t offset; // signature and cipher header
+	unsigned int size; // image size without signature, cipher and check header, read form check header
+	unsigned int offset; // signature and cipher header
 	unsigned int tail_length; // signature tail
+	unsigned int dsp_offset;
+	unsigned int dsp_size;
 	char *ap_platform;
 	struct IMG_CHECK_INFO img_info; // read from MD image header
 	struct IMG_CHECK_INFO ap_info; // get from AP side configuration
@@ -454,32 +546,6 @@ struct ccci_dev_cfg {
 	unsigned int minor_base;
 	unsigned int capability;
 };
-
-typedef struct md_hw_info
-{
-	// HW info - Register Address
-	unsigned long cldma_ap_base;
-	unsigned long cldma_md_base;
-	unsigned long md_rgu_base;
-	unsigned long md_boot_slave_Vector;
-	unsigned long md_boot_slave_Key;
-	unsigned long md_boot_slave_En;
-	unsigned long ap_ccif_base;
-	unsigned long md_ccif_base;
-	unsigned int sram_size;
-
-	// HW info - Interrutpt ID
-	unsigned int cldma_irq_id;
-	unsigned int ap_ccif_irq_id;
-	unsigned int md_wdt_irq_id;
-	unsigned int ap2md_bus_timeout_irq_id;
-
-	// HW info - Interrupt flags
-	unsigned long cldma_irq_flags;
-	unsigned long ap_ccif_irq_flags;
-	unsigned long md_wdt_irq_flags;
-	unsigned long ap2md_bus_timeout_irq_flags;
-}md_hw_info_t;
 
 typedef int (*get_status_func_t)(int,char*,int);
 typedef int (*boot_md_func_t)(int);
@@ -501,6 +567,7 @@ typedef enum
 	MISC_MD_COCLK_SETTING,
 	MISC_MD_SBP_SETTING,
 	MISC_MD_SEQ_CHECK,
+	MISC_MD_CLIB_TIME,
 } MISC_FEATURE_ID;
 
 typedef enum {
@@ -570,27 +637,17 @@ struct modem_runtime {
 } __attribute__ ((packed));
 
 typedef enum {
-    resv_api_0 = 0,
-    resv_api_1,
-    resv_api_2,
-    resv_api_3,
-    resv_api_4,
-    resv_api_5,
-    resv_api_6,
-    resv_api_7,
-    resv_api_8,
-    resv_api_9,
-    resv_api_10,
-    resv_api_11,
-    resv_api_12,
-    resv_api_13,
-    resv_api_14,
-    resv_api_15,
-    resv_api_16,
-    resv_api_17,
-    resv_api_18,
-    resv_api_19
-} plat_api_resv_id;
+	ID_GET_FDD_THERMAL_DATA = 0,
+	ID_GET_TDD_THERMAL_DATA,
+}SYS_CB_ID;
+
+typedef int (*ccci_sys_cb_func_t)(int, int);
+typedef struct{
+	SYS_CB_ID		id;
+	ccci_sys_cb_func_t	func;
+}ccci_sys_cb_func_info_t;
+
+#define MAX_KERN_API 20
 
 //==============================================================================================
 // Export API
@@ -606,14 +663,16 @@ int set_modem_support_cap(int md_id, int new_val); // Export by ccci util
 char* ccci_get_md_info_str(int md_id); // Export by ccci util
 int ccci_load_firmware(int md_id, void* img_inf, char img_err_str[], char post_fix[]); // Export by ccci util
 int get_md_resv_mem_info(int md_id, phys_addr_t *r_rw_base, unsigned int *r_rw_size, phys_addr_t *srw_base, unsigned int *srw_size); // Export by ccci util
+//used for throttling feature - start
+unsigned long ccci_get_md_boot_count(int md_id);
+//used for throttling feature - end
 
-//==============================================================================================
-// Export by platform API
-//==============================================================================================
-int ccci_plat_common_init(void);
-int get_modem_hw_info(void* dev, void *dev_cfg, void *hw);
-void* get_ccci_of_match_table(const char str[]);
-int io_remap_md_side_register(int md_id, void *md_ptr);
-int plat_misc_api(void* data, unsigned int api_id, void* output);
+int exec_ccci_kern_func_by_md_id(int md_id, unsigned int id, char *buf, unsigned int len);
+int register_ccci_sys_call_back(int md_id, unsigned int id, ccci_sys_cb_func_t func);
+int switch_sim_mode(int id, char *buf, unsigned int len);
+unsigned int get_sim_switch_type(void);
 
+// CLib for modem get ap time
+void notify_time_update(void);
+int wait_time_update_notify(void);
 #endif

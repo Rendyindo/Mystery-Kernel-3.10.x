@@ -189,7 +189,7 @@ enum logger_type {
 	LOGGER_TYPE_END
 };
 
-#ifndef USER_BUILD_KERNEL	/* engineering mode */
+#if defined(CONFIG_MT_ENG_BUILD)	/* engineering mode */
 
 #define CREATE_PROC_ENTRY(proc, x, y, z, o) proc = proc_create(x, y, z, o)
 

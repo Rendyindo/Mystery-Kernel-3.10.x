@@ -129,8 +129,12 @@
 #include <linux/inetdevice.h>
 #include <linux/cpu_rmap.h>
 #include <linux/static_key.h>
-
+#include <net/udp.h>
 #include "net-sysfs.h"
+
+#ifdef UDP_SKT_WIFI
+#include <linux/ftrace_event.h>
+#endif
 
 /* Instead of increasing this, you should create a hash table. */
 #define MAX_GRO_SKBS 8
@@ -2789,6 +2793,22 @@ int dev_queue_xmit(struct sk_buff *skb)
 	int rc = -ENOMEM;
 
 	skb_reset_mac_header(skb);
+
+#ifdef UDP_SKT_WIFI
+	
+	if (unlikely((sysctl_met_is_enable == 1) && (sysctl_udp_met_port > 0)
+		 && (ip_hdr(skb)->protocol == IPPROTO_UDP) && skb->sk)) {
+		
+	    if (sysctl_udp_met_port == ntohs((inet_sk(skb->sk))->inet_sport)) {
+	    	struct udphdr * udp_iphdr = udp_hdr(skb);
+	    	if (udp_iphdr && (ntohs(udp_iphdr->len) >= 12)) {
+	            __u16 * seq_id = (__u16 *)((char *)udp_iphdr + 10);
+	            udp_event_trace_printk("F|%d|%s|%d\n", current->pid, *seq_id);
+	            
+	    	}
+	    }
+	}
+#endif
 
 	/* Disable soft irqs for various locks below. Also
 	 * stops preemption for RCU.

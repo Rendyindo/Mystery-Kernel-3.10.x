@@ -684,20 +684,17 @@ static int MPU3000_ReadGyroData(struct i2c_client *client, char *buf, int bufsiz
 				obj->data[MPU3000_AXIS_X],obj->data[MPU3000_AXIS_Y],obj->data[MPU3000_AXIS_Z]);
 		}
 #endif		
-		obj->data[MPU3000_AXIS_X] = obj->data[MPU3000_AXIS_X] + obj->cali_sw[MPU3000_AXIS_X];
-		obj->data[MPU3000_AXIS_Y] = obj->data[MPU3000_AXIS_Y] + obj->cali_sw[MPU3000_AXIS_Y];
-		obj->data[MPU3000_AXIS_Z] = obj->data[MPU3000_AXIS_Z] + obj->cali_sw[MPU3000_AXIS_Z];
-	
+
+		//Out put the degree/second(o/s)
+		obj->data[MPU3000_AXIS_X] = obj->data[MPU3000_AXIS_X] * MPU3000_FS_MAX_LSB / MPU3000_DEFAULT_LSB + obj->cali_sw[MPU3000_AXIS_X];
+		obj->data[MPU3000_AXIS_Y] = obj->data[MPU3000_AXIS_Y] * MPU3000_FS_MAX_LSB / MPU3000_DEFAULT_LSB + obj->cali_sw[MPU3000_AXIS_Y];
+		obj->data[MPU3000_AXIS_Z] = obj->data[MPU3000_AXIS_Z] * MPU3000_FS_MAX_LSB / MPU3000_DEFAULT_LSB + obj->cali_sw[MPU3000_AXIS_Z];
+
+
 		/*remap coordinate*/
 		data[obj->cvt.map[MPU3000_AXIS_X]] = obj->cvt.sign[MPU3000_AXIS_X]*obj->data[MPU3000_AXIS_X];
 		data[obj->cvt.map[MPU3000_AXIS_Y]] = obj->cvt.sign[MPU3000_AXIS_Y]*obj->data[MPU3000_AXIS_Y];
 		data[obj->cvt.map[MPU3000_AXIS_Z]] = obj->cvt.sign[MPU3000_AXIS_Z]*obj->data[MPU3000_AXIS_Z];
-
-		//Out put the degree/second(o/s)
-		data[MPU3000_AXIS_X] = data[MPU3000_AXIS_X] * MPU3000_FS_MAX_LSB / MPU3000_DEFAULT_LSB;
-		data[MPU3000_AXIS_Y] = data[MPU3000_AXIS_Y] * MPU3000_FS_MAX_LSB / MPU3000_DEFAULT_LSB;
-		data[MPU3000_AXIS_Z] = data[MPU3000_AXIS_Z] * MPU3000_FS_MAX_LSB / MPU3000_DEFAULT_LSB;
-
 	
 	}
 
@@ -1291,9 +1288,9 @@ static long mpu3000_unlocked_ioctl(struct file *file, unsigned int cmd,
 			
 			else
 			{
-				cali[MPU3000_AXIS_X] = sensor_data.x * MPU3000_DEFAULT_LSB / MPU3000_FS_MAX_LSB;
-				cali[MPU3000_AXIS_Y] = sensor_data.y * MPU3000_DEFAULT_LSB / MPU3000_FS_MAX_LSB;
-				cali[MPU3000_AXIS_Z] = sensor_data.z * MPU3000_DEFAULT_LSB / MPU3000_FS_MAX_LSB;			  
+				cali[MPU3000_AXIS_X] = sensor_data.x ;
+				cali[MPU3000_AXIS_Y] = sensor_data.y ;
+				cali[MPU3000_AXIS_Z] = sensor_data.z ;
 				err = MPU3000_WriteCalibration(client, cali);
 			}
 			break;
@@ -1314,10 +1311,9 @@ static long mpu3000_unlocked_ioctl(struct file *file, unsigned int cmd,
 			{
 				break;
 			}
-			
-			sensor_data.x = cali[MPU3000_AXIS_X] * MPU3000_FS_MAX_LSB / MPU3000_DEFAULT_LSB;
-			sensor_data.y = cali[MPU3000_AXIS_Y] * MPU3000_FS_MAX_LSB / MPU3000_DEFAULT_LSB;
-			sensor_data.z = cali[MPU3000_AXIS_Z] * MPU3000_FS_MAX_LSB / MPU3000_DEFAULT_LSB;
+			sensor_data.x = cali[MPU3000_AXIS_X] ;
+			sensor_data.y = cali[MPU3000_AXIS_Y] ;
+			sensor_data.z = cali[MPU3000_AXIS_Z] ;
 			if(copy_to_user(data, &sensor_data, sizeof(sensor_data)))
 			{
 				err = -EFAULT;

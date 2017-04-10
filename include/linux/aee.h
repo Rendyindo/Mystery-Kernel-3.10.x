@@ -19,6 +19,8 @@ typedef enum {
 
 typedef enum {
 	AE_KE = 0,		/* Fatal Exception */
+    AE_HWT,
+    AE_HW_REBOOT,
 	AE_NE,
 	AE_JE,
 	AE_SWT,
@@ -27,6 +29,7 @@ typedef enum {
 	AE_ANR,			/* Error or Warning or Defect */
 	AE_RESMON,
 	AE_MODEM_WARNING,
+    AE_WTF,
 	AE_WRN_ERR_END,
 	AE_MANUAL,		/* Manual Raise */
 	AE_EXP_CLASS_END,
@@ -38,6 +41,7 @@ typedef enum {
 
 typedef enum {
 	AEE_REBOOT_MODE_NORMAL = 0,
+	AEE_REBOOT_MODE_KERNEL_OOPS,
 	AEE_REBOOT_MODE_KERNEL_PANIC,
 	AEE_REBOOT_MODE_NESTED_EXCEPTION,
 	AEE_REBOOT_MODE_WDT,
@@ -66,6 +70,26 @@ struct aee_process_bt {
 	__u32 nr_entries;
 	struct aee_bt_frame *entries;
 };
+
+
+struct aee_thread_reg {
+	pid_t tid;
+	struct pt_regs regs;
+};
+
+struct aee_user_thread_stack {
+	pid_t tid;
+	int StackLength;
+	unsigned char *Userthread_Stack; //8k stack ,define to char only for match 64bit/32bit
+};
+
+struct aee_user_thread_maps {
+	pid_t tid;
+	int Userthread_mapsLength;
+	unsigned char *Userthread_maps; //8k stack ,define to char only for match 64bit/32bit
+};
+
+
 
 struct aee_oops {
 	struct list_head list;
@@ -100,6 +124,11 @@ struct aee_oops {
 	char *mini_rdump;
 	int mini_rdump_len;
 
+
+	struct aee_user_thread_stack userthread_stack;
+	struct aee_thread_reg userthread_reg;
+	struct aee_user_thread_maps userthread_maps;
+	
 	int dump_option;
 };
 
@@ -115,29 +144,6 @@ struct aee_kernel_api {
 				 const int db_opt);
 };
 
-/*
-   This group of API call by sub-driver module to report reboot reasons
-   aee_rr_* stand for previous reboot reason
- */
-struct last_reboot_reason {
-	uint8_t wdt_status;
-	uint8_t fiq_step;
-	uint8_t reboot_mode;
-
-	uint32_t last_irq_enter[NR_CPUS];
-	uint64_t jiffies_last_irq_enter[NR_CPUS];
-
-	uint32_t last_irq_exit[NR_CPUS];
-	uint64_t jiffies_last_irq_exit[NR_CPUS];
-
-	uint64_t jiffies_last_sched[NR_CPUS];
-	char last_sched_comm[NR_CPUS][TASK_COMM_LEN];
-
-	uint8_t hotplug_data1[NR_CPUS];
-	uint8_t hotplug_data2[NR_CPUS];
-};
-
-void aee_rr_last(struct last_reboot_reason *lrr);
 void aee_sram_printk(const char *fmt, ...);
 int aee_nested_printf(const char *fmt, ...);
 void aee_wdt_irq_info(void);
@@ -195,6 +201,8 @@ void aee_oops_free(struct aee_oops *oops);
 #define DB_OPT_PAGETYPE_INFO            (1<<27)
 #define DB_OPT_DUMPSYS_PROCSTATS        (1<<28)
 #define DB_OPT_DUMP_DISPLAY             (1<<29)
+#define DB_OPT_NATIVE_BACKTRACE		(1<<30)
+#define DB_OPT_AARCH64			(1<<31)
 
 #define aee_kernel_exception(module, msg...)	\
 	aee_kernel_exception_api(__FILE__, __LINE__, DB_OPT_DEFAULT, module, msg)
@@ -233,7 +241,6 @@ void aee_powerkey_notify_press(unsigned long pressed);
 int aee_kernel_Powerkey_is_press(void);
 
 void ipanic_recursive_ke(struct pt_regs *regs, struct pt_regs *excp_regs, int cpu);
-void aee_kdump_reboot(AEE_REBOOT_MODE, const char *msg, ...);
 
 /* QHQ RT Monitor */
 void aee_kernel_RT_Monitor_api(int lParam);

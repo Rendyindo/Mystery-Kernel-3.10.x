@@ -1882,6 +1882,43 @@ void submit_bio(int rw, struct bio *bio)
 			count_vm_events(PGPGOUT, count);
 		} else {
 			task_io_account_read(bio->bi_size);
+#if defined(FEATURE_STORAGE_PID_LOGGER)              
+                        {
+                           int i;
+                           struct bio_vec *bvec;
+
+                           //printk(KERN_INFO"submit_bio size:%d", bio->bi_size);
+			   bio_for_each_segment(bvec, bio, i)
+                           {
+		              struct page_pid_logger *tmp_logger;
+		              extern unsigned char *page_logger;
+		              extern spinlock_t g_locker;
+		              unsigned long flags;
+		              //printk(KERN_INFO"submit_bio bvec:%p size:%d", bvec, bio->bi_size);
+		              if( page_logger && bvec->bv_page) {
+			         unsigned long page_index;
+	                 //#if defined(CONFIG_FLATMEM)
+			         //page_index = (unsigned long)((bvec->bv_page) - mem_map) ;
+			         //#else
+			         page_index = (unsigned long)(__page_to_pfn(bvec->bv_page))- PHYS_PFN_OFFSET;
+			         //#endif
+			         //printk(KERN_INFO"hank:submit_bio page_index:%lu", page_index);
+			         tmp_logger =((struct page_pid_logger *)page_logger) + page_index;
+			         spin_lock_irqsave(&g_locker, flags);
+			         if( page_index < num_physpages) {
+				    if( tmp_logger->pid1 == 0XFFFF && tmp_logger->pid2 != current->pid)
+					tmp_logger->pid1 = current->pid;
+				    else if( tmp_logger->pid1 != current->pid )
+					tmp_logger->pid2 = current->pid;
+			         }
+			         spin_unlock_irqrestore(&g_locker, flags);
+			         //printk(KERN_INFO"hank tmp logger pid1:%u pid2:%u pfn:%d \n", tmp_logger->pid1, tmp_logger->pid2, (unsigned long)((page) - mem_map) );
+		              }
+
+
+                           }
+                        }
+#endif
 			count_vm_events(PGPGIN, count);
 		}
 

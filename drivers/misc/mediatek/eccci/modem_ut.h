@@ -4,31 +4,27 @@
 #include <linux/wakelock.h>
 #include <linux/dmapool.h>
 
-#define LOOP_BACK		/* loop back, or gen Rx data */
+#define LOOP_BACK // loop back, or gen Rx data
 #ifdef LOOP_BACK
 #ifdef CCCI_STATISTIC
-#define STATISTIC		/* statistic data gathering for performance debug */
+#define STATISTIC // statistic data gathering for performance debug
 #endif
-/* #define NO_RX_Q_LOCK // check comment in md_ut_rxq_process */
-#define NO_RX_Q_LOCK_IN_TX	/* check comment in md_ut_txq_process */
+//#define NO_RX_Q_LOCK // check comment in md_ut_rxq_process
+#define NO_RX_Q_LOCK_IN_TX // check comment in md_ut_txq_process
 #endif
 
-#ifdef MT6290
-#define MD_UT_MAJOR 192
-#else
 #define MD_UT_MAJOR 169
-#endif
 #define MAX_QUEUE_LENGTH 32
 #define QUEUE_BUDGET 16
 
 typedef enum {
-	HIF_EX_INIT = 0,	/* interrupt */
-	HIF_EX_ACK,		/* AP->MD */
-	HIF_EX_INIT_DONE,	/* polling */
-	HIF_EX_CLEARQ_DONE,	/* interrupt */
-	HIF_EX_CLEARQ_ACK,	/* AP->MD */
-	HIF_EX_ALLQ_RESET,	/* polling */
-} HIF_EX_STAGE;
+	HIF_EX_INIT = 0, // interrupt
+	HIF_EX_ACK, // AP->MD
+	HIF_EX_INIT_DONE, // polling
+	HIF_EX_CLEARQ_DONE, //interrupt
+	HIF_EX_CLEARQ_ACK, // AP->MD
+	HIF_EX_ALLQ_RESET, // polling
+}HIF_EX_STAGE;
 
 struct md_ut_queue {
 	DIRECTION dir;
@@ -40,16 +36,16 @@ struct md_ut_queue {
 	int budget;
 	int length;
 	wait_queue_head_t req_wq;
-	/* now only for Tx, Rx won't wait, just drop */
+	// now only for Tx, Rx won't wait, just drop
 	int length_th;
 #ifdef STATISTIC
-	unsigned int process_count;	/* write or dispatch operation */
-	unsigned int not_complet_count;	/* have to wait due to list full */
-	unsigned int data_count;	/* packet size accumulation */
+	unsigned int process_count; // write or dispatch operation
+	unsigned int not_complet_count; // have to wait due to list full
+	unsigned int data_count; // packet size accumulation
 #endif
 };
 
-struct md_ut_ctrl {
+struct md_ut_ctrl{
 	struct md_ut_queue txq[3];
 	struct md_ut_queue rxq[3];
 	wait_queue_head_t sched_thread_wq;
@@ -67,7 +63,8 @@ struct md_ut_ctrl {
 #define QUEUE_LEN(a) (sizeof(a)/sizeof(struct md_ut_queue))
 
 static void inline md_ut_queue_struct_init(struct md_ut_queue *queue, struct ccci_modem *md,
-					   DIRECTION dir, unsigned char index, int th, int bg)
+	DIRECTION dir, unsigned char index, 
+	int th, int bg)
 {
 	queue->dir = OUT;
 	queue->index = index;
@@ -85,4 +82,4 @@ static void inline md_ut_queue_struct_init(struct md_ut_queue *queue, struct ccc
 #endif
 }
 
-#endif				/* __MODEM_UT_H__ */
+#endif //__MODEM_UT_H__

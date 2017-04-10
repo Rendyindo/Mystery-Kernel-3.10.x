@@ -12,7 +12,6 @@
 #include <linux/kobject.h>
 
 #include "mach/mtk_thermal_monitor.h"
-#include <mach/system.h>
 
 extern void machine_power_off(void);
 

@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "[HIB/SwSuspHlper] " fmt
+
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/fs.h>
@@ -13,35 +15,38 @@
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/xlog.h>
+#include <linux/suspend.h>
 
-#include <mach/eint.h>
-#include <mach/mt_gpio.h>
-#include <mach/mt_reg_base.h>
-#include <mach/irqs.h>
 #include <mach/mtk_hibernate_dpm.h>
-
+#ifdef CONFIG_MTK_SYSENV
+#include <mach/env.h> /* for set_env() by MTK */
+#endif
 
 #define HIB_SWSUSP_DEBUG 0
-#define _TAG_HIB_M "HIB/SwSuspHlper"
 #if (HIB_SWSUSP_DEBUG)
 #undef hib_log
-#define hib_log(fmt, ...)	xlog_printk(ANDROID_LOG_WARN, _TAG_HIB_M, fmt, ##__VA_ARGS__);
+#define hib_log(fmt, args...)	pr_debug(fmt, ##args);
 #else
-#define hib_log(fmt, ...)
+#define hib_log(fmt, args...) ((void)0)
 #endif
 #undef hib_warn
-#define hib_warn(fmt, ...)  xlog_printk(ANDROID_LOG_WARN, _TAG_HIB_M, fmt,  ##__VA_ARGS__);
+#define hib_warn(fmt, args...)  pr_warn(fmt, ##args);
 #undef hib_err
-#define hib_err(fmt, ...)   xlog_printk(ANDROID_LOG_ERROR, _TAG_HIB_M, fmt,  ##__VA_ARGS__);
+#define hib_err(fmt, args...)   pr_err(fmt, ##args);
+
+#define SWSUSP_HELPER_NAME "swsusp-helper"
 
 /* callback APIs helper function table */
-swsusp_cb_func_info restore_noirq_func_table[MAX_CB_FUNCS];
+static swsusp_cb_func_info restore_noirq_func_table[MAX_CB_FUNCS];
+static int initialized = 0;
 
 int register_swsusp_restore_noirq_func(unsigned int id, swsusp_cb_func_t func,
 				       struct device *device)
 {
 	int ret = 0;
 	swsusp_cb_func_info *info_ptr;
+
+	BUG_ON(!initialized);
 
 	if ((id >= MAX_CB_FUNCS) || (func == NULL)) {
 		hib_err("register func fail: func_id: %d!\n", id);
@@ -52,8 +57,11 @@ int register_swsusp_restore_noirq_func(unsigned int id, swsusp_cb_func_t func,
 		info_ptr->id = id;
 		info_ptr->func = func;
 		info_ptr->device = device;
-		if (device == NULL)
-			hib_warn("register func(%d:0x%08x) with device NULL\n", id, func);
+		hib_warn("reg. func %d:0x%p with device %s%p\n",
+				 restore_noirq_func_table[id].id,
+				 restore_noirq_func_table[id].func,
+				 (device == NULL) ? " " : "0x",
+				 restore_noirq_func_table[id].device);
 	} else
 		hib_err("register func fail: func(%d) already registered!\n", id);
 
@@ -66,7 +74,9 @@ int unregister_swsusp_restore_noirq_func(unsigned int id)
 	int ret = 0;
 	swsusp_cb_func_info *info_ptr;
 
-	if (id >= MAX_CB_FUNCS) {
+	BUG_ON(!initialized);
+
+	if (id >= MAX_CB_FUNCS || id != restore_noirq_func_table[id].id) {
 		hib_err("register func fail: func_id: %d!\n", id);
 		return E_PARAM;
 	}
@@ -88,7 +98,9 @@ int exec_swsusp_restore_noirq_func(unsigned int id)
 	struct device *device = NULL;
 	int ret = 0;
 
-	if (id >= MAX_CB_FUNCS) {
+	BUG_ON(!initialized);
+
+	if (id >= MAX_CB_FUNCS || id != restore_noirq_func_table[id].id) {
 		hib_err("exec func fail: invalid func id(%d)!\n", id);
 		return E_PARAM;
 	}
@@ -139,8 +151,15 @@ int swsusp_helper_pm_restore_noirq(struct device *device)
 
 	hib_log("[%s] enter...\n", __func__);
 
+	BUG_ON(!initialized);
+
 	for (id = ID_M_BEGIN; id < ID_M_END; id++) {
 		if (restore_noirq_func_table[id].func != NULL) {
+			hib_warn("exec func %d:0x%p !\n", restore_noirq_func_table[id].id, restore_noirq_func_table[id].func);
+			if (id != restore_noirq_func_table[id].id) {
+				hib_err("exec func fail: func id miss-matched (%d/%d) !\n", id, restore_noirq_func_table[id].id);
+				continue;
+			}
 			ret =
 			    restore_noirq_func_table[id].func(restore_noirq_func_table[id].device);
 			if (ret != 0) {
@@ -175,21 +194,46 @@ struct dev_pm_ops swsusp_helper_pm_ops = {
 };
 
 struct platform_device swsusp_helper_device = {
-	.name = "swsusp-helper",
+	.name = SWSUSP_HELPER_NAME,
 	.id = -1,
 	.dev = {},
 };
 
 static struct platform_driver swsusp_helper_driver = {
 	.driver = {
-		   .name = "swsusp-helper",
+		   .name = SWSUSP_HELPER_NAME,
 #ifdef CONFIG_PM
 		   .pm = &swsusp_helper_pm_ops,
 #endif
 		   .owner = THIS_MODULE,
-		   },
+	},
 	.probe = swsusp_helper_probe,
 	.remove = swsusp_helper_remove,
+};
+
+static int swsusp_pm_event(struct notifier_block *notifier, unsigned long pm_event, void *unused)
+{
+	switch(pm_event) {
+	case PM_HIBERNATION_PREPARE: /* Going to hibernate */
+#ifdef CONFIG_MTK_SYSENV
+		/* for lk */
+		set_env("hibboot", "1");
+#endif
+		return NOTIFY_DONE;
+	case PM_POST_HIBERNATION: /* Hibernation finished */
+#ifdef CONFIG_MTK_SYSENV
+		/* from lk */
+		hib_log("hibboot = %s\n", get_env("hibboot"));
+		set_env("hibboot", "0");
+#endif
+		return NOTIFY_DONE;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block swsusp_pm_notifier_block = {
+	.notifier_call = swsusp_pm_event,
+	.priority = 0,
 };
 
 static int __init swsusp_helper_init(void)
@@ -213,9 +257,14 @@ static int __init swsusp_helper_init(void)
 		return ret;
 	}
 
+	ret = register_pm_notifier(&swsusp_pm_notifier_block);
+	if (ret)
+		hib_err("failed to register PM notifier %d\n", ret);
+
+	initialized = 1;
 	return 0;
 }
-module_init(swsusp_helper_init);
+arch_initcall(swsusp_helper_init);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("MTK");

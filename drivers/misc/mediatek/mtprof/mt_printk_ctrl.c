@@ -27,7 +27,7 @@
 
 #define MT_DEBUG_ENTRY(name) \
 static int mt_##name##_show(struct seq_file *m, void *v);\
-static int mt_##name##_write(struct file *filp, const char *ubuf, size_t cnt, loff_t *data);\
+static ssize_t mt_##name##_write(struct file *filp, const char *ubuf, ssize_t cnt, loff_t *data);\
 static int mt_##name##_open(struct inode *inode, struct file *file) \
 { \
     return single_open(file, mt_##name##_show, inode->i_private); \
@@ -79,16 +79,17 @@ int mt_need_uart_console = 0;
 extern void mt_enable_uart(void);	/* printk.c */
 extern void mt_disable_uart(void);	/* printk.c */
 extern bool printk_disable_uart;
+extern int printk_too_much_enable;
 static int mt_printk_ctrl_show(struct seq_file *m, void *v)
 {
 	SEQ_printf(m, "=== mt printk controller ===\n");
-	SEQ_printf(m, "mt_need_uart_console:%d, printk_disable_uart:%d\n", mt_need_uart_console,
-		   printk_disable_uart);
+	SEQ_printf(m, "mt_need_uart_console:%d, printk_disable_uart:%d, printk too much eandble:%d.\n", 
+		mt_need_uart_console,printk_disable_uart,printk_too_much_enable);
 
 	return 0;
 }
 
-static ssize_t mt_printk_ctrl_write(struct file *filp, const char *ubuf, size_t cnt, loff_t *data)
+static ssize_t mt_printk_ctrl_write(struct file *filp, const char *ubuf, ssize_t cnt, loff_t *data)
 {
 	char buf[64];
 	int val;
@@ -108,6 +109,10 @@ static ssize_t mt_printk_ctrl_write(struct file *filp, const char *ubuf, size_t 
 		mt_need_uart_console = 1;
 		mt_enable_uart();
 		pr_err("need uart log\n");
+	} else if(val == 2){
+		printk_too_much_enable = 1;
+	} else if(val == 3){
+		printk_too_much_enable = 0;
 	}
 	if (ret < 0)
 		return ret;

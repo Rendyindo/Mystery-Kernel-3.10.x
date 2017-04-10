@@ -235,6 +235,14 @@ static int ignore_late_initcall = 1;
 static int ignore_late_initcall;
 #endif
 
+#ifdef CONFIG_TOI_ENHANCE
+int toi_ignore_late_initcall(void)
+{
+	return ignore_late_initcall;
+}
+EXPORT_SYMBOL_GPL(toi_ignore_late_initcall);
+#endif
+
 int toi_translate_err_default = TOI_CONTINUE_REQ;
 EXPORT_SYMBOL_GPL(toi_translate_err_default);
 
@@ -264,7 +272,7 @@ int toi_lowlevel_builtin(void)
 	if (error)
 		printk(KERN_ERR "Error %d hibernating\n", error);
 
-#ifdef CONFIG_MTK_HIBERNATION
+#ifdef CONFIG_TOI_ENHANCE
 	if (test_result_state(TOI_ARCH_PREPARE_FAILED)) {
 		hib_err("CAUTION: error(%d/0x%08x)\n", error, (unsigned int)toi_result);
 	}

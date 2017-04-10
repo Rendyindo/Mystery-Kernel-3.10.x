@@ -5,9 +5,10 @@ extern void fuse_request_send_background_ex(struct fuse_conn *fc,
 extern void fuse_request_send_ex(struct fuse_conn *fc, struct fuse_req *req,
     __u32 size);
 
-#ifndef USER_BUILD_KERNEL  /* IO log is only enabled in eng load */
+#if defined(CONFIG_MT_ENG_BUILD)  /* IO log is only enabled in eng load */
 #define FUSEIO_TRACE
 #endif
+
 
 #ifdef FUSEIO_TRACE
 #include <linux/sched.h>

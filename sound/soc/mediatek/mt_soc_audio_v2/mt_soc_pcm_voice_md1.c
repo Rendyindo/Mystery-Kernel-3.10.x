@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include "AudDrv_Common.h"
 #include "AudDrv_Def.h"
 #include "AudDrv_Afe.h"
@@ -69,7 +70,6 @@ static int mtk_soc_voice_new(struct snd_soc_pcm_runtime *rtd);
 static int mtk_voice_platform_probe(struct snd_soc_platform *platform);
 
 static bool Voice_Status = false;
-static bool mPreparestate = false;
 static AudioDigtalI2S mAudioDigitalI2S;
 
 bool get_voice_status(void)
@@ -117,6 +117,38 @@ static struct snd_pcm_hardware mtk_pcm_hardware =
     .periods_min =      1,
     .periods_max =      4096,
     .fifo_size =        0,
+};
+
+static int speech_md_usage_control = false;
+static const char *speech_md_usage[] = {"Off", "On"};
+static const struct soc_enum Audio_Speech_Enum[] =
+{
+    SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(speech_md_usage), speech_md_usage),
+};
+
+static int Audio_Speech_MD_Control_Get(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
+{
+    printk("Audio_Speech_MD_Control_Get = %d\n", speech_md_usage_control);
+    ucontrol->value.integer.value[0] = speech_md_usage_control;
+    return 0;
+}
+
+static int Audio_Speech_MD_Control_Set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+    if (ucontrol->value.enumerated.item[0] > ARRAY_SIZE(speech_md_usage))
+    {
+        printk("return -EINVAL\n");
+        return -EINVAL;
+    }
+    speech_md_usage_control = ucontrol->value.integer.value[0];
+    printk("%s(), speech_md_usage_control=%d\n", __func__, speech_md_usage_control);
+    return 0;
+}
+
+static const struct snd_kcontrol_new Audio_snd_speech_controls[] =
+{
+    SOC_ENUM_EXT("Speech_MD_USAGE", Audio_Speech_Enum[0], Audio_Speech_MD_Control_Get, Audio_Speech_MD_Control_Set),
 };
 
 static int mtk_voice_pcm_open(struct snd_pcm_substream *substream)
@@ -274,7 +306,7 @@ static int mtk_voice1_prepare(struct snd_pcm_substream *substream)
     SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I14, Soc_Aud_InterConnectionOutput_O04);
 
     // start I2S DAC out
-    SetI2SDacOut(substream->runtime->rate);
+    SetI2SDacOut(substream->runtime->rate,false,Soc_Aud_I2S_WLEN_WLEN_16BITS);
     SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
 
     ConfigAdcI2S(substream);
@@ -332,6 +364,13 @@ static struct snd_soc_platform_driver mtk_soc_voice_platform =
 static int mtk_voice_probe(struct platform_device *pdev)
 {
     printk("mtk_voice_probe\n");
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_VOICE_MD1);
@@ -351,6 +390,10 @@ static int mtk_soc_voice_new(struct snd_soc_pcm_runtime *rtd)
 static int mtk_voice_platform_probe(struct snd_soc_platform *platform)
 {
     printk("mtk_voice_platform_probe\n");
+
+    snd_soc_add_platform_controls(platform, Audio_snd_speech_controls,
+                                  ARRAY_SIZE(Audio_snd_speech_controls));
+
     return 0;
 }
 
@@ -372,10 +415,10 @@ static int mtk_voice_pm_ops_suspend(struct device *device)
     b_modem1_speech_on = (bool)(Afe_Get_Reg(PCM2_INTF_CON) & 0x1);
     b_modem2_speech_on = (bool)(Afe_Get_Reg(PCM_INTF_CON) & 0x1);
     AudDrv_Clk_Off();//should enable clk for access reg
-    if (b_modem1_speech_on == true || b_modem2_speech_on == true)
+    printk("mtk_voice_pm_ops_suspend, b_modem1_speech_on=%d, b_modem2_speech_on=%d, speech_md_usage_control=%d\n", b_modem1_speech_on, b_modem2_speech_on, speech_md_usage_control);
+    if (b_modem1_speech_on == true || b_modem2_speech_on == true || speech_md_usage_control == true)
     {
-        //clkmux_sel(MT_MUX_AUDINTBUS, 1, "AUDIO"); //mainpll
-        SetClkCfg(AUDIO_CLK_CFG_4, 0x00000000, 0x7000000);
+        clkmux_sel(MT_MUX_AUDINTBUS, 0, "AUDIO"); //select 26M
         return 0;
     }
     return 0;
@@ -391,8 +434,7 @@ static int mtk_voice_pm_ops_resume(struct device *device)
     AudDrv_Clk_Off();
     if (b_modem1_speech_on == true || b_modem2_speech_on == true)
     {
-        //clkmux_sel(MT_MUX_AUDINTBUS, 0, "AUDIO"); //select 26M
-        SetClkCfg(AUDIO_CLK_CFG_4, 0x1000000, 0x1000000);
+        clkmux_sel(MT_MUX_AUDINTBUS, 1, "AUDIO"); //mainpll
         return 0;
     }
 
@@ -410,12 +452,22 @@ struct dev_pm_ops mtk_voice_pm_ops =
     .restore_noirq = NULL,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_pcm_voice_md1_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_voice_md1", },
+    {}
+};
+#endif
 
 static struct platform_driver mtk_voice_driver =
 {
     .driver = {
         .name = MT_SOC_VOICE_MD1,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_voice_md1_of_ids,
+        #endif        
 #ifdef CONFIG_PM
         .pm     = &mtk_voice_pm_ops,
 #endif
@@ -424,12 +476,15 @@ static struct platform_driver mtk_voice_driver =
     .remove = mtk_voice_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtk_voice_dev;
+#endif
 
 static int __init mtk_soc_voice_platform_init(void)
 {
     int ret = 0;
     printk("%s\n", __func__);
+    #ifndef CONFIG_OF	
     soc_mtk_voice_dev = platform_device_alloc(MT_SOC_VOICE_MD1 , -1);
     if (!soc_mtk_voice_dev)
     {
@@ -442,7 +497,7 @@ static int __init mtk_soc_voice_platform_init(void)
         platform_device_put(soc_mtk_voice_dev);
         return ret;
     }
-
+    #endif
     ret = platform_driver_register(&mtk_voice_driver);
 
     return ret;

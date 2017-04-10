@@ -830,7 +830,7 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  *	If the caller passes a tty structure then update the termios winsize
  *	information and perform any necessary signal handling.
  *
- *	Caller must hold the console semaphore. Takes the termios rwsem and
+ *	Caller must hold the console semaphore. Takes the termios mutex and
  *	ctrl_lock of the tty IFF a tty is passed.
  */
 
@@ -974,7 +974,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
  *	the actual work.
  *
  *	Takes the console sem and the called methods then take the tty
- *	termios_rwsem and the tty ctrl_lock in that order.
+ *	termios_mutex and the tty ctrl_lock in that order.
  */
 static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 {
@@ -2424,7 +2424,6 @@ int vt_kmsg_redirect(int new)
 	else
 		return kmsg_con;
 }
-EXPORT_SYMBOL_GPL(vt_kmsg_redirect);
 
 /*
  *	Console on virtual terminal
@@ -2814,10 +2813,8 @@ static void con_shutdown(struct tty_struct *tty)
 	console_unlock();
 }
 
-static int default_color           = 7; /* white */
 static int default_italic_color    = 2; // green (ASCII)
 static int default_underline_color = 3; // cyan (ASCII)
-module_param_named(color, default_color, int, S_IRUGO | S_IWUSR);
 module_param_named(italic, default_italic_color, int, S_IRUGO | S_IWUSR);
 module_param_named(underline, default_underline_color, int, S_IRUGO | S_IWUSR);
 
@@ -2839,7 +2836,7 @@ static void vc_init(struct vc_data *vc, unsigned int rows,
 		vc->vc_palette[k++] = default_grn[j] ;
 		vc->vc_palette[k++] = default_blu[j] ;
 	}
-	vc->vc_def_color       = default_color;
+	vc->vc_def_color       = 0x07;   /* white */
 	vc->vc_ulcolor         = default_underline_color;
 	vc->vc_itcolor         = default_italic_color;
 	vc->vc_halfcolor       = 0x08;   /* grey */
@@ -3093,6 +3090,17 @@ err:
 };
 
 
+static int bind_con_driver(const struct consw *csw, int first, int last,
+			   int deflt)
+{
+	int ret;
+
+	console_lock();
+	ret = do_bind_con_driver(csw, first, last, deflt);
+	console_unlock();
+	return ret;
+}
+
 #ifdef CONFIG_VT_HW_CONSOLE_BINDING
 static int con_is_graphics(const struct consw *csw, int first, int last)
 {
@@ -3109,6 +3117,34 @@ static int con_is_graphics(const struct consw *csw, int first, int last)
 
 	return retval;
 }
+
+/**
+ * unbind_con_driver - unbind a console driver
+ * @csw: pointer to console driver to unregister
+ * @first: first in range of consoles that @csw should be unbound from
+ * @last: last in range of consoles that @csw should be unbound from
+ * @deflt: should next bound console driver be default after @csw is unbound?
+ *
+ * To unbind a driver from all possible consoles, pass 0 as @first and
+ * %MAX_NR_CONSOLES as @last.
+ *
+ * @deflt controls whether the console that ends up replacing @csw should be
+ * the default console.
+ *
+ * RETURNS:
+ * -ENODEV if @csw isn't a registered console driver or can't be unregistered
+ * or 0 on success.
+ */
+int unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
+{
+	int retval;
+
+	console_lock();
+	retval = do_unbind_con_driver(csw, first, last, deflt);
+	console_unlock();
+	return retval;
+}
+EXPORT_SYMBOL(unbind_con_driver);
 
 /* unlocked version of unbind_con_driver() */
 int do_unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
@@ -3230,11 +3266,8 @@ static int vt_bind(struct con_driver *con)
 		if (first == 0 && last == MAX_NR_CONSOLES -1)
 			deflt = 1;
 
-		if (first != -1) {
-			console_lock();
-			do_bind_con_driver(csw, first, last, deflt);
-			console_unlock();
-		}
+		if (first != -1)
+			bind_con_driver(csw, first, last, deflt);
 
 		first = -1;
 		last = -1;
@@ -3272,11 +3305,8 @@ static int vt_unbind(struct con_driver *con)
 		if (first == 0 && last == MAX_NR_CONSOLES -1)
 			deflt = 1;
 
-		if (first != -1) {
-			console_lock();
-			do_unbind_con_driver(csw, first, last, deflt);
-			console_unlock();
-		}
+		if (first != -1)
+			unbind_con_driver(csw, first, last, deflt);
 
 		first = -1;
 		last = -1;
@@ -3548,9 +3578,29 @@ err:
 	return retval;
 }
 
+/**
+ * register_con_driver - register console driver to console layer
+ * @csw: console driver
+ * @first: the first console to take over, minimum value is 0
+ * @last: the last console to take over, maximum value is MAX_NR_CONSOLES -1
+ *
+ * DESCRIPTION: This function registers a console driver which can later
+ * bind to a range of consoles specified by @first and @last. It will
+ * also initialize the console driver by calling con_startup().
+ */
+int register_con_driver(const struct consw *csw, int first, int last)
+{
+	int retval;
+
+	console_lock();
+	retval = do_register_con_driver(csw, first, last);
+	console_unlock();
+	return retval;
+}
+EXPORT_SYMBOL(register_con_driver);
 
 /**
- * do_unregister_con_driver - unregister console driver from console layer
+ * unregister_con_driver - unregister console driver from console layer
  * @csw: console driver
  *
  * DESCRIPTION: All drivers that registers to the console layer must
@@ -3560,6 +3610,17 @@ err:
  *
  * The driver must unbind first prior to unregistration.
  */
+int unregister_con_driver(const struct consw *csw)
+{
+	int retval;
+
+	console_lock();
+	retval = do_unregister_con_driver(csw);
+	console_unlock();
+	return retval;
+}
+EXPORT_SYMBOL(unregister_con_driver);
+
 int do_unregister_con_driver(const struct consw *csw)
 {
 	int i, retval = -ENODEV;
@@ -3597,7 +3658,7 @@ EXPORT_SYMBOL_GPL(do_unregister_con_driver);
  *	when a driver wants to take over some existing consoles
  *	and become default driver for newly opened ones.
  *
- *	do_take_over_console is basically a register followed by unbind
+ *	take_over_console is basically a register followed by unbind
  */
 int do_take_over_console(const struct consw *csw, int first, int last, int deflt)
 {
@@ -3618,6 +3679,30 @@ int do_take_over_console(const struct consw *csw, int first, int last, int deflt
 }
 EXPORT_SYMBOL_GPL(do_take_over_console);
 
+/*
+ *	If we support more console drivers, this function is used
+ *	when a driver wants to take over some existing consoles
+ *	and become default driver for newly opened ones.
+ *
+ *	take_over_console is basically a register followed by unbind
+ */
+int take_over_console(const struct consw *csw, int first, int last, int deflt)
+{
+	int err;
+
+	err = register_con_driver(csw, first, last);
+	/*
+	 * If we get an busy error we still want to bind the console driver
+	 * and return success, as we may have unbound the console driver
+	 * but not unregistered it.
+	 */
+	if (err == -EBUSY)
+		err = 0;
+	if (!err)
+		bind_con_driver(csw, first, last, deflt);
+
+	return err;
+}
 
 /*
  * give_up_console is a wrapper to unregister_con_driver. It will only
@@ -3625,9 +3710,7 @@ EXPORT_SYMBOL_GPL(do_take_over_console);
  */
 void give_up_console(const struct consw *csw)
 {
-	console_lock();
-	do_unregister_con_driver(csw);
-	console_unlock();
+	unregister_con_driver(csw);
 }
 
 static int __init vtconsole_class_init(void)
@@ -4183,5 +4266,6 @@ EXPORT_SYMBOL(console_blanked);
 EXPORT_SYMBOL(vc_cons);
 EXPORT_SYMBOL(global_cursor_default);
 #ifndef VT_SINGLE_DRIVER
+EXPORT_SYMBOL(take_over_console);
 EXPORT_SYMBOL(give_up_console);
 #endif

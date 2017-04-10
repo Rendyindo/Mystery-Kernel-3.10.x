@@ -11,7 +11,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
-#include <asm/mach-types.h>
+//#include <asm/mach-types.h>
 
 #define MMPROFILE_INTERNAL
 #include <linux/mmprofile_internal.h>
@@ -39,23 +39,23 @@ MMP_Event MMProfileFindEvent(MMP_Event parent, const char *name)
 }
 EXPORT_SYMBOL(MMProfileFindEvent);
 
-void MMProfileEnableEvent(MMP_Event event, int enable)
+void MMProfileEnableEvent(MMP_Event event, long enable)
 {
 }
 EXPORT_SYMBOL(MMProfileEnableEvent);
 
-void MMProfileEnableEventRecursive(MMP_Event event, int enable)
+void MMProfileEnableEventRecursive(MMP_Event event, long enable)
 {
 }
 EXPORT_SYMBOL(MMProfileEnableEventRecursive);
 
-int MMProfileQueryEnable(MMP_Event event)
+long MMProfileQueryEnable(MMP_Event event)
 {
 	return 0;
 }
 EXPORT_SYMBOL(MMProfileQueryEnable);
 
-void MMProfileLogEx(MMP_Event event, MMP_LogType type, unsigned int data1, unsigned int data2)
+void MMProfileLogEx(MMP_Event event, MMP_LogType type, unsigned long data1, unsigned long data2)
 {
 }
 EXPORT_SYMBOL(MMProfileLogEx);
@@ -65,33 +65,33 @@ void MMProfileLog(MMP_Event event, MMP_LogType type)
 }
 EXPORT_SYMBOL(MMProfileLog);
 
-int MMProfileLogMeta(MMP_Event event, MMP_LogType type, MMP_MetaData_t *pMetaData)
+long MMProfileLogMeta(MMP_Event event, MMP_LogType type, MMP_MetaData_t *pMetaData)
 {
 	return 0;
 }
 EXPORT_SYMBOL(MMProfileLogMeta);
 
-int MMProfileLogMetaStructure(MMP_Event event, MMP_LogType type,
+long MMProfileLogMetaStructure(MMP_Event event, MMP_LogType type,
 			      MMP_MetaDataStructure_t *pMetaData)
 {
 	return 0;
 }
 EXPORT_SYMBOL(MMProfileLogMetaStructure);
 
-int MMProfileLogMetaStringEx(MMP_Event event, MMP_LogType type, unsigned int data1,
-			     unsigned int data2, const char *str)
+long MMProfileLogMetaStringEx(MMP_Event event, MMP_LogType type, unsigned long data1,
+			     unsigned long data2, const char *str)
 {
 	return 0;
 }
 EXPORT_SYMBOL(MMProfileLogMetaStringEx);
 
-int MMProfileLogMetaString(MMP_Event event, MMP_LogType type, const char *str)
+long MMProfileLogMetaString(MMP_Event event, MMP_LogType type, const char *str)
 {
 	return 0;
 }
 EXPORT_SYMBOL(MMProfileLogMetaString);
 
-int MMProfileLogMetaBitmap(MMP_Event event, MMP_LogType type, MMP_MetaDataBitmap_t *pMetaData)
+long MMProfileLogMetaBitmap(MMP_Event event, MMP_LogType type, MMP_MetaDataBitmap_t *pMetaData)
 {
 	return 0;
 }
@@ -146,7 +146,8 @@ struct file_operations mmprofile_fops = {
 	.mmap = mmprofile_mmap,
 };
 
-
+// fix build warning: unused
+#if 0
 static int mmprofile_probe(struct platform_device *pdev)
 {
 #if 0
@@ -164,11 +165,15 @@ static int mmprofile_probe(struct platform_device *pdev)
 #endif
 	return 0;
 }
+#endif
 
+// fix build warning: unused
+#if 0
 static int mmprofile_remove(struct platform_device *pdev)
 {
 	return 0;
 }
+#endif
 
 #if 0
 static struct platform_driver mmprofile_driver = {

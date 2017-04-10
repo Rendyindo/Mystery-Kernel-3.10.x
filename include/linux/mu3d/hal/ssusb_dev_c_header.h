@@ -307,1717 +307,1717 @@
 
 /* SSUSB_DEV FIELD DEFINITION */
 
-/* U3D_LV1ISR */
-#define EP_CTRL_INTR                              (0x1<<5)	/* 5:5 */
-#define MAC2_INTR                                 (0x1<<4)	/* 4:4 */
-#define DMA_INTR                                  (0x1<<3)	/* 3:3 */
-#define MAC3_INTR                                 (0x1<<2)	/* 2:2 */
-#define QMU_INTR                                  (0x1<<1)	/* 1:1 */
-#define BMU_INTR                                  (0x1<<0)	/* 0:0 */
-
-/* U3D_LV1IER */
-#define LV1IER                                    (0xffffffff<<0)	/* 31:0 */
-
-/* U3D_LV1IESR */
-#define LV1IESR                                   (0xffffffff<<0)	/* 31:0 */
-
-/* U3D_LV1IECR */
-#define LV1IECR                                   (0xffffffff<<0)	/* 31:0 */
-
-/* U3D_AXI_WR_DMA_CFG */
-#define AXI_WR_ULTRA_NUM                          (0xff<<24)	/* 31:24 */
-#define AXI_WR_PRE_ULTRA_NUM                      (0xff<<16)	/* 23:16 */
-#define AXI_WR_ULTRA_EN                           (0x1<<0)	/* 0:0 */
-
-/* U3D_AXI_RD_DMA_CFG */
-#define AXI_RD_ULTRA_NUM                          (0xff<<24)	/* 31:24 */
-#define AXI_RD_PRE_ULTRA_NUM                      (0xff<<16)	/* 23:16 */
-#define AXI_RD_ULTRA_EN                           (0x1<<0)	/* 0:0 */
-
-/* U3D_MAC_U1_EN_CTRL */
-#define EXIT_BY_ERDY_DIS                          (0x1<<31)	/* 31:31 */
-#define ACCEPT_BMU_RX_EMPTY_CHK                   (0x1<<20)	/* 20:20 */
-#define ACCEPT_BMU_TX_EMPTY_CHK                   (0x1<<19)	/* 19:19 */
-#define ACCEPT_RXQ_INACTIVE_CHK                   (0x1<<18)	/* 18:18 */
-#define ACCEPT_TXQ_INACTIVE_CHK                   (0x1<<17)	/* 17:17 */
-#define ACCEPT_EP0_INACTIVE_CHK                   (0x1<<16)	/* 16:16 */
-#define REQUEST_BMU_RX_EMPTY_CHK                  (0x1<<4)	/* 4:4 */
-#define REQUEST_BMU_TX_EMPTY_CHK                  (0x1<<3)	/* 3:3 */
-#define REQUEST_RXQ_INACTIVE_CHK                  (0x1<<2)	/* 2:2 */
-#define REQUEST_TXQ_INACTIVE_CHK                  (0x1<<1)	/* 1:1 */
-#define REQUEST_EP0_INACTIVE_CHK                  (0x1<<0)	/* 0:0 */
-
-/* U3D_MAC_U2_EN_CTRL */
-#define EXIT_BY_ERDY_DIS                          (0x1<<31)	/* 31:31 */
-#define ACCEPT_BMU_RX_EMPTY_CHK                   (0x1<<20)	/* 20:20 */
-#define ACCEPT_BMU_TX_EMPTY_CHK                   (0x1<<19)	/* 19:19 */
-#define ACCEPT_RXQ_INACTIVE_CHK                   (0x1<<18)	/* 18:18 */
-#define ACCEPT_TXQ_INACTIVE_CHK                   (0x1<<17)	/* 17:17 */
-#define ACCEPT_EP0_INACTIVE_CHK                   (0x1<<16)	/* 16:16 */
-#define REQUEST_BMU_RX_EMPTY_CHK                  (0x1<<4)	/* 4:4 */
-#define REQUEST_BMU_TX_EMPTY_CHK                  (0x1<<3)	/* 3:3 */
-#define REQUEST_RXQ_INACTIVE_CHK                  (0x1<<2)	/* 2:2 */
-#define REQUEST_TXQ_INACTIVE_CHK                  (0x1<<1)	/* 1:1 */
-#define REQUEST_EP0_INACTIVE_CHK                  (0x1<<0)	/* 0:0 */
-
-/* U3D_SRAM_DBG_CTRL */
-#define EPNRX_SRAM_DEBUG_MODE                     (0x1<<2)	/* 2:2 */
-#define EPNTX_SRAM_DEBUG_MODE                     (0x1<<1)	/* 1:1 */
-#define EP0_SRAM_DEBUG_MODE                       (0x1<<0)	/* 0:0 */
-
-/* U3D_SRAM_DBG_CTRL_1 */
-#define SRAM_DEBUG_FIFOSEGSIZE                    (0xf<<24)	/* 27:24 */
-#define SRAM_DEBUG_SLOT                           (0x3f<<16)	/* 21:16 */
-#define SRAM_DEBUG_DP_COUNT                       (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RISC_SIZE */
-#define RISC_SIZE                                 (0x3<<0)	/* 1:0 */
-
-/* U3D_WRBUF_ERR_STS */
-#define RX_RDBUF_ERR_STS                          (0x7fff<<17)	/* 31:17 */
-#define TX_WRBUF_ERR_STS                          (0x7fff<<1)	/* 15:1 */
-
-/* U3D_BUF_ERR_EN */
-#define RX_RDBUF_ERR_EN                           (0x7fff<<17)	/* 31:17 */
-#define TX_WRBUF_ERR_EN                           (0x7fff<<1)	/* 15:1 */
-
-/* U3D_EPISR */
-#define EPRISR                                    (0x7fff<<17)	/* 31:17 */
-#define SETUPENDISR                               (0x1<<16)	/* 16:16 */
-#define EPTISR                                    (0x7fff<<1)	/* 15:1 */
-#define EP0ISR                                    (0x1<<0)	/* 0:0 */
-
-/* U3D_EPIER */
-#define EPRIER                                    (0x7fff<<17)	/* 31:17 */
-#define SETUPENDIER                               (0x1<<16)	/* 16:16 */
-#define EPTIER                                    (0x7fff<<1)	/* 15:1 */
-#define EP0IER                                    (0x1<<0)	/* 0:0 */
-
-/* U3D_EPIESR */
-#define EPRIESR                                   (0x7fff<<17)	/* 31:17 */
-#define SETUPENDIESR                              (0x1<<16)	/* 16:16 */
-#define EPTIESR                                   (0x7fff<<1)	/* 15:1 */
-#define EP0IESR                                   (0x1<<0)	/* 0:0 */
-
-/* U3D_EPIECR */
-#define EPRISR                                    (0x7fff<<17)	/* 31:17 */
-#define SETUPENDIECR                              (0x1<<16)	/* 16:16 */
-#define EPTIECR                                   (0x7fff<<1)	/* 15:1 */
-#define EP0IECR                                   (0x1<<0)	/* 0:0 */
-
-/* U3D_DMAISR */
-#define RXDMAISR                                  (0x1<<2)	/* 2:2 */
-#define TXDMAISR                                  (0x1<<1)	/* 1:1 */
-#define EP0DMAISR                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_DMAIER */
-#define RXDMAIER                                  (0x1<<2)	/* 2:2 */
-#define TXDMAIER                                  (0x1<<1)	/* 1:1 */
-#define EP0DMAER                                  (0x1<<0)	/* 0:0 */
-
-/* U3D_DMAIESR */
-#define RXDMAIESR                                 (0x1<<2)	/* 2:2 */
-#define TXDMAIESR                                 (0x1<<1)	/* 1:1 */
-#define EP0DMAIESR                                (0x1<<0)	/* 0:0 */
-
-/* U3D_DMAIECR */
-#define RXDMAIECR                                 (0x1<<2)	/* 2:2 */
-#define TXDMAIECR                                 (0x1<<1)	/* 1:1 */
-#define EP0DMAIECR                                (0x1<<0)	/* 0:0 */
-
-/* U3D_EP0DMACTRL */
-#define FFSTRADDR0                                (0xffff<<16)	/* 31:16 */
-#define ENDPNT                                    (0xf<<4)	/* 7:4 */
-#define INTEN                                     (0x1<<3)	/* 3:3 */
-#define DMA_DIR                                   (0x1<<1)	/* 1:1 */
-#define DMA_EN                                    (0x1<<0)	/* 0:0 */
-
-/* U3D_EP0DMASTRADDR */
-#define DMASTRADDR0                               (0xffffffff<<0)	/* 31:0 */
-
-/* U3D_EP0DMATFRCOUNT */
-#define DMATFRCNT0                                (0x7ff<<0)	/* 10:0 */
-
-/* U3D_EP0DMARLCOUNT */
-#define EP0_DMALIMITER                            (0x7<<28)	/* 30:28 */
-#define DMA_FAKE                                  (0x1<<27)	/* 27:27 */
-#define DMA_BURST                                 (0x3<<24)	/* 25:24 */
-#define AXI_DMA_OUTSTAND_NUM                      (0xf<<20)	/* 23:20 */
-#define AXI_DMA_COHERENCE                         (0x1<<19)	/* 19:19 */
-#define AXI_DMA_IOMMU                             (0x1<<18)	/* 18:18 */
-#define AXI_DMA_CACHEABLE                         (0x1<<17)	/* 17:17 */
-#define AXI_DMA_ULTRA_EN                          (0x1<<16)	/* 16:16 */
-#define AXI_DMA_ULTRA_NUM                         (0xff<<8)	/* 15:8 */
-#define AXI_DMA_PRE_ULTRA_NUM                     (0xff<<0)	/* 7:0 */
-
-/* U3D_TXDMACTRL */
-#define FFSTRADDR                                 (0xffff<<16)	/* 31:16 */
-#define ENDPNT                                    (0xf<<4)	/* 7:4 */
-#define INTEN                                     (0x1<<3)	/* 3:3 */
-#define DMA_DIR                                   (0x1<<1)	/* 1:1 */
-#define DMA_EN                                    (0x1<<0)	/* 0:0 */
-
-/* U3D_TXDMASTRADDR */
-#define DMASTRADDR                                (0xffffffff<<0)	/* 31:0 */
-
-/* U3D_TXDMATRDCNT */
-#define DMATFRCNT                                 (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TXDMARLCOUNT */
-#define DMALIMITER                                (0x7<<28)	/* 30:28 */
-#define DMA_FAKE                                  (0x1<<27)	/* 27:27 */
-#define DMA_BURST                                 (0x3<<24)	/* 25:24 */
-#define AXI_DMA_OUTSTAND_NUM                      (0xf<<20)	/* 23:20 */
-#define AXI_DMA_COHERENCE                         (0x1<<19)	/* 19:19 */
-#define AXI_DMA_IOMMU                             (0x1<<18)	/* 18:18 */
-#define AXI_DMA_CACHEABLE                         (0x1<<17)	/* 17:17 */
-#define AXI_DMA_ULTRA_EN                          (0x1<<16)	/* 16:16 */
-#define AXI_DMA_ULTRA_NUM                         (0xff<<8)	/* 15:8 */
-#define AXI_DMA_PRE_ULTRA_NUM                     (0xff<<0)	/* 7:0 */
-
-/* U3D_RXDMACTRL */
-#define FFSTRADDR                                 (0xffff<<16)	/* 31:16 */
-#define ENDPNT                                    (0xf<<4)	/* 7:4 */
-#define INTEN                                     (0x1<<3)	/* 3:3 */
-#define DMA_DIR                                   (0x1<<1)	/* 1:1 */
-#define DMA_EN                                    (0x1<<0)	/* 0:0 */
-
-/* U3D_RXDMASTRADDR */
-#define DMASTRADDR                                (0xffffffff<<0)	/* 31:0 */
-
-/* U3D_RXDMATRDCNT */
-#define DMATFRCNT                                 (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RXDMARLCOUNT */
-#define DMA_NON_BUF                               (0x1<<31)	/* 31:31 */
-#define DMALIMITER                                (0x7<<28)	/* 30:28 */
-#define DMA_FAKE                                  (0x1<<27)	/* 27:27 */
-#define DMA_BURST                                 (0x3<<24)	/* 25:24 */
-#define AXI_DMA_OUTSTAND_NUM                      (0xf<<20)	/* 23:20 */
-#define AXI_DMA_COHERENCE                         (0x1<<19)	/* 19:19 */
-#define AXI_DMA_IOMMU                             (0x1<<18)	/* 18:18 */
-#define AXI_DMA_CACHEABLE                         (0x1<<17)	/* 17:17 */
-#define AXI_DMA_ULTRA_EN                          (0x1<<16)	/* 16:16 */
-#define AXI_DMA_ULTRA_NUM                         (0xff<<8)	/* 15:8 */
-#define AXI_DMA_PRE_ULTRA_NUM                     (0xff<<0)	/* 7:0 */
-
-/* U3D_EP0CSR */
-#define EP0_EP_RESET                              (0x1<<31)	/* 31:31 */
-#define EP0_AUTOCLEAR                             (0x1<<30)	/* 30:30 */
-#define EP0_AUTOSET                               (0x1<<29)	/* 29:29 */
-#define EP0_DMAREQEN                              (0x1<<28)	/* 28:28 */
-#define EP0_SENDSTALL                             (0x1<<25)	/* 25:25 */
-#define EP0_FIFOFULL                              (0x1<<23)	/* 23:23 */
-#define EP0_SENTSTALL                             (0x1<<22)	/* 22:22 */
-#define EP0_DPHTX                                 (0x1<<20)	/* 20:20 */
-#define EP0_DATAEND                               (0x1<<19)	/* 19:19 */
-#define EP0_TXPKTRDY                              (0x1<<18)	/* 18:18 */
-#define EP0_SETUPPKTRDY                           (0x1<<17)	/* 17:17 */
-#define EP0_RXPKTRDY                              (0x1<<16)	/* 16:16 */
-#define EP0_MAXPKTSZ0                             (0x3ff<<0)	/* 9:0 */
-
-/* U3D_RXCOUNT0 */
-#define EP0_RX_COUNT                              (0x3ff<<0)	/* 9:0 */
-
-/* U3D_RESERVED */
-
-/* U3D_TX1CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX1CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX1CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX2CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX2CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX2CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX3CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX3CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX3CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX4CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX4CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX4CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX5CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX5CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX5CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX6CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX6CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX6CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX7CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX7CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX7CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX8CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX8CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX8CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX9CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX9CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX9CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX10CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX10CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX10CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX11CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX11CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX11CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX12CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX12CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX12CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX13CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX13CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX13CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX14CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX14CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX14CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_TX15CSR0 */
-#define TX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define TX_AUTOSET                                (0x1<<30)	/* 30:30 */
-#define TX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define TX_FIFOFULL                               (0x1<<25)	/* 25:25 */
-#define TX_FIFOEMPTY                              (0x1<<24)	/* 24:24 */
-#define TX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define TX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define TX_TXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define TX_TXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_TX15CSR1 */
-#define TX_MULT                                   (0x3<<22)	/* 23:22 */
-#define TX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define TX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define TXTYPE                                    (0x3<<4)	/* 5:4 */
-#define SS_TX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_TX15CSR2 */
-#define TXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define TXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define TXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX1CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX1CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX1CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX1CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX2CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX2CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX2CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX2CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX3CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX3CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX3CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX3CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX4CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX4CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX4CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX4CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX5CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX5CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX5CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX5CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX6CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX6CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX6CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX6CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX7CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX7CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX7CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX7CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX8CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX8CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX8CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX8CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX9CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX9CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX9CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX9CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX10CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX10CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX10CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX10CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX11CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX11CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX11CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX11CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX12CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX12CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX12CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX12CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX13CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX13CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX13CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX13CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX14CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX14CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX14CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX14CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_RX15CSR0 */
-#define RX_EP_RESET                               (0x1<<31)	/* 31:31 */
-#define RX_AUTOCLEAR                              (0x1<<30)	/* 30:30 */
-#define RX_DMAREQEN                               (0x1<<29)	/* 29:29 */
-#define RX_SENTSTALL                              (0x1<<22)	/* 22:22 */
-#define RX_SENDSTALL                              (0x1<<21)	/* 21:21 */
-#define RX_FIFOFULL                               (0x1<<18)	/* 18:18 */
-#define RX_FIFOEMPTY                              (0x1<<17)	/* 17:17 */
-#define RX_RXPKTRDY                               (0x1<<16)	/* 16:16 */
-#define RX_RXMAXPKTSZ                             (0x7ff<<0)	/* 10:0 */
-
-/* U3D_RX15CSR1 */
-#define RX_MULT                                   (0x3<<22)	/* 23:22 */
-#define RX_MAX_PKT                                (0x3f<<16)	/* 21:16 */
-#define RX_SLOT                                   (0x3f<<8)	/* 13:8 */
-#define RX_TYPE                                   (0x3<<4)	/* 5:4 */
-#define SS_RX_BURST                               (0xf<<0)	/* 3:0 */
-
-/* U3D_RX15CSR2 */
-#define RXBINTERVAL                               (0xff<<24)	/* 31:24 */
-#define RXFIFOSEGSIZE                             (0xf<<16)	/* 19:16 */
-#define RXFIFOADDR                                (0x1fff<<0)	/* 12:0 */
-
-/* U3D_RX15CSR3 */
-#define EP_RX_COUNT                               (0x7ff<<16)	/* 26:16 */
-
-/* U3D_FIFO0 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO1 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO2 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO3 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO4 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO5 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO6 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO7 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO8 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO9 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO10 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO11 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO12 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO13 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO14 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_FIFO15 */
-#define BYTE3                                     (0xff<<24)	/* 31:24 */
-#define BYTE2                                     (0xff<<16)	/* 23:16 */
-#define BYTE1                                     (0xff<<8)	/* 15:8 */
-#define BYTE0                                     (0xff<<0)	/* 7:0 */
-
-/* U3D_QCR0 */
-#define RXQ_CS_EN                                 (0x7fff<<17)	/* 31:17 */
-#define TXQ_CS_EN                                 (0x7fff<<1)	/* 15:1 */
-#define CS16B_EN                                  (0x1<<0)	/* 0:0 */
-
-/* U3D_QCR1 */
-#define CFG_TX_ZLP_GPD                            (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QCR2 */
-#define CFG_TX_ZLP                                (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QCR3 */
-#define CFG_RX_COZ                                (0x7fff<<17)	/* 31:17 */
-#define CFG_RX_ZLP                                (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QGCSR */
-#define RXQ_EN                                    (0x7fff<<17)	/* 31:17 */
-#define TXQ_EN                                    (0x7fff<<1)	/* 15:1 */
-
-/* U3D_TXQCSR1 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR1 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR1 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR2 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR2 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR2 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR3 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR3 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR3 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR4 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR4 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR4 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR5 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR5 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR5 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR6 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR6 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR6 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR7 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR7 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR7 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR8 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR8 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR8 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR9 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR9 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR9 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR10 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR10 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR10 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR11 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR11 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR11 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR12 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR12 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR12 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR13 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR13 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR13 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR14 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR14 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR14 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCSR15 */
-#define TXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define TXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define TXQ_EPQ_STATE                             (0xf<<8)	/* 11:8 */
-#define TXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define TXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define TXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_TXQSAR15 */
-#define TXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_TXQCPR15 */
-#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR1 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR1 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR1 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR1 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR2 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR2 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR2 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR2 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR3 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR3 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR3 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR3 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR4 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR4 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR4 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR4 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR5 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR5 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR5 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR5 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR6 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR6 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR6 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR6 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR7 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR7 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR7 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR7 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR8 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR8 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR8 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR8 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR9 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR9 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR9 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR9 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR10 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR10 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR10 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR10 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR11 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR11 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR11 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR11 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR12 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR12 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR12 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR12 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR13 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR13 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR13 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR13 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR14 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR14 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR14 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR14 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCSR15 */
-#define RXQ_DMGR_DMSM_CS                          (0xf<<16)	/* 19:16 */
-#define RXQ_ACTIVE                                (0x1<<15)	/* 15:15 */
-#define RXQ_EPQ_STATE                             (0x1f<<8)	/* 12:8 */
-#define RXQ_STOP                                  (0x1<<2)	/* 2:2 */
-#define RXQ_RESUME                                (0x1<<1)	/* 1:1 */
-#define RXQ_START                                 (0x1<<0)	/* 0:0 */
-
-/* U3D_RXQSAR15 */
-#define RXQ_START_ADDR                            (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQCPR15 */
-#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_RXQLDPR15 */
-#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2)	/* 31:2 */
-
-/* U3D_QISAR0 */
-#define RXQ_DONE_INT                              (0x7fff<<17)	/* 31:17 */
-#define TXQ_DONE_INT                              (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QIER0 */
-#define RXQ_DONE_IER                              (0x7fff<<17)	/* 31:17 */
-#define TXQ_DONE_IER                              (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QIESR0 */
-#define RXQ_DONE_IESR                             (0x7fff<<17)	/* 31:17 */
-#define TXQ_DONE_IESR                             (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QIECR0 */
-#define RXQ_DONE_IECR                             (0x7fff<<17)	/* 31:17 */
-#define TXQ_DONE_IECR                             (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QISAR1 */
-#define RXQ_ZLPERR_INT                            (0x1<<20)	/* 20:20 */
-#define RXQ_LENERR_INT                            (0x1<<18)	/* 18:18 */
-#define RXQ_CSERR_INT                             (0x1<<17)	/* 17:17 */
-#define RXQ_EMPTY_INT                             (0x1<<16)	/* 16:16 */
-#define TXQ_LENERR_INT                            (0x1<<2)	/* 2:2 */
-#define TXQ_CSERR_INT                             (0x1<<1)	/* 1:1 */
-#define TXQ_EMPTY_INT                             (0x1<<0)	/* 0:0 */
-
-/* U3D_QIER1 */
-#define RXQ_ZLPERR_IER                            (0x1<<20)	/* 20:20 */
-#define RXQ_LENERR_IER                            (0x1<<18)	/* 18:18 */
-#define RXQ_CSERR_IER                             (0x1<<17)	/* 17:17 */
-#define RXQ_EMPTY_IER                             (0x1<<16)	/* 16:16 */
-#define TXQ_LENERR_IER                            (0x1<<2)	/* 2:2 */
-#define TXQ_CSERR_IER                             (0x1<<1)	/* 1:1 */
-#define TXQ_EMPTY_IER                             (0x1<<0)	/* 0:0 */
-
-/* U3D_QIESR1 */
-#define RXQ_ZLPERR_IESR                           (0x1<<20)	/* 20:20 */
-#define RXQ_LENERR_IESR                           (0x1<<18)	/* 18:18 */
-#define RXQ_CSERR_IESR                            (0x1<<17)	/* 17:17 */
-#define RXQ_EMPTY_IESR                            (0x1<<16)	/* 16:16 */
-#define TXQ_LENERR_IESR                           (0x1<<2)	/* 2:2 */
-#define TXQ_CSERR_IESR                            (0x1<<1)	/* 1:1 */
-#define TXQ_EMPTY_IESR                            (0x1<<0)	/* 0:0 */
-
-/* U3D_QIECR1 */
-#define RXQ_ZLPERR_IECR                           (0x1<<20)	/* 20:20 */
-#define RXQ_LENERR_IECR                           (0x1<<18)	/* 18:18 */
-#define RXQ_CSERR_IECR                            (0x1<<17)	/* 17:17 */
-#define RXQ_EMPTY_IECR                            (0x1<<16)	/* 16:16 */
-#define TXQ_LENERR_IECR                           (0x1<<2)	/* 2:2 */
-#define TXQ_CSERR_IECR                            (0x1<<1)	/* 1:1 */
-#define TXQ_EMPTY_IECR                            (0x1<<0)	/* 0:0 */
-
-/* U3D_QEMIR */
-#define RXQ_EMPTY_MASK                            (0x7fff<<17)	/* 31:17 */
-#define TXQ_EMPTY_MASK                            (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QEMIER */
-#define RXQ_EMPTY_IER_MASK                        (0x7fff<<17)	/* 31:17 */
-#define TXQ_EMPTY_IER_MASK                        (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QEMIESR */
-#define RXQ_EMPTY_IESR_MASK                       (0x7fff<<17)	/* 31:17 */
-#define TXQ_EMPTY_IESR_MASK                       (0x7fff<<1)	/* 15:1 */
-
-/* U3D_QEMIECR */
-#define RXQ_EMPTY_IECR_MASK                       (0x7fff<<17)	/* 31:17 */
-#define TXQ_EMPTY_IECR_MASK                       (0x7fff<<1)	/* 15:1 */
-
-/* U3D_TQERRIR0 */
-#define TXQ_LENERR_MASK                           (0x7fff<<17)	/* 31:17 */
-#define TXQ_CSERR_MASK                            (0x7fff<<1)	/* 15:1 */
-
-/* U3D_TQERRIER0 */
-#define TXQ_LENERR_IER_MASK                       (0x7fff<<17)	/* 31:17 */
-#define TXQ_CSERR_IER_MASK                        (0x7fff<<1)	/* 15:1 */
-
-/* U3D_TQERRIESR0 */
-#define TXQ_LENERR_IESR_MASK                      (0x7fff<<17)	/* 31:17 */
-#define TXQ_CSERR_IESR_MASK                       (0x7fff<<1)	/* 15:1 */
-
-/* U3D_TQERRIECR0 */
-#define TXQ_LENERR_IECR_MASK                      (0x7fff<<17)	/* 31:17 */
-#define TXQ_CSERR_IECR_MASK                       (0x7fff<<1)	/* 15:1 */
-
-/* U3D_RQERRIR0 */
-#define RXQ_LENERR_MASK                           (0x7fff<<17)	/* 31:17 */
-#define RXQ_CSERR_MASK                            (0x7fff<<1)	/* 15:1 */
-
-/* U3D_RQERRIER0 */
-#define RXQ_LENERR_IER_MASK                       (0x7fff<<17)	/* 31:17 */
-#define RXQ_CSERR_IER_MASK                        (0x7fff<<1)	/* 15:1 */
-
-/* U3D_RQERRIESR0 */
-#define RXQ_LENERR_IESR_MASK                      (0x7fff<<17)	/* 31:17 */
-#define RXQ_CSERR_IESR_MASK                       (0x7fff<<1)	/* 15:1 */
-
-/* U3D_RQERRIECR0 */
-#define RXQ_LENERR_IECR_MASK                      (0x7fff<<17)	/* 31:17 */
-#define RXQ_CSERR_IECR_MASK                       (0x7fff<<1)	/* 15:1 */
-
-/* U3D_RQERRIR1 */
-#define RXQ_ZLPERR_MASK                           (0x7fff<<17)	/* 31:17 */
-
-/* U3D_RQERRIER1 */
-#define RXQ_ZLPERR_IER_MASK                       (0x7fff<<17)	/* 31:17 */
-
-/* U3D_RQERRIESR1 */
-#define RXQ_ZLPERR_IESR_MASK                      (0x7fff<<17)	/* 31:17 */
-
-/* U3D_RQERRIECR1 */
-#define RXQ_ZLPERR_IECR_MASK                      (0x7fff<<17)	/* 31:17 */
-
-/* U3D_CAP_EP0FFSZ */
-#define CAP_EP0FFSZ                               (0xffffffff<<0)	/* 31:0 */
-
-/* U3D_CAP_EPNTXFFSZ */
-#define CAP_EPNTXFFSZ                             (0xffffffff<<0)	/* 31:0 */
-
-/* U3D_CAP_EPNRXFFSZ */
-#define CAP_EPNRXFFSZ                             (0xffffffff<<0)	/* 31:0 */
-
-/* U3D_CAP_EPINFO */
-#define CAP_RX_EP_NUM                             (0x1f<<8)	/* 12:8 */
-#define CAP_TX_EP_NUM                             (0x1f<<0)	/* 4:0 */
-
-/* U3D_CAP_TX_SLOT1 */
-#define CAP_TX_SLOT3                              (0x3f<<24)	/* 29:24 */
-#define CAP_TX_SLOT2                              (0x3f<<16)	/* 21:16 */
-#define CAP_TX_SLOT1                              (0x3f<<8)	/* 13:8 */
-#define RSV                                       (0x3f<<0)	/* 5:0 */
-
-/* U3D_CAP_TX_SLOT2 */
-#define CAP_TX_SLOT7                              (0x3f<<24)	/* 29:24 */
-#define CAP_TX_SLOT6                              (0x3f<<16)	/* 21:16 */
-#define CAP_TX_SLOT5                              (0x3f<<8)	/* 13:8 */
-#define CAP_TX_SLOT4                              (0x3f<<0)	/* 5:0 */
-
-/* U3D_CAP_TX_SLOT3 */
-#define CAP_TX_SLOT11                             (0x3f<<24)	/* 29:24 */
-#define CAP_TX_SLOT10                             (0x3f<<16)	/* 21:16 */
-#define CAP_TX_SLOT9                              (0x3f<<8)	/* 13:8 */
-#define CAP_TX_SLOT8                              (0x3f<<0)	/* 5:0 */
-
-/* U3D_CAP_TX_SLOT4 */
-#define CAP_TX_SLOT15                             (0x3f<<24)	/* 29:24 */
-#define CAP_TX_SLOT14                             (0x3f<<16)	/* 21:16 */
-#define CAP_TX_SLOT13                             (0x3f<<8)	/* 13:8 */
-#define CAP_TX_SLOT12                             (0x3f<<0)	/* 5:0 */
-
-/* U3D_CAP_RX_SLOT1 */
-#define CAP_RX_SLOT3                              (0x3f<<24)	/* 29:24 */
-#define CAP_RX_SLOT2                              (0x3f<<16)	/* 21:16 */
-#define CAP_RX_SLOT1                              (0x3f<<8)	/* 13:8 */
-#define RSV                                       (0x3f<<0)	/* 5:0 */
-
-/* U3D_CAP_RX_SLOT2 */
-#define CAP_RX_SLOT7                              (0x3f<<24)	/* 29:24 */
-#define CAP_RX_SLOT6                              (0x3f<<16)	/* 21:16 */
-#define CAP_RX_SLOT5                              (0x3f<<8)	/* 13:8 */
-#define CAP_RX_SLOT4                              (0x3f<<0)	/* 5:0 */
-
-/* U3D_CAP_RX_SLOT3 */
-#define CAP_RX_SLOT11                             (0x3f<<24)	/* 29:24 */
-#define CAP_RX_SLOT10                             (0x3f<<16)	/* 21:16 */
-#define CAP_RX_SLOT9                              (0x3f<<8)	/* 13:8 */
-#define CAP_RX_SLOT8                              (0x3f<<0)	/* 5:0 */
-
-/* U3D_CAP_RX_SLOT4 */
-#define CAP_RX_SLOT15                             (0x3f<<24)	/* 29:24 */
-#define CAP_RX_SLOT14                             (0x3f<<16)	/* 21:16 */
-#define CAP_RX_SLOT13                             (0x3f<<8)	/* 13:8 */
-#define CAP_RX_SLOT12                             (0x3f<<0)	/* 5:0 */
-
-/* U3D_MISC_CTRL */
-#define DMA_BUS_CK_GATE_DIS                       (0x1<<2)	/* 2:2 */
-#define VBUS_ON                                   (0x1<<1)	/* 1:1 */
-#define VBUS_FRC_EN                               (0x1<<0)	/* 0:0 */
+//U3D_LV1ISR
+#define EP_CTRL_INTR                              (0x1<<5) //5:5
+#define MAC2_INTR                                 (0x1<<4) //4:4
+#define DMA_INTR                                  (0x1<<3) //3:3
+#define MAC3_INTR                                 (0x1<<2) //2:2
+#define QMU_INTR                                  (0x1<<1) //1:1
+#define BMU_INTR                                  (0x1<<0) //0:0
+
+//U3D_LV1IER
+#define LV1IER                                    (0xffffffff<<0) //31:0
+
+//U3D_LV1IESR
+#define LV1IESR                                   (0xffffffff<<0) //31:0
+
+//U3D_LV1IECR
+#define LV1IECR                                   (0xffffffff<<0) //31:0
+
+//U3D_AXI_WR_DMA_CFG
+#define AXI_WR_ULTRA_NUM                          (0xff<<24) //31:24
+#define AXI_WR_PRE_ULTRA_NUM                      (0xff<<16) //23:16
+#define AXI_WR_ULTRA_EN                           (0x1<<0) //0:0
+
+//U3D_AXI_RD_DMA_CFG
+#define AXI_RD_ULTRA_NUM                          (0xff<<24) //31:24
+#define AXI_RD_PRE_ULTRA_NUM                      (0xff<<16) //23:16
+#define AXI_RD_ULTRA_EN                           (0x1<<0) //0:0
+
+//U3D_MAC_U1_EN_CTRL
+#define EXIT_BY_ERDY_DIS                          (0x1<<31) //31:31
+#define ACCEPT_BMU_RX_EMPTY_CHK                   (0x1<<20) //20:20
+#define ACCEPT_BMU_TX_EMPTY_CHK                   (0x1<<19) //19:19
+#define ACCEPT_RXQ_INACTIVE_CHK                   (0x1<<18) //18:18
+#define ACCEPT_TXQ_INACTIVE_CHK                   (0x1<<17) //17:17
+#define ACCEPT_EP0_INACTIVE_CHK                   (0x1<<16) //16:16
+#define REQUEST_BMU_RX_EMPTY_CHK                  (0x1<<4) //4:4
+#define REQUEST_BMU_TX_EMPTY_CHK                  (0x1<<3) //3:3
+#define REQUEST_RXQ_INACTIVE_CHK                  (0x1<<2) //2:2
+#define REQUEST_TXQ_INACTIVE_CHK                  (0x1<<1) //1:1
+#define REQUEST_EP0_INACTIVE_CHK                  (0x1<<0) //0:0
+
+//U3D_MAC_U2_EN_CTRL
+#define EXIT_BY_ERDY_DIS                          (0x1<<31) //31:31
+#define ACCEPT_BMU_RX_EMPTY_CHK                   (0x1<<20) //20:20
+#define ACCEPT_BMU_TX_EMPTY_CHK                   (0x1<<19) //19:19
+#define ACCEPT_RXQ_INACTIVE_CHK                   (0x1<<18) //18:18
+#define ACCEPT_TXQ_INACTIVE_CHK                   (0x1<<17) //17:17
+#define ACCEPT_EP0_INACTIVE_CHK                   (0x1<<16) //16:16
+#define REQUEST_BMU_RX_EMPTY_CHK                  (0x1<<4) //4:4
+#define REQUEST_BMU_TX_EMPTY_CHK                  (0x1<<3) //3:3
+#define REQUEST_RXQ_INACTIVE_CHK                  (0x1<<2) //2:2
+#define REQUEST_TXQ_INACTIVE_CHK                  (0x1<<1) //1:1
+#define REQUEST_EP0_INACTIVE_CHK                  (0x1<<0) //0:0
+
+//U3D_SRAM_DBG_CTRL
+#define EPNRX_SRAM_DEBUG_MODE                     (0x1<<2) //2:2
+#define EPNTX_SRAM_DEBUG_MODE                     (0x1<<1) //1:1
+#define EP0_SRAM_DEBUG_MODE                       (0x1<<0) //0:0
+
+//U3D_SRAM_DBG_CTRL_1
+#define SRAM_DEBUG_FIFOSEGSIZE                    (0xf<<24) //27:24
+#define SRAM_DEBUG_SLOT                           (0x3f<<16) //21:16
+#define SRAM_DEBUG_DP_COUNT                       (0x7ff<<0) //10:0
+
+//U3D_RISC_SIZE
+#define RISC_SIZE                                 (0x3<<0) //1:0
+
+//U3D_WRBUF_ERR_STS
+#define RX_RDBUF_ERR_STS                          (0x7fff<<17) //31:17
+#define TX_WRBUF_ERR_STS                          (0x7fff<<1) //15:1
+
+//U3D_BUF_ERR_EN
+#define RX_RDBUF_ERR_EN                           (0x7fff<<17) //31:17
+#define TX_WRBUF_ERR_EN                           (0x7fff<<1) //15:1
+
+//U3D_EPISR
+#define EPRISR                                    (0x7fff<<17) //31:17
+#define SETUPENDISR                               (0x1<<16) //16:16
+#define EPTISR                                    (0x7fff<<1) //15:1
+#define EP0ISR                                    (0x1<<0) //0:0
+
+//U3D_EPIER
+#define EPRIER                                    (0x7fff<<17) //31:17
+#define SETUPENDIER                               (0x1<<16) //16:16
+#define EPTIER                                    (0x7fff<<1) //15:1
+#define EP0IER                                    (0x1<<0) //0:0
+
+//U3D_EPIESR
+#define EPRIESR                                   (0x7fff<<17) //31:17
+#define SETUPENDIESR                              (0x1<<16) //16:16
+#define EPTIESR                                   (0x7fff<<1) //15:1
+#define EP0IESR                                   (0x1<<0) //0:0
+
+//U3D_EPIECR
+#define EPRISR                                    (0x7fff<<17) //31:17
+#define SETUPENDIECR                              (0x1<<16) //16:16
+#define EPTIECR                                   (0x7fff<<1) //15:1
+#define EP0IECR                                   (0x1<<0) //0:0
+
+//U3D_DMAISR
+#define RXDMAISR                                  (0x1<<2) //2:2
+#define TXDMAISR                                  (0x1<<1) //1:1
+#define EP0DMAISR                                 (0x1<<0) //0:0
+
+//U3D_DMAIER
+#define RXDMAIER                                  (0x1<<2) //2:2
+#define TXDMAIER                                  (0x1<<1) //1:1
+#define EP0DMAER                                  (0x1<<0) //0:0
+
+//U3D_DMAIESR
+#define RXDMAIESR                                 (0x1<<2) //2:2
+#define TXDMAIESR                                 (0x1<<1) //1:1
+#define EP0DMAIESR                                (0x1<<0) //0:0
+
+//U3D_DMAIECR
+#define RXDMAIECR                                 (0x1<<2) //2:2
+#define TXDMAIECR                                 (0x1<<1) //1:1
+#define EP0DMAIECR                                (0x1<<0) //0:0
+
+//U3D_EP0DMACTRL
+#define FFSTRADDR0                                (0xffff<<16) //31:16
+#define ENDPNT                                    (0xf<<4) //7:4
+#define INTEN                                     (0x1<<3) //3:3
+#define DMA_DIR                                   (0x1<<1) //1:1
+#define DMA_EN                                    (0x1<<0) //0:0
+
+//U3D_EP0DMASTRADDR
+#define DMASTRADDR0                               (0xffffffff<<0) //31:0
+
+//U3D_EP0DMATFRCOUNT
+#define DMATFRCNT0                                (0x7ff<<0) //10:0
+
+//U3D_EP0DMARLCOUNT
+#define EP0_DMALIMITER                            (0x7<<28) //30:28
+#define DMA_FAKE                                  (0x1<<27) //27:27
+#define DMA_BURST                                 (0x3<<24) //25:24
+#define AXI_DMA_OUTSTAND_NUM                      (0xf<<20) //23:20
+#define AXI_DMA_COHERENCE                         (0x1<<19) //19:19
+#define AXI_DMA_IOMMU                             (0x1<<18) //18:18
+#define AXI_DMA_CACHEABLE                         (0x1<<17) //17:17
+#define AXI_DMA_ULTRA_EN                          (0x1<<16) //16:16
+#define AXI_DMA_ULTRA_NUM                         (0xff<<8) //15:8
+#define AXI_DMA_PRE_ULTRA_NUM                     (0xff<<0) //7:0
+
+//U3D_TXDMACTRL
+#define FFSTRADDR                                 (0xffff<<16) //31:16
+#define ENDPNT                                    (0xf<<4) //7:4
+#define INTEN                                     (0x1<<3) //3:3
+#define DMA_DIR                                   (0x1<<1) //1:1
+#define DMA_EN                                    (0x1<<0) //0:0
+
+//U3D_TXDMASTRADDR
+#define DMASTRADDR                                (0xffffffff<<0) //31:0
+
+//U3D_TXDMATRDCNT
+#define DMATFRCNT                                 (0x7ff<<0) //10:0
+
+//U3D_TXDMARLCOUNT
+#define DMALIMITER                                (0x7<<28) //30:28
+#define DMA_FAKE                                  (0x1<<27) //27:27
+#define DMA_BURST                                 (0x3<<24) //25:24
+#define AXI_DMA_OUTSTAND_NUM                      (0xf<<20) //23:20
+#define AXI_DMA_COHERENCE                         (0x1<<19) //19:19
+#define AXI_DMA_IOMMU                             (0x1<<18) //18:18
+#define AXI_DMA_CACHEABLE                         (0x1<<17) //17:17
+#define AXI_DMA_ULTRA_EN                          (0x1<<16) //16:16
+#define AXI_DMA_ULTRA_NUM                         (0xff<<8) //15:8
+#define AXI_DMA_PRE_ULTRA_NUM                     (0xff<<0) //7:0
+
+//U3D_RXDMACTRL
+#define FFSTRADDR                                 (0xffff<<16) //31:16
+#define ENDPNT                                    (0xf<<4) //7:4
+#define INTEN                                     (0x1<<3) //3:3
+#define DMA_DIR                                   (0x1<<1) //1:1
+#define DMA_EN                                    (0x1<<0) //0:0
+
+//U3D_RXDMASTRADDR
+#define DMASTRADDR                                (0xffffffff<<0) //31:0
+
+//U3D_RXDMATRDCNT
+#define DMATFRCNT                                 (0x7ff<<0) //10:0
+
+//U3D_RXDMARLCOUNT
+#define DMA_NON_BUF                               (0x1<<31) //31:31
+#define DMALIMITER                                (0x7<<28) //30:28
+#define DMA_FAKE                                  (0x1<<27) //27:27
+#define DMA_BURST                                 (0x3<<24) //25:24
+#define AXI_DMA_OUTSTAND_NUM                      (0xf<<20) //23:20
+#define AXI_DMA_COHERENCE                         (0x1<<19) //19:19
+#define AXI_DMA_IOMMU                             (0x1<<18) //18:18
+#define AXI_DMA_CACHEABLE                         (0x1<<17) //17:17
+#define AXI_DMA_ULTRA_EN                          (0x1<<16) //16:16
+#define AXI_DMA_ULTRA_NUM                         (0xff<<8) //15:8
+#define AXI_DMA_PRE_ULTRA_NUM                     (0xff<<0) //7:0
+
+//U3D_EP0CSR
+#define EP0_EP_RESET                              (0x1<<31) //31:31
+#define EP0_AUTOCLEAR                             (0x1<<30) //30:30
+#define EP0_AUTOSET                               (0x1<<29) //29:29
+#define EP0_DMAREQEN                              (0x1<<28) //28:28
+#define EP0_SENDSTALL                             (0x1<<25) //25:25
+#define EP0_FIFOFULL                              (0x1<<23) //23:23
+#define EP0_SENTSTALL                             (0x1<<22) //22:22
+#define EP0_DPHTX                                 (0x1<<20) //20:20
+#define EP0_DATAEND                               (0x1<<19) //19:19
+#define EP0_TXPKTRDY                              (0x1<<18) //18:18
+#define EP0_SETUPPKTRDY                           (0x1<<17) //17:17
+#define EP0_RXPKTRDY                              (0x1<<16) //16:16
+#define EP0_MAXPKTSZ0                             (0x3ff<<0) //9:0
+
+//U3D_RXCOUNT0
+#define EP0_RX_COUNT                              (0x3ff<<0) //9:0
+
+//U3D_RESERVED
+
+//U3D_TX1CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX1CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX1CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX2CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX2CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX2CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX3CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX3CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX3CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX4CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX4CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX4CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX5CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX5CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX5CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX6CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX6CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX6CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX7CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX7CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX7CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX8CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX8CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX8CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX9CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX9CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX9CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX10CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX10CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX10CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX11CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX11CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX11CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX12CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX12CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX12CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX13CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX13CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX13CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX14CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX14CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX14CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_TX15CSR0
+#define TX_EP_RESET                               (0x1<<31) //31:31
+#define TX_AUTOSET                                (0x1<<30) //30:30
+#define TX_DMAREQEN                               (0x1<<29) //29:29
+#define TX_FIFOFULL                               (0x1<<25) //25:25
+#define TX_FIFOEMPTY                              (0x1<<24) //24:24
+#define TX_SENTSTALL                              (0x1<<22) //22:22
+#define TX_SENDSTALL                              (0x1<<21) //21:21
+#define TX_TXPKTRDY                               (0x1<<16) //16:16
+#define TX_TXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_TX15CSR1
+#define TX_MULT                                   (0x3<<22) //23:22
+#define TX_MAX_PKT                                (0x3f<<16) //21:16
+#define TX_SLOT                                   (0x3f<<8) //13:8
+#define TXTYPE                                    (0x3<<4) //5:4
+#define SS_TX_BURST                               (0xf<<0) //3:0
+
+//U3D_TX15CSR2
+#define TXBINTERVAL                               (0xff<<24) //31:24
+#define TXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define TXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX1CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX1CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX1CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX1CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX2CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX2CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX2CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX2CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX3CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX3CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX3CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX3CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX4CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX4CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX4CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX4CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX5CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX5CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX5CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX5CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX6CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX6CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX6CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX6CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX7CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX7CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX7CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX7CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX8CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX8CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX8CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX8CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX9CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX9CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX9CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX9CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX10CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX10CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX10CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX10CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX11CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX11CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX11CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX11CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX12CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX12CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX12CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX12CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX13CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX13CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX13CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX13CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX14CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX14CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX14CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX14CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_RX15CSR0
+#define RX_EP_RESET                               (0x1<<31) //31:31
+#define RX_AUTOCLEAR                              (0x1<<30) //30:30
+#define RX_DMAREQEN                               (0x1<<29) //29:29
+#define RX_SENTSTALL                              (0x1<<22) //22:22
+#define RX_SENDSTALL                              (0x1<<21) //21:21
+#define RX_FIFOFULL                               (0x1<<18) //18:18
+#define RX_FIFOEMPTY                              (0x1<<17) //17:17
+#define RX_RXPKTRDY                               (0x1<<16) //16:16
+#define RX_RXMAXPKTSZ                             (0x7ff<<0) //10:0
+
+//U3D_RX15CSR1
+#define RX_MULT                                   (0x3<<22) //23:22
+#define RX_MAX_PKT                                (0x3f<<16) //21:16
+#define RX_SLOT                                   (0x3f<<8) //13:8
+#define RX_TYPE                                   (0x3<<4) //5:4
+#define SS_RX_BURST                               (0xf<<0) //3:0
+
+//U3D_RX15CSR2
+#define RXBINTERVAL                               (0xff<<24) //31:24
+#define RXFIFOSEGSIZE                             (0xf<<16) //19:16
+#define RXFIFOADDR                                (0x1fff<<0) //12:0
+
+//U3D_RX15CSR3
+#define EP_RX_COUNT                               (0x7ff<<16) //26:16
+
+//U3D_FIFO0
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO1
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO2
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO3
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO4
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO5
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO6
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO7
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO8
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO9
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO10
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO11
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO12
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO13
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO14
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_FIFO15
+#define BYTE3                                     (0xff<<24) //31:24
+#define BYTE2                                     (0xff<<16) //23:16
+#define BYTE1                                     (0xff<<8) //15:8
+#define BYTE0                                     (0xff<<0) //7:0
+
+//U3D_QCR0
+#define RXQ_CS_EN                                 (0x7fff<<17) //31:17
+#define TXQ_CS_EN                                 (0x7fff<<1) //15:1
+#define CS16B_EN                                  (0x1<<0) //0:0
+
+//U3D_QCR1
+#define CFG_TX_ZLP_GPD                            (0x7fff<<1) //15:1
+
+//U3D_QCR2
+#define CFG_TX_ZLP                                (0x7fff<<1) //15:1
+
+//U3D_QCR3
+#define CFG_RX_COZ                                (0x7fff<<17) //31:17
+#define CFG_RX_ZLP                                (0x7fff<<1) //15:1
+
+//U3D_QGCSR
+#define RXQ_EN                                    (0x7fff<<17) //31:17
+#define TXQ_EN                                    (0x7fff<<1) //15:1
+
+//U3D_TXQCSR1
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR1
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR1
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR2
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR2
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR2
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR3
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR3
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR3
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR4
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR4
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR4
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR5
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR5
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR5
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR6
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR6
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR6
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR7
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR7
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR7
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR8
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR8
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR8
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR9
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR9
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR9
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR10
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR10
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR10
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR11
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR11
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR11
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR12
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR12
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR12
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR13
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR13
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR13
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR14
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR14
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR14
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_TXQCSR15
+#define TXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define TXQ_ACTIVE                                (0x1<<15) //15:15
+#define TXQ_EPQ_STATE                             (0xf<<8) //11:8
+#define TXQ_STOP                                  (0x1<<2) //2:2
+#define TXQ_RESUME                                (0x1<<1) //1:1
+#define TXQ_START                                 (0x1<<0) //0:0
+
+//U3D_TXQSAR15
+#define TXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_TXQCPR15
+#define TXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR1
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR1
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR1
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR1
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR2
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR2
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR2
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR2
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR3
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR3
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR3
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR3
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR4
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR4
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR4
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR4
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR5
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR5
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR5
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR5
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR6
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR6
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR6
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR6
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR7
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR7
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR7
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR7
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR8
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR8
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR8
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR8
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR9
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR9
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR9
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR9
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR10
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR10
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR10
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR10
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR11
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR11
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR11
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR11
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR12
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR12
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR12
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR12
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR13
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR13
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR13
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR13
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR14
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR14
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR14
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR14
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_RXQCSR15
+#define RXQ_DMGR_DMSM_CS                          (0xf<<16) //19:16
+#define RXQ_ACTIVE                                (0x1<<15) //15:15
+#define RXQ_EPQ_STATE                             (0x1f<<8) //12:8
+#define RXQ_STOP                                  (0x1<<2) //2:2
+#define RXQ_RESUME                                (0x1<<1) //1:1
+#define RXQ_START                                 (0x1<<0) //0:0
+
+//U3D_RXQSAR15
+#define RXQ_START_ADDR                            (0x3fffffff<<2) //31:2
+
+//U3D_RXQCPR15
+#define RXQ_CUR_GPD_ADDR                          (0x3fffffff<<2) //31:2
+
+//U3D_RXQLDPR15
+#define RXQ_LAST_DONE_PTR                         (0x3fffffff<<2) //31:2
+
+//U3D_QISAR0
+#define RXQ_DONE_INT                              (0x7fff<<17) //31:17
+#define TXQ_DONE_INT                              (0x7fff<<1) //15:1
+
+//U3D_QIER0
+#define RXQ_DONE_IER                              (0x7fff<<17) //31:17
+#define TXQ_DONE_IER                              (0x7fff<<1) //15:1
+
+//U3D_QIESR0
+#define RXQ_DONE_IESR                             (0x7fff<<17) //31:17
+#define TXQ_DONE_IESR                             (0x7fff<<1) //15:1
+
+//U3D_QIECR0
+#define RXQ_DONE_IECR                             (0x7fff<<17) //31:17
+#define TXQ_DONE_IECR                             (0x7fff<<1) //15:1
+
+//U3D_QISAR1
+#define RXQ_ZLPERR_INT                            (0x1<<20) //20:20
+#define RXQ_LENERR_INT                            (0x1<<18) //18:18
+#define RXQ_CSERR_INT                             (0x1<<17) //17:17
+#define RXQ_EMPTY_INT                             (0x1<<16) //16:16
+#define TXQ_LENERR_INT                            (0x1<<2) //2:2
+#define TXQ_CSERR_INT                             (0x1<<1) //1:1
+#define TXQ_EMPTY_INT                             (0x1<<0) //0:0
+
+//U3D_QIER1
+#define RXQ_ZLPERR_IER                            (0x1<<20) //20:20
+#define RXQ_LENERR_IER                            (0x1<<18) //18:18
+#define RXQ_CSERR_IER                             (0x1<<17) //17:17
+#define RXQ_EMPTY_IER                             (0x1<<16) //16:16
+#define TXQ_LENERR_IER                            (0x1<<2) //2:2
+#define TXQ_CSERR_IER                             (0x1<<1) //1:1
+#define TXQ_EMPTY_IER                             (0x1<<0) //0:0
+
+//U3D_QIESR1
+#define RXQ_ZLPERR_IESR                           (0x1<<20) //20:20
+#define RXQ_LENERR_IESR                           (0x1<<18) //18:18
+#define RXQ_CSERR_IESR                            (0x1<<17) //17:17
+#define RXQ_EMPTY_IESR                            (0x1<<16) //16:16
+#define TXQ_LENERR_IESR                           (0x1<<2) //2:2
+#define TXQ_CSERR_IESR                            (0x1<<1) //1:1
+#define TXQ_EMPTY_IESR                            (0x1<<0) //0:0
+
+//U3D_QIECR1
+#define RXQ_ZLPERR_IECR                           (0x1<<20) //20:20
+#define RXQ_LENERR_IECR                           (0x1<<18) //18:18
+#define RXQ_CSERR_IECR                            (0x1<<17) //17:17
+#define RXQ_EMPTY_IECR                            (0x1<<16) //16:16
+#define TXQ_LENERR_IECR                           (0x1<<2) //2:2
+#define TXQ_CSERR_IECR                            (0x1<<1) //1:1
+#define TXQ_EMPTY_IECR                            (0x1<<0) //0:0
+
+//U3D_QEMIR
+#define RXQ_EMPTY_MASK                            (0x7fff<<17) //31:17
+#define TXQ_EMPTY_MASK                            (0x7fff<<1) //15:1
+
+//U3D_QEMIER
+#define RXQ_EMPTY_IER_MASK                        (0x7fff<<17) //31:17
+#define TXQ_EMPTY_IER_MASK                        (0x7fff<<1) //15:1
+
+//U3D_QEMIESR
+#define RXQ_EMPTY_IESR_MASK                       (0x7fff<<17) //31:17
+#define TXQ_EMPTY_IESR_MASK                       (0x7fff<<1) //15:1
+
+//U3D_QEMIECR
+#define RXQ_EMPTY_IECR_MASK                       (0x7fff<<17) //31:17
+#define TXQ_EMPTY_IECR_MASK                       (0x7fff<<1) //15:1
+
+//U3D_TQERRIR0
+#define TXQ_LENERR_MASK                           (0x7fff<<17) //31:17
+#define TXQ_CSERR_MASK                            (0x7fff<<1) //15:1
+
+//U3D_TQERRIER0
+#define TXQ_LENERR_IER_MASK                       (0x7fff<<17) //31:17
+#define TXQ_CSERR_IER_MASK                        (0x7fff<<1) //15:1
+
+//U3D_TQERRIESR0
+#define TXQ_LENERR_IESR_MASK                      (0x7fff<<17) //31:17
+#define TXQ_CSERR_IESR_MASK                       (0x7fff<<1) //15:1
+
+//U3D_TQERRIECR0
+#define TXQ_LENERR_IECR_MASK                      (0x7fff<<17) //31:17
+#define TXQ_CSERR_IECR_MASK                       (0x7fff<<1) //15:1
+
+//U3D_RQERRIR0
+#define RXQ_LENERR_MASK                           (0x7fff<<17) //31:17
+#define RXQ_CSERR_MASK                            (0x7fff<<1) //15:1
+
+//U3D_RQERRIER0
+#define RXQ_LENERR_IER_MASK                       (0x7fff<<17) //31:17
+#define RXQ_CSERR_IER_MASK                        (0x7fff<<1) //15:1
+
+//U3D_RQERRIESR0
+#define RXQ_LENERR_IESR_MASK                      (0x7fff<<17) //31:17
+#define RXQ_CSERR_IESR_MASK                       (0x7fff<<1) //15:1
+
+//U3D_RQERRIECR0
+#define RXQ_LENERR_IECR_MASK                      (0x7fff<<17) //31:17
+#define RXQ_CSERR_IECR_MASK                       (0x7fff<<1) //15:1
+
+//U3D_RQERRIR1
+#define RXQ_ZLPERR_MASK                           (0x7fff<<17) //31:17
+
+//U3D_RQERRIER1
+#define RXQ_ZLPERR_IER_MASK                       (0x7fff<<17) //31:17
+
+//U3D_RQERRIESR1
+#define RXQ_ZLPERR_IESR_MASK                      (0x7fff<<17) //31:17
+
+//U3D_RQERRIECR1
+#define RXQ_ZLPERR_IECR_MASK                      (0x7fff<<17) //31:17
+
+//U3D_CAP_EP0FFSZ
+#define CAP_EP0FFSZ                               (0xffffffff<<0) //31:0
+
+//U3D_CAP_EPNTXFFSZ
+#define CAP_EPNTXFFSZ                             (0xffffffff<<0) //31:0
+
+//U3D_CAP_EPNRXFFSZ
+#define CAP_EPNRXFFSZ                             (0xffffffff<<0) //31:0
+
+//U3D_CAP_EPINFO
+#define CAP_RX_EP_NUM                             (0x1f<<8) //12:8
+#define CAP_TX_EP_NUM                             (0x1f<<0) //4:0
+
+//U3D_CAP_TX_SLOT1
+#define CAP_TX_SLOT3                              (0x3f<<24) //29:24
+#define CAP_TX_SLOT2                              (0x3f<<16) //21:16
+#define CAP_TX_SLOT1                              (0x3f<<8) //13:8
+#define RSV                                       (0x3f<<0) //5:0
+
+//U3D_CAP_TX_SLOT2
+#define CAP_TX_SLOT7                              (0x3f<<24) //29:24
+#define CAP_TX_SLOT6                              (0x3f<<16) //21:16
+#define CAP_TX_SLOT5                              (0x3f<<8) //13:8
+#define CAP_TX_SLOT4                              (0x3f<<0) //5:0
+
+//U3D_CAP_TX_SLOT3
+#define CAP_TX_SLOT11                             (0x3f<<24) //29:24
+#define CAP_TX_SLOT10                             (0x3f<<16) //21:16
+#define CAP_TX_SLOT9                              (0x3f<<8) //13:8
+#define CAP_TX_SLOT8                              (0x3f<<0) //5:0
+
+//U3D_CAP_TX_SLOT4
+#define CAP_TX_SLOT15                             (0x3f<<24) //29:24
+#define CAP_TX_SLOT14                             (0x3f<<16) //21:16
+#define CAP_TX_SLOT13                             (0x3f<<8) //13:8
+#define CAP_TX_SLOT12                             (0x3f<<0) //5:0
+
+//U3D_CAP_RX_SLOT1
+#define CAP_RX_SLOT3                              (0x3f<<24) //29:24
+#define CAP_RX_SLOT2                              (0x3f<<16) //21:16
+#define CAP_RX_SLOT1                              (0x3f<<8) //13:8
+#define RSV                                       (0x3f<<0) //5:0
+
+//U3D_CAP_RX_SLOT2
+#define CAP_RX_SLOT7                              (0x3f<<24) //29:24
+#define CAP_RX_SLOT6                              (0x3f<<16) //21:16
+#define CAP_RX_SLOT5                              (0x3f<<8) //13:8
+#define CAP_RX_SLOT4                              (0x3f<<0) //5:0
+
+//U3D_CAP_RX_SLOT3
+#define CAP_RX_SLOT11                             (0x3f<<24) //29:24
+#define CAP_RX_SLOT10                             (0x3f<<16) //21:16
+#define CAP_RX_SLOT9                              (0x3f<<8) //13:8
+#define CAP_RX_SLOT8                              (0x3f<<0) //5:0
+
+//U3D_CAP_RX_SLOT4
+#define CAP_RX_SLOT15                             (0x3f<<24) //29:24
+#define CAP_RX_SLOT14                             (0x3f<<16) //21:16
+#define CAP_RX_SLOT13                             (0x3f<<8) //13:8
+#define CAP_RX_SLOT12                             (0x3f<<0) //5:0
+
+//U3D_MISC_CTRL
+#define DMA_BUS_CK_GATE_DIS                       (0x1<<2) //2:2
+#define VBUS_ON                                   (0x1<<1) //1:1
+#define VBUS_FRC_EN                               (0x1<<0) //0:0
 
 
 /* SSUSB_DEV FIELD OFFSET DEFINITION */
 
-/* U3D_LV1ISR */
+//U3D_LV1ISR
 #define EP_CTRL_INTR_OFST                         (5)
 #define MAC2_INTR_OFST                            (4)
 #define DMA_INTR_OFST                             (3)
@@ -2025,26 +2025,26 @@
 #define QMU_INTR_OFST                             (1)
 #define BMU_INTR_OFST                             (0)
 
-/* U3D_LV1IER */
+//U3D_LV1IER
 #define LV1IER_OFST                               (0)
 
-/* U3D_LV1IESR */
+//U3D_LV1IESR
 #define LV1IESR_OFST                              (0)
 
-/* U3D_LV1IECR */
+//U3D_LV1IECR
 #define LV1IECR_OFST                              (0)
 
-/* U3D_AXI_WR_DMA_CFG */
+//U3D_AXI_WR_DMA_CFG
 #define AXI_WR_ULTRA_NUM_OFST                     (24)
 #define AXI_WR_PRE_ULTRA_NUM_OFST                 (16)
 #define AXI_WR_ULTRA_EN_OFST                      (0)
 
-/* U3D_AXI_RD_DMA_CFG */
+//U3D_AXI_RD_DMA_CFG
 #define AXI_RD_ULTRA_NUM_OFST                     (24)
 #define AXI_RD_PRE_ULTRA_NUM_OFST                 (16)
 #define AXI_RD_ULTRA_EN_OFST                      (0)
 
-/* U3D_MAC_U1_EN_CTRL */
+//U3D_MAC_U1_EN_CTRL
 #define EXIT_BY_ERDY_DIS_OFST                     (31)
 #define ACCEPT_BMU_RX_EMPTY_CHK_OFST              (20)
 #define ACCEPT_BMU_TX_EMPTY_CHK_OFST              (19)
@@ -2057,7 +2057,7 @@
 #define REQUEST_TXQ_INACTIVE_CHK_OFST             (1)
 #define REQUEST_EP0_INACTIVE_CHK_OFST             (0)
 
-/* U3D_MAC_U2_EN_CTRL */
+//U3D_MAC_U2_EN_CTRL
 #define EXIT_BY_ERDY_DIS_OFST                     (31)
 #define ACCEPT_BMU_RX_EMPTY_CHK_OFST              (20)
 #define ACCEPT_BMU_TX_EMPTY_CHK_OFST              (19)
@@ -2070,85 +2070,85 @@
 #define REQUEST_TXQ_INACTIVE_CHK_OFST             (1)
 #define REQUEST_EP0_INACTIVE_CHK_OFST             (0)
 
-/* U3D_SRAM_DBG_CTRL */
+//U3D_SRAM_DBG_CTRL
 #define EPNRX_SRAM_DEBUG_MODE_OFST                (2)
 #define EPNTX_SRAM_DEBUG_MODE_OFST                (1)
 #define EP0_SRAM_DEBUG_MODE_OFST                  (0)
 
-/* U3D_SRAM_DBG_CTRL_1 */
+//U3D_SRAM_DBG_CTRL_1
 #define SRAM_DEBUG_FIFOSEGSIZE_OFST               (24)
 #define SRAM_DEBUG_SLOT_OFST                      (16)
 #define SRAM_DEBUG_DP_COUNT_OFST                  (0)
 
-/* U3D_RISC_SIZE */
+//U3D_RISC_SIZE
 #define RISC_SIZE_OFST                            (0)
 
-/* U3D_WRBUF_ERR_STS */
+//U3D_WRBUF_ERR_STS
 #define RX_RDBUF_ERR_STS_OFST                     (17)
 #define TX_WRBUF_ERR_STS_OFST                     (1)
 
-/* U3D_BUF_ERR_EN */
+//U3D_BUF_ERR_EN
 #define RX_RDBUF_ERR_EN_OFST                      (17)
 #define TX_WRBUF_ERR_EN_OFST                      (1)
 
-/* U3D_EPISR */
+//U3D_EPISR
 #define EPRISR_OFST                               (17)
 #define SETUPENDISR_OFST                          (16)
 #define EPTISR_OFST                               (1)
 #define EP0ISR_OFST                               (0)
 
-/* U3D_EPIER */
+//U3D_EPIER
 #define EPRIER_OFST                               (17)
 #define SETUPENDIER_OFST                          (16)
 #define EPTIER_OFST                               (1)
 #define EP0IER_OFST                               (0)
 
-/* U3D_EPIESR */
+//U3D_EPIESR
 #define EPRIESR_OFST                              (17)
 #define SETUPENDIESR_OFST                         (16)
 #define EPTIESR_OFST                              (1)
 #define EP0IESR_OFST                              (0)
 
-/* U3D_EPIECR */
+//U3D_EPIECR
 #define EPRISR_OFST                               (17)
 #define SETUPENDIECR_OFST                         (16)
 #define EPTIECR_OFST                              (1)
 #define EP0IECR_OFST                              (0)
 
-/* U3D_DMAISR */
+//U3D_DMAISR
 #define RXDMAISR_OFST                             (2)
 #define TXDMAISR_OFST                             (1)
 #define EP0DMAISR_OFST                            (0)
 
-/* U3D_DMAIER */
+//U3D_DMAIER
 #define RXDMAIER_OFST                             (2)
 #define TXDMAIER_OFST                             (1)
 #define EP0DMAER_OFST                             (0)
 
-/* U3D_DMAIESR */
+//U3D_DMAIESR
 #define RXDMAIESR_OFST                            (2)
 #define TXDMAIESR_OFST                            (1)
 #define EP0DMAIESR_OFST                           (0)
 
-/* U3D_DMAIECR */
+//U3D_DMAIECR
 #define RXDMAIECR_OFST                            (2)
 #define TXDMAIECR_OFST                            (1)
 #define EP0DMAIECR_OFST                           (0)
 
-/* U3D_EP0DMACTRL */
+//U3D_EP0DMACTRL
 #define FFSTRADDR0_OFST                           (16)
 #define ENDPNT_OFST                               (4)
 #define INTEN_OFST                                (3)
 #define DMA_DIR_OFST                              (1)
 #define DMA_EN_OFST                               (0)
 
-/* U3D_EP0DMASTRADDR */
+//U3D_EP0DMASTRADDR
 #define DMASTRADDR0_OFST                          (0)
 
-/* U3D_EP0DMATFRCOUNT */
+//U3D_EP0DMATFRCOUNT
 #define DMATFRCNT0_OFST                           (0)
 
-/* U3D_EP0DMARLCOUNT */
+//U3D_EP0DMARLCOUNT
 #define EP0_DMALIMITER_OFST                       (28)
 #define DMA_FAKE_OFST                             (27)
 #define DMA_BURST_OFST                            (24)
@@ -2160,20 +2160,20 @@
 #define AXI_DMA_ULTRA_NUM_OFST                    (8)
 #define AXI_DMA_PRE_ULTRA_NUM_OFST                (0)
 
-/* U3D_TXDMACTRL */
+//U3D_TXDMACTRL
 #define FFSTRADDR_OFST                            (16)
 #define ENDPNT_OFST                               (4)
 #define INTEN_OFST                                (3)
 #define DMA_DIR_OFST                              (1)
 #define DMA_EN_OFST                               (0)
 
-/* U3D_TXDMASTRADDR */
+//U3D_TXDMASTRADDR
 #define DMASTRADDR_OFST                           (0)
 
-/* U3D_TXDMATRDCNT */
+//U3D_TXDMATRDCNT
 #define DMATFRCNT_OFST                            (0)
 
-/* U3D_TXDMARLCOUNT */
+//U3D_TXDMARLCOUNT
 #define DMALIMITER_OFST                           (28)
 #define DMA_FAKE_OFST                             (27)
 #define DMA_BURST_OFST                            (24)
@@ -2185,20 +2185,20 @@
 #define AXI_DMA_ULTRA_NUM_OFST                    (8)
 #define AXI_DMA_PRE_ULTRA_NUM_OFST                (0)
 
-/* U3D_RXDMACTRL */
+//U3D_RXDMACTRL
 #define FFSTRADDR_OFST                            (16)
 #define ENDPNT_OFST                               (4)
 #define INTEN_OFST                                (3)
 #define DMA_DIR_OFST                              (1)
 #define DMA_EN_OFST                               (0)
 
-/* U3D_RXDMASTRADDR */
+//U3D_RXDMASTRADDR
 #define DMASTRADDR_OFST                           (0)
 
-/* U3D_RXDMATRDCNT */
+//U3D_RXDMATRDCNT
 #define DMATFRCNT_OFST                            (0)
 
-/* U3D_RXDMARLCOUNT */
+//U3D_RXDMARLCOUNT
 #define DMA_NON_BUF_OFST                          (31)
 #define DMALIMITER_OFST                           (28)
 #define DMA_FAKE_OFST                             (27)
@@ -2211,7 +2211,7 @@
 #define AXI_DMA_ULTRA_NUM_OFST                    (8)
 #define AXI_DMA_PRE_ULTRA_NUM_OFST                (0)
 
-/* U3D_EP0CSR */
+//U3D_EP0CSR
 #define EP0_EP_RESET_OFST                         (31)
 #define EP0_AUTOCLEAR_OFST                        (30)
 #define EP0_AUTOSET_OFST                          (29)
@@ -2226,12 +2226,12 @@
 #define EP0_RXPKTRDY_OFST                         (16)
 #define EP0_MAXPKTSZ0_OFST                        (0)
 
-/* U3D_RXCOUNT0 */
+//U3D_RXCOUNT0
 #define EP0_RX_COUNT_OFST                         (0)
 
-/* U3D_RESERVED */
+//U3D_RESERVED
 
-/* U3D_TX1CSR0 */
+//U3D_TX1CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2242,19 +2242,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX1CSR1 */
+//U3D_TX1CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX1CSR2 */
+//U3D_TX1CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX2CSR0 */
+//U3D_TX2CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2265,19 +2265,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX2CSR1 */
+//U3D_TX2CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX2CSR2 */
+//U3D_TX2CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX3CSR0 */
+//U3D_TX3CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2288,19 +2288,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX3CSR1 */
+//U3D_TX3CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX3CSR2 */
+//U3D_TX3CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX4CSR0 */
+//U3D_TX4CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2311,19 +2311,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX4CSR1 */
+//U3D_TX4CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX4CSR2 */
+//U3D_TX4CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX5CSR0 */
+//U3D_TX5CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2334,19 +2334,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX5CSR1 */
+//U3D_TX5CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX5CSR2 */
+//U3D_TX5CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX6CSR0 */
+//U3D_TX6CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2357,19 +2357,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX6CSR1 */
+//U3D_TX6CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX6CSR2 */
+//U3D_TX6CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX7CSR0 */
+//U3D_TX7CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2380,19 +2380,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX7CSR1 */
+//U3D_TX7CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX7CSR2 */
+//U3D_TX7CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX8CSR0 */
+//U3D_TX8CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2403,19 +2403,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX8CSR1 */
+//U3D_TX8CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX8CSR2 */
+//U3D_TX8CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX9CSR0 */
+//U3D_TX9CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2426,19 +2426,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX9CSR1 */
+//U3D_TX9CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX9CSR2 */
+//U3D_TX9CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX10CSR0 */
+//U3D_TX10CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2449,19 +2449,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX10CSR1 */
+//U3D_TX10CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX10CSR2 */
+//U3D_TX10CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX11CSR0 */
+//U3D_TX11CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2472,19 +2472,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX11CSR1 */
+//U3D_TX11CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX11CSR2 */
+//U3D_TX11CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX12CSR0 */
+//U3D_TX12CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2495,19 +2495,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX12CSR1 */
+//U3D_TX12CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX12CSR2 */
+//U3D_TX12CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX13CSR0 */
+//U3D_TX13CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2518,19 +2518,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX13CSR1 */
+//U3D_TX13CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX13CSR2 */
+//U3D_TX13CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX14CSR0 */
+//U3D_TX14CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2541,19 +2541,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX14CSR1 */
+//U3D_TX14CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX14CSR2 */
+//U3D_TX14CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_TX15CSR0 */
+//U3D_TX15CSR0
 #define TX_EP_RESET_OFST                          (31)
 #define TX_AUTOSET_OFST                           (30)
 #define TX_DMAREQEN_OFST                          (29)
@@ -2564,19 +2564,19 @@
 #define TX_TXPKTRDY_OFST                          (16)
 #define TX_TXMAXPKTSZ_OFST                        (0)
 
-/* U3D_TX15CSR1 */
+//U3D_TX15CSR1
 #define TX_MULT_OFST                              (22)
 #define TX_MAX_PKT_OFST                           (16)
 #define TX_SLOT_OFST                              (8)
 #define TXTYPE_OFST                               (4)
 #define SS_TX_BURST_OFST                          (0)
 
-/* U3D_TX15CSR2 */
+//U3D_TX15CSR2
 #define TXBINTERVAL_OFST                          (24)
 #define TXFIFOSEGSIZE_OFST                        (16)
 #define TXFIFOADDR_OFST                           (0)
 
-/* U3D_RX1CSR0 */
+//U3D_RX1CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2587,22 +2587,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX1CSR1 */
+//U3D_RX1CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX1CSR2 */
+//U3D_RX1CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX1CSR3 */
+//U3D_RX1CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX2CSR0 */
+//U3D_RX2CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2613,22 +2613,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX2CSR1 */
+//U3D_RX2CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX2CSR2 */
+//U3D_RX2CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX2CSR3 */
+//U3D_RX2CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX3CSR0 */
+//U3D_RX3CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2639,22 +2639,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX3CSR1 */
+//U3D_RX3CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX3CSR2 */
+//U3D_RX3CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX3CSR3 */
+//U3D_RX3CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX4CSR0 */
+//U3D_RX4CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2665,22 +2665,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX4CSR1 */
+//U3D_RX4CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX4CSR2 */
+//U3D_RX4CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX4CSR3 */
+//U3D_RX4CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX5CSR0 */
+//U3D_RX5CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2691,22 +2691,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX5CSR1 */
+//U3D_RX5CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX5CSR2 */
+//U3D_RX5CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX5CSR3 */
+//U3D_RX5CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX6CSR0 */
+//U3D_RX6CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2717,22 +2717,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX6CSR1 */
+//U3D_RX6CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX6CSR2 */
+//U3D_RX6CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX6CSR3 */
+//U3D_RX6CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX7CSR0 */
+//U3D_RX7CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2743,22 +2743,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX7CSR1 */
+//U3D_RX7CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX7CSR2 */
+//U3D_RX7CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX7CSR3 */
+//U3D_RX7CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX8CSR0 */
+//U3D_RX8CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2769,22 +2769,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX8CSR1 */
+//U3D_RX8CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX8CSR2 */
+//U3D_RX8CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX8CSR3 */
+//U3D_RX8CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX9CSR0 */
+//U3D_RX9CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2795,22 +2795,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX9CSR1 */
+//U3D_RX9CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX9CSR2 */
+//U3D_RX9CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX9CSR3 */
+//U3D_RX9CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX10CSR0 */
+//U3D_RX10CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2821,22 +2821,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX10CSR1 */
+//U3D_RX10CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX10CSR2 */
+//U3D_RX10CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX10CSR3 */
+//U3D_RX10CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX11CSR0 */
+//U3D_RX11CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2847,22 +2847,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX11CSR1 */
+//U3D_RX11CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX11CSR2 */
+//U3D_RX11CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX11CSR3 */
+//U3D_RX11CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX12CSR0 */
+//U3D_RX12CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2873,22 +2873,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX12CSR1 */
+//U3D_RX12CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX12CSR2 */
+//U3D_RX12CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX12CSR3 */
+//U3D_RX12CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX13CSR0 */
+//U3D_RX13CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2899,22 +2899,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX13CSR1 */
+//U3D_RX13CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX13CSR2 */
+//U3D_RX13CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX13CSR3 */
+//U3D_RX13CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX14CSR0 */
+//U3D_RX14CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2925,22 +2925,22 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX14CSR1 */
+//U3D_RX14CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX14CSR2 */
+//U3D_RX14CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX14CSR3 */
+//U3D_RX14CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_RX15CSR0 */
+//U3D_RX15CSR0
 #define RX_EP_RESET_OFST                          (31)
 #define RX_AUTOCLEAR_OFST                         (30)
 #define RX_DMAREQEN_OFST                          (29)
@@ -2951,137 +2951,137 @@
 #define RX_RXPKTRDY_OFST                          (16)
 #define RX_RXMAXPKTSZ_OFST                        (0)
 
-/* U3D_RX15CSR1 */
+//U3D_RX15CSR1
 #define RX_MULT_OFST                              (22)
 #define RX_MAX_PKT_OFST                           (16)
 #define RX_SLOT_OFST                              (8)
 #define RX_TYPE_OFST                              (4)
 #define SS_RX_BURST_OFST                          (0)
 
-/* U3D_RX15CSR2 */
+//U3D_RX15CSR2
 #define RXBINTERVAL_OFST                          (24)
 #define RXFIFOSEGSIZE_OFST                        (16)
 #define RXFIFOADDR_OFST                           (0)
 
-/* U3D_RX15CSR3 */
+//U3D_RX15CSR3
 #define EP_RX_COUNT_OFST                          (16)
 
-/* U3D_FIFO0 */
+//U3D_FIFO0
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO1 */
+//U3D_FIFO1
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO2 */
+//U3D_FIFO2
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO3 */
+//U3D_FIFO3
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO4 */
+//U3D_FIFO4
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO5 */
+//U3D_FIFO5
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO6 */
+//U3D_FIFO6
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO7 */
+//U3D_FIFO7
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO8 */
+//U3D_FIFO8
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO9 */
+//U3D_FIFO9
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO10 */
+//U3D_FIFO10
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO11 */
+//U3D_FIFO11
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO12 */
+//U3D_FIFO12
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO13 */
+//U3D_FIFO13
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO14 */
+//U3D_FIFO14
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_FIFO15 */
+//U3D_FIFO15
 #define BYTE3_OFST                                (24)
 #define BYTE2_OFST                                (16)
 #define BYTE1_OFST                                (8)
 #define BYTE0_OFST                                (0)
 
-/* U3D_QCR0 */
+//U3D_QCR0
 #define RXQ_CS_EN_OFST                            (17)
 #define TXQ_CS_EN_OFST                            (1)
 #define CS16B_EN_OFST                             (0)
 
-/* U3D_QCR1 */
+//U3D_QCR1
 #define CFG_TX_ZLP_GPD_OFST                       (1)
 
-/* U3D_QCR2 */
+//U3D_QCR2
 #define CFG_TX_ZLP_OFST                           (1)
 
-/* U3D_QCR3 */
+//U3D_QCR3
 #define CFG_RX_COZ_OFST                           (17)
 #define CFG_RX_ZLP_OFST                           (1)
 
-/* U3D_QGCSR */
+//U3D_QGCSR
 #define RXQ_EN_OFST                               (17)
 #define TXQ_EN_OFST                               (1)
 
-/* U3D_TXQCSR1 */
+//U3D_TXQCSR1
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3089,13 +3089,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR1 */
+//U3D_TXQSAR1
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR1 */
+//U3D_TXQCPR1
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR2 */
+//U3D_TXQCSR2
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3103,13 +3103,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR2 */
+//U3D_TXQSAR2
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR2 */
+//U3D_TXQCPR2
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR3 */
+//U3D_TXQCSR3
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3117,13 +3117,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR3 */
+//U3D_TXQSAR3
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR3 */
+//U3D_TXQCPR3
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR4 */
+//U3D_TXQCSR4
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3131,13 +3131,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR4 */
+//U3D_TXQSAR4
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR4 */
+//U3D_TXQCPR4
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR5 */
+//U3D_TXQCSR5
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3145,13 +3145,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR5 */
+//U3D_TXQSAR5
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR5 */
+//U3D_TXQCPR5
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR6 */
+//U3D_TXQCSR6
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3159,13 +3159,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR6 */
+//U3D_TXQSAR6
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR6 */
+//U3D_TXQCPR6
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR7 */
+//U3D_TXQCSR7
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3173,13 +3173,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR7 */
+//U3D_TXQSAR7
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR7 */
+//U3D_TXQCPR7
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR8 */
+//U3D_TXQCSR8
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3187,13 +3187,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR8 */
+//U3D_TXQSAR8
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR8 */
+//U3D_TXQCPR8
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR9 */
+//U3D_TXQCSR9
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3201,13 +3201,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR9 */
+//U3D_TXQSAR9
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR9 */
+//U3D_TXQCPR9
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR10 */
+//U3D_TXQCSR10
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3215,13 +3215,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR10 */
+//U3D_TXQSAR10
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR10 */
+//U3D_TXQCPR10
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR11 */
+//U3D_TXQCSR11
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3229,13 +3229,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR11 */
+//U3D_TXQSAR11
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR11 */
+//U3D_TXQCPR11
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR12 */
+//U3D_TXQCSR12
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3243,13 +3243,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR12 */
+//U3D_TXQSAR12
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR12 */
+//U3D_TXQCPR12
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR13 */
+//U3D_TXQCSR13
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3257,13 +3257,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR13 */
+//U3D_TXQSAR13
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR13 */
+//U3D_TXQCPR13
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR14 */
+//U3D_TXQCSR14
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3271,13 +3271,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR14 */
+//U3D_TXQSAR14
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR14 */
+//U3D_TXQCPR14
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_TXQCSR15 */
+//U3D_TXQCSR15
 #define TXQ_DMGR_DMSM_CS_OFST                     (16)
 #define TXQ_ACTIVE_OFST                           (15)
 #define TXQ_EPQ_STATE_OFST                        (8)
@@ -3285,13 +3285,13 @@
 #define TXQ_RESUME_OFST                           (1)
 #define TXQ_START_OFST                            (0)
 
-/* U3D_TXQSAR15 */
+//U3D_TXQSAR15
 #define TXQ_START_ADDR_OFST                       (2)
 
-/* U3D_TXQCPR15 */
+//U3D_TXQCPR15
 #define TXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQCSR1 */
+//U3D_RXQCSR1
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3299,16 +3299,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR1 */
+//U3D_RXQSAR1
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR1 */
+//U3D_RXQCPR1
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR1 */
+//U3D_RXQLDPR1
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR2 */
+//U3D_RXQCSR2
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3316,16 +3316,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR2 */
+//U3D_RXQSAR2
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR2 */
+//U3D_RXQCPR2
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR2 */
+//U3D_RXQLDPR2
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR3 */
+//U3D_RXQCSR3
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3333,16 +3333,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR3 */
+//U3D_RXQSAR3
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR3 */
+//U3D_RXQCPR3
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR3 */
+//U3D_RXQLDPR3
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR4 */
+//U3D_RXQCSR4
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3350,16 +3350,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR4 */
+//U3D_RXQSAR4
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR4 */
+//U3D_RXQCPR4
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR4 */
+//U3D_RXQLDPR4
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR5 */
+//U3D_RXQCSR5
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3367,16 +3367,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR5 */
+//U3D_RXQSAR5
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR5 */
+//U3D_RXQCPR5
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR5 */
+//U3D_RXQLDPR5
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR6 */
+//U3D_RXQCSR6
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3384,16 +3384,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR6 */
+//U3D_RXQSAR6
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR6 */
+//U3D_RXQCPR6
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR6 */
+//U3D_RXQLDPR6
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR7 */
+//U3D_RXQCSR7
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3401,16 +3401,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR7 */
+//U3D_RXQSAR7
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR7 */
+//U3D_RXQCPR7
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR7 */
+//U3D_RXQLDPR7
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR8 */
+//U3D_RXQCSR8
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3418,16 +3418,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR8 */
+//U3D_RXQSAR8
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR8 */
+//U3D_RXQCPR8
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR8 */
+//U3D_RXQLDPR8
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR9 */
+//U3D_RXQCSR9
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3435,16 +3435,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR9 */
+//U3D_RXQSAR9
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR9 */
+//U3D_RXQCPR9
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR9 */
+//U3D_RXQLDPR9
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR10 */
+//U3D_RXQCSR10
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3452,16 +3452,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR10 */
+//U3D_RXQSAR10
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR10 */
+//U3D_RXQCPR10
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR10 */
+//U3D_RXQLDPR10
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR11 */
+//U3D_RXQCSR11
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3469,16 +3469,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR11 */
+//U3D_RXQSAR11
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR11 */
+//U3D_RXQCPR11
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR11 */
+//U3D_RXQLDPR11
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR12 */
+//U3D_RXQCSR12
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3486,16 +3486,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR12 */
+//U3D_RXQSAR12
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR12 */
+//U3D_RXQCPR12
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR12 */
+//U3D_RXQLDPR12
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR13 */
+//U3D_RXQCSR13
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3503,16 +3503,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR13 */
+//U3D_RXQSAR13
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR13 */
+//U3D_RXQCPR13
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR13 */
+//U3D_RXQLDPR13
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR14 */
+//U3D_RXQCSR14
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3520,16 +3520,16 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR14 */
+//U3D_RXQSAR14
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR14 */
+//U3D_RXQCPR14
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR14 */
+//U3D_RXQLDPR14
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_RXQCSR15 */
+//U3D_RXQCSR15
 #define RXQ_DMGR_DMSM_CS_OFST                     (16)
 #define RXQ_ACTIVE_OFST                           (15)
 #define RXQ_EPQ_STATE_OFST                        (8)
@@ -3537,32 +3537,32 @@
 #define RXQ_RESUME_OFST                           (1)
 #define RXQ_START_OFST                            (0)
 
-/* U3D_RXQSAR15 */
+//U3D_RXQSAR15
 #define RXQ_START_ADDR_OFST                       (2)
 
-/* U3D_RXQCPR15 */
+//U3D_RXQCPR15
 #define RXQ_CUR_GPD_ADDR_OFST                     (2)
 
-/* U3D_RXQLDPR15 */
+//U3D_RXQLDPR15
 #define RXQ_LAST_DONE_PTR_OFST                    (2)
 
-/* U3D_QISAR0 */
+//U3D_QISAR0
 #define RXQ_DONE_INT_OFST                         (17)
 #define TXQ_DONE_INT_OFST                         (1)
 
-/* U3D_QIER0 */
+//U3D_QIER0
 #define RXQ_DONE_IER_OFST                         (17)
 #define TXQ_DONE_IER_OFST                         (1)
 
-/* U3D_QIESR0 */
+//U3D_QIESR0
 #define RXQ_DONE_IESR_OFST                        (17)
 #define TXQ_DONE_IESR_OFST                        (1)
 
-/* U3D_QIECR0 */
+//U3D_QIECR0
 #define RXQ_DONE_IECR_OFST                        (17)
 #define TXQ_DONE_IECR_OFST                        (1)
 
-/* U3D_QISAR1 */
+//U3D_QISAR1
 #define RXQ_ZLPERR_INT_OFST                       (20)
 #define RXQ_LENERR_INT_OFST                       (18)
 #define RXQ_CSERR_INT_OFST                        (17)
@@ -3571,7 +3571,7 @@
 #define TXQ_CSERR_INT_OFST                        (1)
 #define TXQ_EMPTY_INT_OFST                        (0)
 
-/* U3D_QIER1 */
+//U3D_QIER1
 #define RXQ_ZLPERR_IER_OFST                       (20)
 #define RXQ_LENERR_IER_OFST                       (18)
 #define RXQ_CSERR_IER_OFST                        (17)
@@ -3580,7 +3580,7 @@
 #define TXQ_CSERR_IER_OFST                        (1)
 #define TXQ_EMPTY_IER_OFST                        (0)
 
-/* U3D_QIESR1 */
+//U3D_QIESR1
 #define RXQ_ZLPERR_IESR_OFST                      (20)
 #define RXQ_LENERR_IESR_OFST                      (18)
 #define RXQ_CSERR_IESR_OFST                       (17)
@@ -3589,7 +3589,7 @@
 #define TXQ_CSERR_IESR_OFST                       (1)
 #define TXQ_EMPTY_IESR_OFST                       (0)
 
-/* U3D_QIECR1 */
+//U3D_QIECR1
 #define RXQ_ZLPERR_IECR_OFST                      (20)
 #define RXQ_LENERR_IECR_OFST                      (18)
 #define RXQ_CSERR_IECR_OFST                       (17)
@@ -3598,130 +3598,130 @@
 #define TXQ_CSERR_IECR_OFST                       (1)
 #define TXQ_EMPTY_IECR_OFST                       (0)
 
-/* U3D_QEMIR */
+//U3D_QEMIR
 #define RXQ_EMPTY_MASK_OFST                       (17)
 #define TXQ_EMPTY_MASK_OFST                       (1)
 
-/* U3D_QEMIER */
+//U3D_QEMIER
 #define RXQ_EMPTY_IER_MASK_OFST                   (17)
 #define TXQ_EMPTY_IER_MASK_OFST                   (1)
 
-/* U3D_QEMIESR */
+//U3D_QEMIESR
 #define RXQ_EMPTY_IESR_MASK_OFST                  (17)
 #define TXQ_EMPTY_IESR_MASK_OFST                  (1)
 
-/* U3D_QEMIECR */
+//U3D_QEMIECR
 #define RXQ_EMPTY_IECR_MASK_OFST                  (17)
 #define TXQ_EMPTY_IECR_MASK_OFST                  (1)
 
-/* U3D_TQERRIR0 */
+//U3D_TQERRIR0
 #define TXQ_LENERR_MASK_OFST                      (17)
 #define TXQ_CSERR_MASK_OFST                       (1)
 
-/* U3D_TQERRIER0 */
+//U3D_TQERRIER0
 #define TXQ_LENERR_IER_MASK_OFST                  (17)
 #define TXQ_CSERR_IER_MASK_OFST                   (1)
 
-/* U3D_TQERRIESR0 */
+//U3D_TQERRIESR0
 #define TXQ_LENERR_IESR_MASK_OFST                 (17)
 #define TXQ_CSERR_IESR_MASK_OFST                  (1)
 
-/* U3D_TQERRIECR0 */
+//U3D_TQERRIECR0
 #define TXQ_LENERR_IECR_MASK_OFST                 (17)
 #define TXQ_CSERR_IECR_MASK_OFST                  (1)
 
-/* U3D_RQERRIR0 */
+//U3D_RQERRIR0
 #define RXQ_LENERR_MASK_OFST                      (17)
 #define RXQ_CSERR_MASK_OFST                       (1)
 
-/* U3D_RQERRIER0 */
+//U3D_RQERRIER0
 #define RXQ_LENERR_IER_MASK_OFST                  (17)
 #define RXQ_CSERR_IER_MASK_OFST                   (1)
 
-/* U3D_RQERRIESR0 */
+//U3D_RQERRIESR0
 #define RXQ_LENERR_IESR_MASK_OFST                 (17)
 #define RXQ_CSERR_IESR_MASK_OFST                  (1)
 
-/* U3D_RQERRIECR0 */
+//U3D_RQERRIECR0
 #define RXQ_LENERR_IECR_MASK_OFST                 (17)
 #define RXQ_CSERR_IECR_MASK_OFST                  (1)
 
-/* U3D_RQERRIR1 */
+//U3D_RQERRIR1
 #define RXQ_ZLPERR_MASK_OFST                      (17)
 
-/* U3D_RQERRIER1 */
+//U3D_RQERRIER1
 #define RXQ_ZLPERR_IER_MASK_OFST                  (17)
 
-/* U3D_RQERRIESR1 */
+//U3D_RQERRIESR1
 #define RXQ_ZLPERR_IESR_MASK_OFST                 (17)
 
-/* U3D_RQERRIECR1 */
+//U3D_RQERRIECR1
 #define RXQ_ZLPERR_IECR_MASK_OFST                 (17)
 
-/* U3D_CAP_EP0FFSZ */
+//U3D_CAP_EP0FFSZ
 #define CAP_EP0FFSZ_OFST                          (0)
 
-/* U3D_CAP_EPNTXFFSZ */
+//U3D_CAP_EPNTXFFSZ
 #define CAP_EPNTXFFSZ_OFST                        (0)
 
-/* U3D_CAP_EPNRXFFSZ */
+//U3D_CAP_EPNRXFFSZ
 #define CAP_EPNRXFFSZ_OFST                        (0)
 
-/* U3D_CAP_EPINFO */
+//U3D_CAP_EPINFO
 #define CAP_RX_EP_NUM_OFST                        (8)
 #define CAP_TX_EP_NUM_OFST                        (0)
 
-/* U3D_CAP_TX_SLOT1 */
+//U3D_CAP_TX_SLOT1
 #define CAP_TX_SLOT3_OFST                         (24)
 #define CAP_TX_SLOT2_OFST                         (16)
 #define CAP_TX_SLOT1_OFST                         (8)
 #define RSV_OFST                                  (0)
 
-/* U3D_CAP_TX_SLOT2 */
+//U3D_CAP_TX_SLOT2
 #define CAP_TX_SLOT7_OFST                         (24)
 #define CAP_TX_SLOT6_OFST                         (16)
 #define CAP_TX_SLOT5_OFST                         (8)
 #define CAP_TX_SLOT4_OFST                         (0)
 
-/* U3D_CAP_TX_SLOT3 */
+//U3D_CAP_TX_SLOT3
 #define CAP_TX_SLOT11_OFST                        (24)
 #define CAP_TX_SLOT10_OFST                        (16)
 #define CAP_TX_SLOT9_OFST                         (8)
 #define CAP_TX_SLOT8_OFST                         (0)
 
-/* U3D_CAP_TX_SLOT4 */
+//U3D_CAP_TX_SLOT4
 #define CAP_TX_SLOT15_OFST                        (24)
 #define CAP_TX_SLOT14_OFST                        (16)
 #define CAP_TX_SLOT13_OFST                        (8)
 #define CAP_TX_SLOT12_OFST                        (0)
 
-/* U3D_CAP_RX_SLOT1 */
+//U3D_CAP_RX_SLOT1
 #define CAP_RX_SLOT3_OFST                         (24)
 #define CAP_RX_SLOT2_OFST                         (16)
 #define CAP_RX_SLOT1_OFST                         (8)
 #define RSV_OFST                                  (0)
 
-/* U3D_CAP_RX_SLOT2 */
+//U3D_CAP_RX_SLOT2
 #define CAP_RX_SLOT7_OFST                         (24)
 #define CAP_RX_SLOT6_OFST                         (16)
 #define CAP_RX_SLOT5_OFST                         (8)
 #define CAP_RX_SLOT4_OFST                         (0)
 
-/* U3D_CAP_RX_SLOT3 */
+//U3D_CAP_RX_SLOT3
 #define CAP_RX_SLOT11_OFST                        (24)
 #define CAP_RX_SLOT10_OFST                        (16)
 #define CAP_RX_SLOT9_OFST                         (8)
 #define CAP_RX_SLOT8_OFST                         (0)
 
-/* U3D_CAP_RX_SLOT4 */
+//U3D_CAP_RX_SLOT4
 #define CAP_RX_SLOT15_OFST                        (24)
 #define CAP_RX_SLOT14_OFST                        (16)
 #define CAP_RX_SLOT13_OFST                        (8)
 #define CAP_RX_SLOT12_OFST                        (0)
 
-/* U3D_MISC_CTRL */
+//U3D_MISC_CTRL
 #define DMA_BUS_CK_GATE_DIS_OFST                  (2)
 #define VBUS_ON_OFST                              (1)
 #define VBUS_FRC_EN_OFST                          (0)
 
-/* //////////////////////////////////////////////////////////////////// */
+//////////////////////////////////////////////////////////////////////

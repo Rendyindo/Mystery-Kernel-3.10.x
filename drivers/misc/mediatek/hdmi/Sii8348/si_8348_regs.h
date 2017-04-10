@@ -9,8 +9,8 @@ modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation version 2.
 This program is distributed AS-IS WITHOUT ANY WARRANTY of any
 kind, whether express or implied; INCLUDING without the implied warranty
-of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See
-the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.
+of MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE or NON-INFRINGEMENT.  See 
+the GNU General Public License for more details at http://www.gnu.org/licenses/gpl-2.0.html.             
 
 */
 
@@ -23,17 +23,27 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 
 #include "sii_hal.h"
 
-#if SII_I2C_ADDR == (0x76)
-typedef enum {
-	TX_PAGE_L0 = 0x76, TX_PAGE_L1 = 0x7E, TX_PAGE_3 = 0x9E, TX_PAGE_TPI = 0x96, TX_PAGE_CBUS =
-	    0xCC, TX_PAGE_DDC_EDID = 0xA0
-} slave_addr_t;
+#if 0///SII_I2C_ADDR==(0x76)
+typedef enum
+{
+	 TX_PAGE_L0		=	0x76
+	,TX_PAGE_L1		=	0x7E
+	,TX_PAGE_3		=	0x9E
+	,TX_PAGE_TPI		=	0x96
+	,TX_PAGE_CBUS		=	0xCC
+	,TX_PAGE_DDC_EDID	=	0xA0
+}slave_addr_t;
 
 #else
-typedef enum {
-	TX_PAGE_L0 = 0x72, TX_PAGE_L1 = 0x7A, TX_PAGE_3 = 0x9A, TX_PAGE_TPI = 0x92, TX_PAGE_CBUS =
-	    0xC8, TX_PAGE_DDC_EDID = 0xA0
-} slave_addr_t;
+typedef enum
+{
+	 TX_PAGE_L0		=	0x72
+	,TX_PAGE_L1		=	0x7A
+	,TX_PAGE_3		=	0x9A
+	,TX_PAGE_TPI		=	0x92
+	,TX_PAGE_CBUS		=	0xC8
+	,TX_PAGE_DDC_EDID	=	0xA0
+}slave_addr_t;
 
 #endif
 
@@ -47,18 +57,18 @@ typedef enum {
 #define		BIT_STAT_RSEN							0x04
 
 #define	REG_DCTL									TX_PAGE_L0, 0x0D
-#define		BIT_DCTL_TCLK3X_PHASE						0x01	/* TODO: FD, TBD, not used */
-#define		BIT_DCTL_EXT_DDC_SEL						0x10	/* TODO: FD, TBD, not used */
+#define		BIT_DCTL_TCLK3X_PHASE						0x01				// TODO: FD, TBD, not used
+#define		BIT_DCTL_EXT_DDC_SEL						0x10				// TODO: FD, TBD, not used
 
-#define REG_HDCP_CTRL									TX_PAGE_L0, 0x0F	/* TODO: FD, TBD, not used */
+#define REG_HDCP_CTRL									TX_PAGE_L0, 0x0F	// TODO: FD, TBD, not used
 #define		BIT_CP_RESETN_MASK						0x04
 #define		BIT_CP_RESETN_RESET						0x00
 #define		BIT_CP_RESETN_RELEASE						0x04
 
-#define	TPI_HDCP_RI_LOW_REG								TX_PAGE_L0, 0x22	/* TODO: FD, TBD, not used */
-#define	TPI_HDCP_RI_HIGH_REG								TX_PAGE_L0, 0x23	/* TODO: FD, TBD, not used */
+#define	TPI_HDCP_RI_LOW_REG								TX_PAGE_L0, 0x22	// TODO: FD, TBD, not used
+#define	TPI_HDCP_RI_HIGH_REG								TX_PAGE_L0, 0x23	// TODO: FD, TBD, not used
 
-#define REG_RI_CMD									TX_PAGE_L0, 0x27	/* TODO: FD, TBD, not used */
+#define REG_RI_CMD									TX_PAGE_L0, 0x27	// TODO: FD, TBD, not used
 
 #define		BIT_RI_CMD_ENABLE_RI_CHECK_MASK					0x01
 #define		BIT_RI_CMD_ENABLE_RI_CHECK_DISABLE				0x00
@@ -75,23 +85,23 @@ typedef enum {
 #define		BIT_VID_MODE_m1080p_DISABLE					0x00
 #define		BIT_VID_MODE_m1080p_ENABLE					0x40
 
-#define	REG_INTR_STATE									TX_PAGE_L0, 0x70	/* TODO: FD, TBD, not used */
+#define	REG_INTR_STATE									TX_PAGE_L0, 0x70	// TODO: FD, TBD, not used
 
 #define	REG_INTR1									TX_PAGE_L0, 0x71
 #define		BIT_INTR1_RSEN_CHG						0x20
 #define		BIT_INTR1_HPD_CHG						0x40
 
-#define	REG_INTR2									TX_PAGE_L0, 0x72	/* TODO: FD, TBD, not used */
+#define	REG_INTR2									TX_PAGE_L0, 0x72	// TODO: FD, TBD, not used
 #define		BIT_INTR2_PSTABLE						0x02
 
 #define	REG_INTR3									TX_PAGE_L0, 0x73
-#define	BIT_INTR3_DDC_FIFO_FULL						0x02
-#define	BIT_INTR3_DDC_CMD_DONE						0x08
+#define 	BIT_INTR3_DDC_FIFO_FULL						0x02
+#define 	BIT_INTR3_DDC_CMD_DONE						0x08
 
-#define	REG_INTR1_MASK									TX_PAGE_L0, 0x75	/* TODO: FD, TBD, not used */
-#define	REG_INTR2_MASK									TX_PAGE_L0, 0x76	/* TODO: FD, TBD, not used */
+#define	REG_INTR1_MASK									TX_PAGE_L0, 0x75	// TODO: FD, TBD, not used
+#define	REG_INTR2_MASK									TX_PAGE_L0, 0x76	// TODO: FD, TBD, not used
 #define	REG_INTR3_MASK									TX_PAGE_L0, 0x77
-#define	REG_INTR5_MASK									TX_PAGE_L0, 0x78	/* TODO: FD, TBD, not used */
+#define	REG_INTR5_MASK									TX_PAGE_L0, 0x78	// TODO: FD, TBD, not used
 
 #define	REG_HPD_CTRL									TX_PAGE_L0, 0x79
 #define		BIT_HPD_CTRL_HPD_OUT_OVR_EN_MASK				0x10
@@ -142,15 +152,15 @@ typedef enum {
 #define	REG_USB_CHARGE_PUMP								TX_PAGE_L0, 0xF8
 #define		BIT_USE_CHARGE_PUMP_DEFAULT					0x8C
 
-#define	REG_EPCM									TX_PAGE_L0, 0xFA	/* TODO: FD, TBD, not used */
+#define	REG_EPCM									TX_PAGE_L0, 0xFA	// TODO: FD, TBD, not used
 #define		BIT_EPCM_LD_KSV_MASK						0x20
 #define		BIT_EPCM_LD_KSV_DISABLE						0x00
 #define		BIT_EPCM_LD_KSV_ENABLE						0x20
 
 #define REG_DPD										TX_PAGE_L1, 0x3D
 
-#define	REG_INF_CTRL1									TX_PAGE_L1, 0x3E	/* TODO: FD, TBD, not used */
-#define	REG_INF_CTRL2									TX_PAGE_L1, 0x3F	/* TODO: FD, TBD, not used */
+#define	REG_INF_CTRL1									TX_PAGE_L1, 0x3E	// TODO: FD, TBD, not used
+#define	REG_INF_CTRL2									TX_PAGE_L1, 0x3F	// TODO: FD, TBD, not used
 
 #define	REG_SRST									TX_PAGE_3, 0x00
 #define		BIT_MHL_FIFO_AUTO_RST						0x80
@@ -176,6 +186,8 @@ typedef enum {
 #define		REG_DISC_CTRL2_DEFVAL						0xAD
 
 #define	REG_DISC_CTRL3									TX_PAGE_3, 0x12
+#define	BIT_DC6_USB_OVERRIDE_USBID_VALUE						0x08
+#define	BIT_FORCE_USB                                    0x10
 #define		BIT_DC3_DEFAULT								0x8A
 
 #define	REG_DISC_CTRL4									TX_PAGE_3, 0x13
@@ -186,7 +198,7 @@ typedef enum {
 #define		BIT_DC6_USB_OVERRIDE_VALUE						0x08
 #define		REG_DISC_CTRL5_DEFVAL						0x57
 
-#define	REG_DISC_CTRL6									TX_PAGE_3, 0x15	/* TODO: FD, TBD, not used */
+#define	REG_DISC_CTRL6									TX_PAGE_3, 0x15		// TODO: FD, TBD, not used
 #define		BIT_DC6_USB_OVERRIDE_MASK					0x40
 #define		BIT_DC6_USB_OVERRIDE_OFF					0x00
 #define		BIT_DC6_USB_OVERRIDE_ON						0x40
@@ -195,7 +207,7 @@ typedef enum {
 #define		BIT_DC6_USB_D_OVERRIDE_ON						0x80
 
 
-#define	REG_DISC_CTRL7									TX_PAGE_3, 0x16	/* TODO: FD, TBD, not used */
+#define	REG_DISC_CTRL7									TX_PAGE_3, 0x16		// TODO: FD, TBD, not used
 #define	REG_DISC_CTRL8									TX_PAGE_3, 0x17
 
 #define	REG_DISC_CTRL9									TX_PAGE_3, 0x18
@@ -208,9 +220,9 @@ typedef enum {
 #define		BIT_DC9_VBUS_EN_OVERRIDE					0x40
 #define		BIT_DC9_VBUS_EN_OVERRIDE_VAL					0x80
 
-#define	REG_DISC_CTRL10									TX_PAGE_3, 0x19	/* TODO: FD, TBD, not used */
-#define	REG_DISC_CTRL11									TX_PAGE_3, 0x1A	/* TODO: FD, TBD, not used */
-#define	REG_DISC_STAT									TX_PAGE_3, 0x1B	/* TODO: FD, TBD, not used */
+#define	REG_DISC_CTRL10									TX_PAGE_3, 0x19		// TODO: FD, TBD, not used
+#define	REG_DISC_CTRL11									TX_PAGE_3, 0x1A		// TODO: FD, TBD, not used
+#define	REG_DISC_STAT									TX_PAGE_3, 0x1B		// TODO: FD, TBD, not used
 #define	REG_DISC_STAT2									TX_PAGE_3, 0x1C
 
 #define	REG_INT_CTRL									TX_PAGE_3, 0x20
@@ -220,10 +232,10 @@ typedef enum {
 #define		BIT_INT_CTRL_OPEN_DRAIN						0x04
 
 #define	REG_INTR4									TX_PAGE_3, 0x21
-#define		BIT_INTR4_VBUS_CHG						0x01	/* TODO: FD, TBI, not actually used, not in PR, to be deleted? */
+#define		BIT_INTR4_VBUS_CHG						0x01				// TODO: FD, TBI, not actually used, not in PR, to be deleted?
 #define		BIT_INTR4_MHL_EST						0x04
 #define		BIT_INTR4_NON_MHL_EST						0x08
-#define		BIT_INTR4_CBUS_LKOUT						0x10	/* TODO: FD, TBD, not used, rvsd in PR */
+#define		BIT_INTR4_CBUS_LKOUT						0x10				// TODO: FD, TBD, not used, rvsd in PR
 #define		BIT_INTR4_CBUS_DISCONNECT					0x20
 #define		BIT_INTR4_RGND_DETECTION					0x40
 
@@ -264,10 +276,10 @@ typedef enum {
 #define		BIT_MHLTX_CTL4_MHL_CLK_RATIO_MASK				0x40
 #define		BIT_MHLTX_CTL4_MHL_CLK_RATIO_2X					0x00
 #define		BIT_MHLTX_CTL4_MHL_CLK_RATIO_3X					0x40
-#define		BIT_MHLTX_CTL4_AUDIO_CLK_EN					0x80	/* TODO: FD, TBD, rvsd in register map, why system provided value contain this??? */
+#define		BIT_MHLTX_CTL4_AUDIO_CLK_EN					0x80	// TODO: FD, TBD, rvsd in register map, why system provided value contain this???
 #define		REG_MHLTX_CTL4_DEFVAL						(BIT_MHLTX_CTL4_AUDIO_CLK_EN | BIT_MHLTX_CTL4_MHL_CLK_RATIO_3X | REG_MHLTX_CTL4_SWING_DEFVAL)
 
-#define	REG_MHLTX_CTL5									TX_PAGE_3, 0x34	/* TODO: FD, TBD, not used, why 0x35-Bit1:0 used but this one not??? */
+#define	REG_MHLTX_CTL5									TX_PAGE_3, 0x34		// TODO: FD, TBD, not used, why 0x35-Bit1:0 used but this one not???
 
 #define	REG_MHLTX_CTL6									TX_PAGE_3, 0x35
 #define		REG_MHLTX_CTL6_DEFVAL						0xBC
@@ -352,15 +364,15 @@ typedef enum {
 #define	REG_CBUS_MDT_XFIFO_STAT								TX_PAGE_CBUS, 0x8B
 
 #define	REG_CBUS_MDT_INT_0								TX_PAGE_CBUS, 0x8C
-#define		BIT_MDT_RXFIFO_DATA_RDY						0x01	/* TODO: FD, TBD, not actually used */
-#define		BIT_MDT_MSC_XFIFO_FULL						0x02	/* TODO: FD, TBD, not used */
-#define		BIT_MDT_STATE_MACH_IDLE						0x04	/* TODO: FD, TBD, not used */
-#define		BIT_MDT_XFIFO_EMPTY						0x08	/* TODO: FD, TBD, not used */
+#define		BIT_MDT_RXFIFO_DATA_RDY						0x01	// TODO: FD, TBD, not actually used
+#define		BIT_MDT_MSC_XFIFO_FULL						0x02	// TODO: FD, TBD, not used
+#define		BIT_MDT_STATE_MACH_IDLE						0x04	// TODO: FD, TBD, not used
+#define		BIT_MDT_XFIFO_EMPTY						0x08	// TODO: FD, TBD, not used
 
 #define	REG_CBUS_MDT_INT_0_MASK								TX_PAGE_CBUS, 0x8D
 #define	REG_CBUS_MDT_INT_1								TX_PAGE_CBUS, 0x8E
 #define	REG_CBUS_MDT_INT_1_MASK								TX_PAGE_CBUS, 0x8F
-#define	SPAD_XFIFO_STAT									TX_PAGE_CBUS, 0x8B	/* TODO: FD, TBD, not used */
+#define	SPAD_XFIFO_STAT									TX_PAGE_CBUS, 0x8B	// TODO: FD, TBD, not used
 
 #define	REG_CBUS_STATUS									TX_PAGE_CBUS, 0x91
 #define		BIT_CBUS_CONNECTED						0x01

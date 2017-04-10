@@ -49,6 +49,7 @@
  *                E X T E R N A L   R E F E R E N C E S
  *****************************************************************************/
 
+#include <linux/dma-mapping.h>
 #include "AudDrv_Common.h"
 #include "AudDrv_Def.h"
 #include "AudDrv_Afe.h"
@@ -70,12 +71,11 @@ static int mtk_voice_md2_platform_probe(struct snd_soc_platform *platform);
 
 #define MAX_PCM_DEVICES     4
 #define MAX_PCM_SUBSTREAMS  128
-#define MAX_MIDI_DEVICES 0
 
 /* defaults */
-#define MAX_BUFFER_SIZE     (16*1024)
-#define MIN_PERIOD_SIZE     64
-#define MAX_PERIOD_SIZE     MAX_BUFFER_SIZE
+#define MAX_BUFFER_SIZE_MD2     (16*1024)
+#define MIN_PERIOD_SIZE_MD2     64
+#define MAX_PERIOD_SIZE     MAX_BUFFER_SIZE_MD2
 #define USE_FORMATS         (SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE)
 #define USE_RATE        SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000
 #define USE_RATE_MIN        8000
@@ -93,7 +93,7 @@ bool get_voice_md2_status(void)
     return voice_md2_Status;
 }
 EXPORT_SYMBOL(get_voice_md2_status);
-//for k2 internal md 2 bring up
+//for 6752 internal md 2 bring up
 static AudioDigitalPCM  Voice2IntPcm =
 {
     .mBclkOutInv = false,
@@ -137,7 +137,7 @@ static struct snd_pcm_hardware mtk_pcm_hardware =
     .rate_max =     SOC_NORMAL_USE_RATE_MAX,
     .channels_min =     SOC_NORMAL_USE_CHANNELS_MIN,
     .channels_max =     SOC_NORMAL_USE_CHANNELS_MAX,
-    .buffer_bytes_max = MAX_BUFFER_SIZE,
+    .buffer_bytes_max = MAX_BUFFER_SIZE_MD2,
     .period_bytes_max = MAX_PERIOD_SIZE,
     .periods_min =      1,
     .periods_max =      4096,
@@ -299,7 +299,7 @@ static int mtk_voice1_ext_prepare(struct snd_pcm_substream *substream)
     SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I09, Soc_Aud_InterConnectionOutput_O04);
 
     // start I2S DAC out
-    SetI2SDacOut(substream->runtime->rate);
+    SetI2SDacOut(substream->runtime->rate,false,Soc_Aud_I2S_WLEN_WLEN_16BITS);
     SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_DAC, true);
 
     ConfigAdcI2S(substream);
@@ -357,6 +357,13 @@ static struct snd_soc_platform_driver mtk_soc_voice_md2_platform =
 static int mtk_voice_md2_probe(struct platform_device *pdev)
 {
     printk("mtk_voice_md2_probe\n");
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_VOICE_MD2);
@@ -399,8 +406,7 @@ static int mtk_voice_md2_pm_ops_suspend(struct device *device)
     AudDrv_Clk_Off();//should enable clk for access reg
     if (b_modem1_speech_on == true || b_modem2_speech_on == true)
     {
-        //clkmux_sel(MT_MUX_AUDINTBUS, 1, "AUDIO"); //mainpll
-        SetClkCfg(AUDIO_CLK_CFG_4, 0x00000000, 0x7000000);
+        clkmux_sel(MT_MUX_AUDINTBUS, 0, "AUDIO"); //select 26M
         return 0;
     }
     return 0;
@@ -416,8 +422,7 @@ static int mtk_voice_md2_pm_ops_resume(struct device *device)
     AudDrv_Clk_Off();
     if (b_modem1_speech_on == true || b_modem2_speech_on == true)
     {
-        //clkmux_sel(MT_MUX_AUDINTBUS, 0, "AUDIO"); //select 26M
-        SetClkCfg(AUDIO_CLK_CFG_4, 0x1000000, 0x1000000);
+        clkmux_sel(MT_MUX_AUDINTBUS, 1, "AUDIO"); //mainpll
         return 0;
     }
 
@@ -435,12 +440,22 @@ struct dev_pm_ops mtk_voice_md2_pm_ops =
     .restore_noirq = NULL,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_pcm_voice_md2_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_pcm_voice_md2", },
+    {}
+};
+#endif
 
 static struct platform_driver mtk_voice_md2_driver =
 {
     .driver = {
         .name = MT_SOC_VOICE_MD2,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_pcm_voice_md2_of_ids,
+        #endif        
 #ifdef CONFIG_PM
         .pm     = &mtk_voice_md2_pm_ops,
 #endif
@@ -449,12 +464,15 @@ static struct platform_driver mtk_voice_md2_driver =
     .remove = mtk_voice_md2_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtk_voice_md2_dev;
+#endif
 
 static int __init mtk_soc_voice_md2_platform_init(void)
 {
     int ret = 0;
     printk("%s\n", __func__);
+	#ifndef CONFIG_OF
     soc_mtk_voice_md2_dev = platform_device_alloc(MT_SOC_VOICE_MD2 , -1);
     if (!soc_mtk_voice_md2_dev)
     {
@@ -467,7 +485,7 @@ static int __init mtk_soc_voice_md2_platform_init(void)
         platform_device_put(soc_mtk_voice_md2_dev);
         return ret;
     }
-
+    #endif
     ret = platform_driver_register(&mtk_voice_md2_driver);
 
     return ret;

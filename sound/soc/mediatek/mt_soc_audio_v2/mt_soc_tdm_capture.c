@@ -130,7 +130,7 @@ static int mtk_afe_capture_probe(struct snd_soc_platform *platform);
 #define MAX_MIDI_DEVICES
 
 /* defaults */
-#define UL1_MAX_BUFFER_SIZE     (64*1024)
+#define UL1_MAX_BUFFER_SIZE     (48*1024)
 #define MIN_PERIOD_SIZE     64
 #define MAX_PERIOD_SIZE     UL1_MAX_BUFFER_SIZE
 #define USE_FORMATS         (SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE)
@@ -250,7 +250,7 @@ static int mtk_capture_alsa_stop(struct snd_pcm_substream *substream)
     Vul_Block->u4DMAReadIdx  = 0;
     Vul_Block->u4WriteIdx  = 0;
     Vul_Block->u4DataRemained = 0;
-    RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_VUL);
+    RemoveMemifSubStream(Soc_Aud_Digital_Block_MEM_VUL, substream);
     return 0;
 }
 
@@ -267,7 +267,7 @@ static snd_pcm_uframes_t mtk_capture_pcm_pointer(struct snd_pcm_substream *subst
         Previous_Hw_cur = Awb_Block->u4WriteIdx;
         return Awb_Block->u4WriteIdx >> 2;
 
-        HW_Cur_ReadIdx = Afe_Get_Reg(AFE_AWB_CUR);
+        HW_Cur_ReadIdx = Align64ByteSize(Afe_Get_Reg(AFE_AWB_CUR));
         if (HW_Cur_ReadIdx == 0)
         {
             PRINTK_AUD_UL1("[Auddrv] mtk_capture_pcm_pointer  HW_Cur_ReadIdx ==0 \n");
@@ -466,7 +466,7 @@ static int mtk_capture_pcm_copy(struct snd_pcm_substream *substream,
     unsigned long flags;
 
     PRINTK_AUD_UL1("mtk_capture_pcm_copy pos = %lucount = %lu \n ", pos, count);
-    count = count << 2;
+    count = Align64ByteSize(count << 2);
 
     // check which memif nned to be write
     pVUL_MEM_ConTrol = TDM_VUL_Control_context;
@@ -511,7 +511,7 @@ static int mtk_capture_pcm_copy(struct snd_pcm_substream *substream,
     DMA_Read_Ptr = Vul_Block->u4DMAReadIdx;
     spin_unlock_irqrestore(&auddrv_ULInCtl_lock, flags);
 
-    PRINTK_AUD_UL1("AudDrv_MEMIF_Read finish0, read_count:%x, read_size:%x, u4DataRemained:%x, u4DMAReadIdx:0x%x, u4WriteIdx:%x \r\n",
+    PRINTK_AUD_UL1("AudDrv_MEMIF_Read finish0, read_count:%lx, read_size:%lx, u4DataRemained:%x, u4DMAReadIdx:0x%x, u4WriteIdx:%x \r\n",
                    read_count, read_size, Vul_Block->u4DataRemained, Vul_Block->u4DMAReadIdx, Vul_Block->u4WriteIdx);
 
     if (DMA_Read_Ptr + read_size < Vul_Block->u4BufferSize)
@@ -540,7 +540,7 @@ static int mtk_capture_pcm_copy(struct snd_pcm_substream *substream,
         Read_Data_Ptr += read_size;
         count -= read_size;
 
-        PRINTK_AUD_UL1("AudDrv_MEMIF_Read finish1, copy size:%x, u4DMAReadIdx:0x%x, u4WriteIdx:%x, u4DataRemained:%x \r\n",
+        PRINTK_AUD_UL1("AudDrv_MEMIF_Read finish1, copy size:%lx, u4DMAReadIdx:0x%x, u4WriteIdx:%x, u4DataRemained:%x \r\n",
                        read_size, Vul_Block->u4DMAReadIdx, Vul_Block->u4WriteIdx, Vul_Block->u4DataRemained);
     }
 
@@ -649,6 +649,13 @@ static struct snd_soc_platform_driver mtk_soc_platform =
 static int mtk_capture_probe(struct platform_device *pdev)
 {
     printk("tdm mtk_capture_probe\n");
+
+    pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+    if (!pdev->dev.dma_mask)
+    {
+        pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+    }
+
     if (pdev->dev.of_node)
     {
         dev_set_name(&pdev->dev, "%s", MT_SOC_TDMRX_PCM);
@@ -658,37 +665,25 @@ static int mtk_capture_probe(struct platform_device *pdev)
     return snd_soc_register_platform(&pdev->dev,
                                      &mtk_soc_platform);
 }
-static u64 capture_pcm_dmamask = DMA_BIT_MASK(32);
 
 static int mtk_asoc_capture_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-    struct snd_card *card = rtd->card->snd_card;
-    int ret = 0;
-    if (!card->dev->dma_mask)
-    {
-        card->dev->dma_mask = &capture_pcm_dmamask;
-    }
-    if (!card->dev->coherent_dma_mask)
-    {
-        card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
-    }
     printk("mtk_asoc_capture_pcm_new \n");
-    return ret;
+    return 0;
 }
 
 
 static int mtk_afe_capture_probe(struct snd_soc_platform *platform)
 {
     printk("mtk_afe_capture_probe TODO\n");
-	#if 0 //mark temp due to HW_REBOOT issue!!!
-    AudDrv_Allocate_mem_Buffer(Soc_Aud_Digital_Block_MEM_VUL, UL1_MAX_BUFFER_SIZE);
+    AudDrv_Allocate_mem_Buffer(platform->dev, Soc_Aud_Digital_Block_MEM_VUL, UL1_MAX_BUFFER_SIZE);
     Capture_dma_buf =  Get_Mem_Buffer(Soc_Aud_Digital_Block_MEM_VUL);
     /*
     Capture_dma_buf = kmalloc(sizeof(struct snd_dma_buffer), GFP_KERNEL);
     memset((void *)Capture_dma_buf, 0, sizeof(struct snd_dma_buffer));
     printk("mtk_afe_capture_probe dma_alloc_coherent\n");
 
-    Capture_dma_buf->area = dma_alloc_coherent(0,
+    Capture_dma_buf->area = dma_alloc_coherent(platform->dev,
                                                UL1_MAX_BUFFER_SIZE,
                                                &Capture_dma_buf->addr, GFP_KERNEL);
 
@@ -698,7 +693,6 @@ static int mtk_afe_capture_probe(struct snd_soc_platform *platform)
     }
     */
     mAudioDigitalI2S =  kzalloc(sizeof(AudioDigtalI2S), GFP_KERNEL);
-	#endif
     return 0;
 }
 
@@ -710,22 +704,36 @@ static int mtk_capture_remove(struct platform_device *pdev)
     return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id mt_soc_tdm_capture_of_ids[] =
+{
+    { .compatible = "mediatek,mt_soc_tdm_capture", },
+    {}
+};
+#endif
+
 static struct platform_driver mtk_afe_capture_driver =
 {
     .driver = {
         .name = MT_SOC_TDMRX_PCM,
         .owner = THIS_MODULE,
+        #ifdef CONFIG_OF
+        .of_match_table = mt_soc_tdm_capture_of_ids,
+        #endif        
     },
     .probe = mtk_capture_probe,
     .remove = mtk_capture_remove,
 };
 
+#ifndef CONFIG_OF
 static struct platform_device *soc_mtkafe_capture_dev;
+#endif
 
 static int __init mtk_soc_capture_platform_init(void)
 {
     int ret = 0;
     printk("%s\n", __func__);
+	#ifndef CONFIG_OF
     soc_mtkafe_capture_dev = platform_device_alloc(MT_SOC_TDMRX_PCM, -1);
     if (!soc_mtkafe_capture_dev)
     {
@@ -738,7 +746,7 @@ static int __init mtk_soc_capture_platform_init(void)
         platform_device_put(soc_mtkafe_capture_dev);
         return ret;
     }
-
+    #endif
     ret = platform_driver_register(&mtk_afe_capture_driver);
     return ret;
 }

@@ -6,9 +6,9 @@
 
 #undef EXTERN
 
-#define ENTER_U0_TH				10
-#define MAX_PHASE_RANGE		31
-#define MAX_TIMEOUT_COUNT		100
+#define ENTER_U0_TH		 		10
+#define MAX_PHASE_RANGE 		31
+#define MAX_TIMEOUT_COUNT 		100
 
 #ifdef _MTK_PHY_EXT_
 #define EXTERN

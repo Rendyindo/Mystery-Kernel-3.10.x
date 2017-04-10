@@ -179,7 +179,7 @@ static struct data_resolution mpu6050c_data_resolution[] = {
 	
 
 /*--------------------gyroscopy power control function----------------------------------*/
-struct mpu6050c_gyro_i2c_data* MPU6050C_Gyro_GetI2CData()
+struct mpu6050c_gyro_i2c_data* MPU6050C_Gyro_GetI2CData(void)
 {
 	return mpu6050c_gyro_obj_i2c_data;
 }
@@ -883,7 +883,7 @@ static ssize_t store_trace_value(struct device_driver *ddri, const char *buf, si
 	}	
 	else
 	{
-		GYRO_ERR("invalid content: '%s', length = %d\n", buf, count);
+		GYRO_ERR("invalid content: '%s', length = %zu\n", buf, count);
 	}
 	
 	return count;    
@@ -964,6 +964,7 @@ static int mpu6050c_gyro_delete_attr(struct device_driver *driver)
 }
 
 /*----------------------------------------------------------------------------*/
+/*
 static int mpu6050c_gyro_gpio_config(void)
 {
     //because we donot use EINT ,to support low power
@@ -977,6 +978,7 @@ static int mpu6050c_gyro_gpio_config(void)
 #endif
 	return 0;
 }
+*/
 static int mpu6050c_gyro_init_client(struct i2c_client *client, bool enable)
 {
 	struct mpu6050c_gyro_i2c_data *obj = i2c_get_clientdata(client);
@@ -1410,7 +1412,8 @@ static long mpu6050c_gyro_unlocked_ioctl(struct file *file, unsigned int cmd,
 					err = -EINVAL;
 					break;	  
 				}
-				if(err = MPU6050C_ReadCalibration(client, cali))
+                err=MPU6050C_ReadCalibration(client, cali);
+				if(err)
 				{
 					break;
 				}
@@ -1535,7 +1538,7 @@ static void mpu6050c_gyro_early_suspend(struct early_suspend *h)
 	if(err <= 0)
 	{
 		GYRO_LOG("set power mode failed!\n");
-		return MPU6050C_ERR_I2C;
+		return ;
 	}
 
 	databuf2[0] = 0x00;
@@ -1546,7 +1549,7 @@ static void mpu6050c_gyro_early_suspend(struct early_suspend *h)
 	if(err <= 0)
 	{
 		GYRO_LOG("set power mode failed!\n");
-		return MPU6050C_ERR_I2C;
+		return ;
 	}
 
 	MPU6050C_gyro_power(obj->hw, 0);
@@ -1587,7 +1590,7 @@ static int mpu6050c_gyro_i2c_probe(struct i2c_client *client, const struct i2c_d
 {
 	struct i2c_client *new_client;
 	struct mpu6050c_gyro_i2c_data *obj;
-	struct hwmsen_object sobj;
+	//struct hwmsen_object sobj;
 	struct hwmsen_object sobj_acc, sobj_gyro;
 
 	int err = 0;
@@ -1743,10 +1746,11 @@ static int mpu6050c_gyro_i2c_remove(struct i2c_client *client)
 	kfree(i2c_get_clientdata(client));
 	return 0;
 }
+extern void* MPU6050C_Acc_GetI2CData(void);
 /*----------------------------------------------------------------------------*/
 static int mpu6050c_gyro_probe(struct platform_device *pdev) 
 {
-	int err = 0;
+	//int err = 0;
 	struct gyro_hw *hw = get_cust_gyro_hw();
 	GYRO_FUN();
 

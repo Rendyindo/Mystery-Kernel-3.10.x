@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #define TPD_HAVE_BUTTON
 
 #include "tpd.h"
@@ -39,22 +25,16 @@
 #include "cust_gpio_usage.h"
 
 
+#ifndef TPD_DEBUG
 #define TPD_DEBUG printk
+#endif
+
+#ifndef TPD_DMESG
 #define TPD_DMESG printk
-
-#define TPD_POWER_SOURCE		MT6323_POWER_LDO_VGP1
-
-#if !defined(__devinit)
-#define __devinit
 #endif
 
-#if !defined(__devexit)
-#define __devexit
-#endif
+#define TPD_POWER_SOURCE MT6323_POWER_LDO_VGP1
 
-#if !defined(__devexit_p)
-#define __devexit_p(x) (&(x))
-#endif
 
 extern struct tpd_device *tpd;
  
@@ -75,9 +55,9 @@ extern void mt65xx_eint_registration(kal_uint8 eintno, kal_bool Dbounce_En,
 								  kal_bool auto_umask);
 #endif
  
-static int __devinit tpd_probe(struct i2c_client *client, const struct i2c_device_id *id);
+static int tpd_probe(struct i2c_client *client, const struct i2c_device_id *id);
 static int tpd_detect(struct i2c_client *client, int kind, struct i2c_board_info *info);
-static int __devexit tpd_remove(struct i2c_client *client);
+static int tpd_remove(struct i2c_client *client);
 static int touch_event_handler(void *unused);
  
 static int tpd_flag = 0;
@@ -118,12 +98,12 @@ static const struct i2c_device_id tpd_id[] = {{"ft5406",0},{}};
 
 #if defined(E1910) && !defined(AGOLD_TP_CFG_FOR_E1910_SMT)
 static unsigned short force[] = {0,0x72,I2C_CLIENT_END,I2C_CLIENT_END}; 
-static const unsigned short * const forces[] = { force, NULL };
+//static const unsigned short * const forces[] = { force, NULL };
 //static struct i2c_client_address_data addr_data = { .forces = forces, };
 static struct i2c_board_info __initdata i2c_tpd = { I2C_BOARD_INFO("ft5406", (0x72>>1))};
 #else
 unsigned short force[] = {0,0x70,I2C_CLIENT_END,I2C_CLIENT_END}; 
-static const unsigned short * const forces[] = { force, NULL };
+//static const unsigned short * const forces[] = { force, NULL };
 //static struct i2c_client_address_data addr_data = { .forces = forces, };
 static struct i2c_board_info __initdata i2c_tpd = { I2C_BOARD_INFO("ft5406", (0x70>>1))};
 #endif
@@ -149,6 +129,7 @@ static int tpd_keys_local[TPD_KEY_COUNT] = TPD_KEYS;
 static int tpd_keys_dim_local[TPD_KEY_COUNT][4] = TPD_KEYS_DIM;
 #endif
  
+/*
 static struct i2c_driver tpd_i2c_driver = {
 	.driver.name = "mtk-tpd",
 	.probe = tpd_probe,
@@ -157,6 +138,19 @@ static struct i2c_driver tpd_i2c_driver = {
 	.detect = tpd_detect,
 	.address_list = (const unsigned short*) forces,
 };
+*/
+ static struct i2c_driver tpd_i2c_driver = {
+  .driver = {
+	 .name = "mtk-tpd",//.name = TPD_DEVICE,
+//	 .owner = THIS_MODULE,
+  },
+  .probe = tpd_probe,
+  .remove = tpd_remove,
+  .id_table = tpd_id,
+  .detect = tpd_detect,
+//  .address_data = &addr_data,
+ };
+
  
 #if 0 //[Agold][Talcon.Hu]
 static unsigned short i2c_addr[] = {0x72}; 
@@ -165,8 +159,9 @@ static unsigned short i2c_addr[] = {0x72};
 static  void tpd_down(int x, int y, int p) {
 
 #ifdef TPD_HAVE_BUTTON
-	if(MTK_LCM_PHYSICAL_ROTATION == 270 || MTK_LCM_PHYSICAL_ROTATION == 90)
-    {
+
+	if((0 == strncmp(MTK_LCM_PHYSICAL_ROTATION, "270", 3))||(0 == strncmp(MTK_LCM_PHYSICAL_ROTATION, "90", 2)))
+	 {
 		if(boot_mode!=NORMAL_BOOT && x>=TPD_RES_Y) 
 		{ 
 			int temp;
@@ -200,9 +195,10 @@ static  void tpd_down(int x, int y, int p) {
 	 input_report_abs(tpd->dev, ABS_MT_POSITION_Y, y);
 	 input_mt_sync(tpd->dev);
 	 TPD_DOWN_DEBUG_TRACK(x,y);
+	 return;
  }
  
- static  int tpd_up(int x, int y,int p) {
+ static  void tpd_up(int x, int y,int p) {
 	 //input_report_abs(tpd->dev, ABS_PRESSURE, 0);
 		 input_report_key(tpd->dev, BTN_TOUCH, 0);
 		 //input_report_abs(tpd->dev, ABS_MT_TOUCH_MAJOR, 0);
@@ -211,6 +207,7 @@ static  void tpd_down(int x, int y, int p) {
 		 //printk("U[%4d %4d %4d] ", x, y, 0);
 		 input_mt_sync(tpd->dev);
 		 TPD_UP_DEBUG_TRACK(x,y);
+		 return;
  }
 
 static int tpd_touchinfo(struct touch_info *cinfo, struct touch_info *pinfo)
@@ -236,7 +233,7 @@ static int tpd_touchinfo(struct touch_info *cinfo, struct touch_info *pinfo)
 //	TPD_DEBUG("[data[15]=%x,data[16]= %x ,data[17]=%x ,data[18]=%x]\n",data[15],data[16],data[17],data[18]);
 
 	/* Device Mode[2:0] == 0 :Normal operating Mode*/
-	if(data[0] & 0x70 != 0) return false; 
+	if((data[0] & 0x70) != 0) return false; 
 
 	/*get the number of the touch points*/
 	point_num= data[2] & 0x0f;
@@ -961,14 +958,17 @@ static void tpd_eint_interrupt_handler(void)
 	wake_up_interruptible(&waiter);
 }
 
-static int __devinit tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {	 
 	int retval = TPD_OK;
 	char data;
-	i2c_client = client;
 	int i;
+#if defined(AGOLD_CTP_UP_EVENT)
 	int event = 5;
+#endif
 	printk("Eric trace: tpd_probe\n");
+
+	i2c_client = client;
 
 	#ifdef TPD_CLOSE_POWER_IN_SLEEP	 
 	mt_set_gpio_mode(GPIO_CTP_RST_PIN, GPIO_CTP_RST_PIN_M_GPIO);
@@ -1073,7 +1073,7 @@ static int __devinit tpd_probe(struct i2c_client *client, const struct i2c_devic
 	return 0;
 }
 
-static int __devexit tpd_remove(struct i2c_client *client)
+static int tpd_remove(struct i2c_client *client)
 {
 	TPD_DEBUG("TPD removed\n");
 
@@ -1249,7 +1249,9 @@ static int tpd_resume(struct i2c_client *client)
 static int tpd_suspend(struct i2c_client *client, pm_message_t message)
 {
 	int retval = TPD_OK;
-	static char data = 0x3;
+#ifndef TPD_CLOSE_POWER_IN_SLEEP	
+		static char data = 0x3;
+#endif
 
 	struct touch_info cinfo, pinfo;
 	int i = 0;

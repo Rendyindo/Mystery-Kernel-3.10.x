@@ -94,6 +94,9 @@ static int ecompass_status = 0;
 
 static int mEnabled=0;
 
+static struct proc_dir_entry *akm09911_ecompass_status_proc = NULL;
+
+
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 static const struct i2c_device_id akm09911_i2c_id[] = {{AKM09911_DEV_NAME,0},{}};
@@ -149,12 +152,35 @@ static struct i2c_driver akm09911_i2c_driver = {
 };
 
 /*----------------------------------------------------------------------------*/
+#if 0
 static struct platform_driver akm_sensor_driver = {
 	.probe      = akm_probe,
 	.remove     = akm_remove,    
 	.driver     = {
 		.name  = "msensor",
 		.owner = THIS_MODULE,
+	}
+};
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id akm09911_of_match[] = {
+	{ .compatible = "mediatek,msensor", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, akm09911_of_match);
+#endif
+
+static struct platform_driver akm_sensor_driver =
+{
+	.probe      = akm_probe,
+	.remove     = akm_remove,    
+	.driver     = 
+	{
+		.name = "msensor",
+        #ifdef CONFIG_OF
+		.of_match_table = of_match_ptr(akm09911_of_match),
+		#endif
 	}
 };
 
@@ -1313,7 +1339,7 @@ static ssize_t store_trace_value(struct device_driver *ddri, const char *buf, si
 	}
 	else 
 	{
-		printk(KERN_ERR "invalid content: '%s', length = %d\n", buf, count);
+		printk(KERN_ERR "invalid content: '%s', length = %zu\n", buf, count);
 	}
 	
 	return count;    
@@ -1422,7 +1448,7 @@ static long akm09911_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned
 	int64_t delay[3];				/* for GET_DELAY */
 	int status; 				/* for OPEN/CLOSE_STATUS */
 	long ret = -1;				/* Return value. */
-	int layout;
+	char layout;
 	struct i2c_client *client = this_client;  
 	struct akm09911_i2c_data *data = i2c_get_clientdata(client);
 	hwm_sensor_data* osensor_data;
@@ -1751,6 +1777,244 @@ static long akm09911_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned
 
 	return 0;    
 }
+#ifdef CONFIG_COMPAT
+static long akm09911_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret;
+
+	void __user *arg32 = compat_ptr(arg);
+	
+	if (!file->f_op || !file->f_op->unlocked_ioctl)
+		return -ENOTTY;
+	
+    //printk("akm09911_compat_ioctl arg: 0x%lx, arg32: 0x%p\n",arg, arg32);
+	
+	switch (cmd) {
+		 case COMPAT_ECS_IOCTL_WRITE:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_WRITE\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_WRITE,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_WRITE unlocked_ioctl failed.");
+				return ret;
+			 }			 
+
+			 break;
+		 case COMPAT_ECS_IOCTL_RESET:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_RESET\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_RESET,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_RESET unlocked_ioctl failed.");
+				return ret;
+			 }
+		     break;		 
+		 case COMPAT_ECS_IOCTL_READ:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_READ\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_READ,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_WRITE unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+
+		case COMPAT_ECS_IOCTL_GET_INFO:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_GET_INFO\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_INFO,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_INFO unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_GET_CONF:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_GET_CONF\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_CONF,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_CONF unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 	 
+		 case COMPAT_ECS_IOCTL_SET_MODE:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_SET_MODE\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_SET_MODE,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_SET_MODE unlocked_ioctl failed.");
+				return ret;
+			 }
+			 break;
+		
+		 case COMPAT_ECS_IOCTL_GETDATA:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_GETDATA\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GETDATA,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GETDATA unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_SET_YPR_09911:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_SET_YPR_09911\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }		
+			 
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_SET_YPR_09911,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_SET_YPR_09911 unlocked_ioctl failed.");
+				return ret;
+			 }
+			 break;
+		
+		 case COMPAT_ECS_IOCTL_GET_OPEN_STATUS:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_GET_OPEN_STATUS\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_OPEN_STATUS,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_OPEN_STATUS unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_GET_CLOSE_STATUS:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_GET_CLOSE_STATUS\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_CLOSE_STATUS,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_CLOSE_STATUS unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_GET_OSENSOR_STATUS:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_GET_OSENSOR_STATUS\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_OSENSOR_STATUS,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_OSENSOR_STATUS unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_ECS_IOCTL_GET_DELAY_09911:
+		 	 //printk("akm09911_compat_ioctl COMPAT_ECS_IOCTL_GET_DELAY_09911\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_DELAY_09911,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_DELAY_09911 unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+		
+		 case COMPAT_ECS_IOCTL_GET_LAYOUT_09911:
+			 //printk("akm09911 COMPAT_ECS_IOCTL_GET_LAYOUT_09911\n");
+			 ret = file->f_op->unlocked_ioctl(file, ECS_IOCTL_GET_LAYOUT_09911,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("ECS_IOCTL_GET_LAYOUT_09911 unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+		
+		 case COMPAT_MSENSOR_IOCTL_READ_CHIPINFO:
+		 	 //printk("akm09911_compat_ioctl COMPAT_MSENSOR_IOCTL_READ_CHIPINFO\n");
+			 ret = file->f_op->unlocked_ioctl(file, MSENSOR_IOCTL_READ_CHIPINFO,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("MSENSOR_IOCTL_READ_CHIPINFO unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+		
+		 case COMPAT_MSENSOR_IOCTL_READ_SENSORDATA:	
+		 	 //printk("akm09911_compat_ioctl COMPAT_MSENSOR_IOCTL_READ_SENSORDATA\n");
+			 ret = file->f_op->unlocked_ioctl(file, MSENSOR_IOCTL_READ_SENSORDATA,
+							(unsigned long)arg32);
+			 if (ret){
+			 	AKMDBG("MSENSOR_IOCTL_READ_SENSORDATA unlocked_ioctl failed.");
+				return ret;
+			 }
+
+			 break;
+			 
+		 case COMPAT_MSENSOR_IOCTL_SENSOR_ENABLE:
+		 	 //printk("akm09911_compat_ioctl COMPAT_MSENSOR_IOCTL_SENSOR_ENABLE\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+
+			 ret = file->f_op->unlocked_ioctl(file, MSENSOR_IOCTL_SENSOR_ENABLE,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("MSENSOR_IOCTL_SENSOR_ENABLE unlocked_ioctl failed.");
+				return ret;
+			 }
+			 
+			 break;
+			 
+		 case COMPAT_MSENSOR_IOCTL_READ_FACTORY_SENSORDATA:
+		 	 //printk("akm09911_compat_ioctl COMPAT_MSENSOR_IOCTL_READ_FACTORY_SENSORDATA\n");
+			 if(arg32 == NULL)
+			 {
+				 AKMDBG("invalid argument.");
+				 return -EINVAL;
+			 }
+			 
+			 ret = file->f_op->unlocked_ioctl(file, MSENSOR_IOCTL_READ_FACTORY_SENSORDATA,
+							(unsigned long)(arg32));
+			 if (ret){
+			 	AKMDBG("MSENSOR_IOCTL_READ_FACTORY_SENSORDATA unlocked_ioctl failed.");
+				return ret;
+			 }	
+			 break;
+			 
+		 default:
+			 //printk(KERN_ERR "%s not supported = 0x%04x", __FUNCTION__, cmd);
+			 return -ENOIOCTLCMD;
+			 break;
+	}
+	return 0;
+}
+#endif
 /*----------------------------------------------------------------------------*/
 static struct file_operations akm09911_fops = {
 	.owner = THIS_MODULE,
@@ -1758,6 +2022,9 @@ static struct file_operations akm09911_fops = {
 	.release = akm09911_release,
 	//.unlocked_ioctl = akm09911_ioctl,
 	.unlocked_ioctl = akm09911_unlocked_ioctl,
+	#ifdef CONFIG_COMPAT
+	.compat_ioctl = akm09911_compat_ioctl,
+	#endif
 };
 /*----------------------------------------------------------------------------*/
 static struct miscdevice akm09911_device = {
@@ -2527,12 +2794,44 @@ static int akm09911_i2c_detect(struct i2c_client *client, struct i2c_board_info 
 	return 0;
 }
 
-static int ecompass_status_read_proc(char *page, char **start, off_t off, int count, int *eof, void *data)
+static ssize_t ecompass_status_read_proc(struct file *file, char *buffer, size_t count, loff_t *ppos)
 {
+    char *page = NULL;
+    char *ptr = NULL;
     int len = 0;
-    len += sprintf(page, "%d\n", ecompass_status);
+    int err = -1;
+
+    page = kmalloc(PAGE_SIZE, GFP_KERNEL);	
+    if (!page) 
+    {		
+    	kfree(page);		
+    	return -ENOMEM;	
+    }
+    ptr = page; 
+
+    ptr += sprintf(ptr, "%d\n", ecompass_status);
+
+    len = ptr - page; 			 	
+    if(*ppos >= len)
+    {		
+        kfree(page); 		
+        return 0; 	
+    }	
+    err = copy_to_user(buffer,(char *)page,len); 			
+    *ppos += len; 	
+    if(err) 
+    {		
+        kfree(page); 		
+        return err; 	
+    }
+    kfree(page); 	
     return len;
 }
+
+static const struct file_operations akm09911_ecompass_status_proc_fops = { 
+    .read = ecompass_status_read_proc
+};
+
 
 /*----------------------------------------------------------------------------*/
 static int akm09911_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -2541,9 +2840,11 @@ static int akm09911_i2c_probe(struct i2c_client *client, const struct i2c_device
 	struct akm09911_i2c_data *data;
 	int err = 0;
 	struct hwmsen_object sobj_m, sobj_o;
-	struct hwmsen_object sobj_gyro, sobj_rv;
-	struct hwmsen_object sobj_gravity, sobj_la;
-
+	//struct hwmsen_object sobj_gyro, sobj_rv;
+	//struct hwmsen_object sobj_gravity, sobj_la;
+	mt_set_gpio_mode(GPIO_MSE_EINT_PIN, GPIO_MSE_EINT_PIN_M_GPIO);
+	mt_set_gpio_dir(GPIO_MSE_EINT_PIN, GPIO_DIR_OUT);
+	mt_set_gpio_out(GPIO_MSE_EINT_PIN, GPIO_OUT_ONE);
 	if(!(data = kmalloc(sizeof(struct akm09911_i2c_data), GFP_KERNEL)))
 	{
 		err = -ENOMEM;
@@ -2661,7 +2962,7 @@ static int akm09911_i2c_probe(struct i2c_client *client, const struct i2c_device
 	register_early_suspend(&data->early_drv);
 #endif
 
-	AKMDBG("%s: OK\n", __func__);
+	printk(KERN_ERR "%s: OK\n", __func__);
 	ecompass_status = 1;  
 	return 0;
 
@@ -2724,7 +3025,11 @@ static int __init akm09911_init(void)
     	struct mag_hw *hw = get_cust_mag_hw();
 	printk("akm09911: i2c_number=%d\n",hw->i2c_num);
 	// register cat /proc/ecompass_status
-	create_proc_read_entry("ecompass_status", 0, NULL, ecompass_status_read_proc, NULL);
+	akm09911_ecompass_status_proc = proc_create("ecompass_status", 0, NULL, &akm09911_ecompass_status_proc_fops);
+	if (akm09911_ecompass_status_proc == NULL)
+    {
+        printk(KERN_ERR "create_proc_entry ecompass_status failed");
+    }
 	i2c_register_board_info(hw->i2c_num, &i2c_akm09911, 1);
 	if(platform_driver_register(&akm_sensor_driver))
 	{
@@ -2742,7 +3047,7 @@ static void __exit akm09911_exit(void)
 module_init(akm09911_init);
 module_exit(akm09911_exit);
 
-MODULE_AUTHOR("viral wang <viral_wang@htc.com>");
+MODULE_AUTHOR("viral wang");
 MODULE_DESCRIPTION("AKM09911 compass driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);

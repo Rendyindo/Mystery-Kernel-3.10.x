@@ -2534,7 +2534,7 @@ static long bmm050_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned l
 	short sensor_status;		/* for Orientation and Msensor status */
 	int vec[3] = {0};	
 	struct bmm050_i2c_data *clientdata = i2c_get_clientdata(this_client);
-	hwm_sensor_data* osensor_data;
+	hwm_sensor_data osensor_data;
 	uint32_t enable;
 
 	switch (cmd)
@@ -2801,20 +2801,17 @@ static long bmm050_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned l
 				break;    
 			}
 			
-			osensor_data = (hwm_sensor_data *)buff;
 			mutex_lock(&sensor_data_mutex);
 				
-			osensor_data->values[0] = sensor_data[8];
-			osensor_data->values[1] = sensor_data[9];
-			osensor_data->values[2] = sensor_data[10];
-			osensor_data->status = sensor_data[11];
-			osensor_data->value_divide = CONVERT_O_DIV;
+			osensor_data.values[0] = sensor_data[8];
+			osensor_data.values[1] = sensor_data[9];
+			osensor_data.values[2] = sensor_data[10];
+			osensor_data.status = sensor_data[11];
+			osensor_data.value_divide = CONVERT_O_DIV;
 					
 			mutex_unlock(&sensor_data_mutex);
 
-			sprintf(buff, "%x %x %x %x %x", osensor_data->values[0], osensor_data->values[1],
-				osensor_data->values[2],osensor_data->status,osensor_data->value_divide);
-			if(copy_to_user(argp, buff, strlen(buff)+1))
+			if(copy_to_user(argp, &osensor_data, sizeof(hwm_sensor_data)))
 			{
 				return -EFAULT;
 			} 
@@ -3792,8 +3789,8 @@ static int bmm050_m_get_data(int* x ,int* y,int* z, int* status)
 	mutex_lock(&sensor_data_mutex);
 	
 	*x = sensor_data[4];
-	*x = sensor_data[5];
-	*x = sensor_data[6];
+	*y = sensor_data[5];
+	*z = sensor_data[6];
 	*status = sensor_data[7];
 		
 	mutex_unlock(&sensor_data_mutex);

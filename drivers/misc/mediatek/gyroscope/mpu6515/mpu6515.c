@@ -45,6 +45,7 @@
 /*----------------------------------------------------------------------------*/
 #define MPU6515_DEFAULT_FS		MPU6515_FS_1000
 #define MPU6515_DEFAULT_LSB		MPU6515_FS_1000_LSB
+//#define USE_EARLY_SUSPEND
 /*---------------------------------------------------------------------------*/
 #define DEBUG 1
 /*----------------------------------------------------------------------------*/
@@ -66,6 +67,10 @@ int packet_thresh = 75; // 600 ms / 8ms/sample
 static int mpu6515_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id); 
 static int mpu6515_i2c_remove(struct i2c_client *client);
 static int mpu6515_i2c_detect(struct i2c_client *client, struct i2c_board_info *info);
+#if !defined(CONFIG_HAS_EARLYSUSPEND) || !defined(USE_EARLY_SUSPEND)
+static int mpu6515_suspend(struct i2c_client *client, pm_message_t msg) ;
+static int mpu6515_resume(struct i2c_client *client);
+#endif
 
 static int gyroscope_local_init(void);
 static int gyroscope_remove(void);
@@ -126,7 +131,7 @@ struct mpu6515_i2c_data
     struct data_filter      fir;
 #endif 
     /*early suspend*/
-#if defined(CONFIG_HAS_EARLYSUSPEND)
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(USE_EARLY_SUSPEND)
     struct early_suspend    early_drv;
 #endif     
 #if INV_GYRO_AUTO_CALI==1
@@ -144,7 +149,7 @@ static struct i2c_driver mpu6515_i2c_driver = {
     .probe              = mpu6515_i2c_probe,
     .remove             = mpu6515_i2c_remove,
     .detect             = mpu6515_i2c_detect,
-#if !defined(CONFIG_HAS_EARLYSUSPEND)    
+#if !defined(CONFIG_HAS_EARLYSUSPEND) || !defined(USE_EARLY_SUSPEND)
     .suspend            = mpu6515_suspend,
     .resume             = mpu6515_resume,
 #endif
@@ -356,8 +361,50 @@ static int MPU6515_ReadStart(struct i2c_client *client, bool enable)
     return MPU6515_SUCCESS;
 }
 
+//----------------------------------------------------------------------------//
+static int MPU6515_SetPWR_MGMT_2(struct i2c_client *client, bool enable)
+{
+    u8 databuf[2] = {0};
+    int res = 0;
 
+    if (enable)
+    {
+        databuf[1] = 0xC0;
+    }
+    else
+    {
+        databuf[1] = 0xC7;
+    }
 
+    GYRO_LOG("MPU6515_SetPWR_MGMT_2 : en = %d, reg = %x\n", enable, databuf[1]);
+
+    databuf[0] = MPU6515_REG_PWR_CTL2;
+#ifdef MPU6515_ACCESS_BY_GSE_I2C
+    res = MPU6515_i2c_master_send(databuf, 0x2);
+#else
+    res = i2c_master_send(client, databuf, 0x2);
+#endif 
+    if(res <= 0)
+    {
+        GYRO_LOG("set power mode failed : %d!\n", res);
+        return MPU6515_ERR_I2C;
+    }
+
+#ifdef MPU6515_ACCESS_BY_GSE_I2C
+    if (MPU6515_hwmsen_read_byte(MPU6515_REG_PWR_CTL2, databuf))
+#else
+    if (hwmsen_read_byte(client, MPU6515_REG_PWR_CTL2, databuf))
+#endif
+    {
+        GYRO_ERR("read power ctl 2 register err!\n");
+    }
+    else
+    {
+        GYRO_LOG("MPU6515_REG_PWR_CTL = %x\n", databuf[0]);
+    }
+
+    return MPU6515_SUCCESS;
+}
 //----------------------------------------------------------------------------//
 static int MPU6515_SetPowerMode(struct i2c_client *client, bool enable)
 {
@@ -379,6 +426,9 @@ static int MPU6515_SetPowerMode(struct i2c_client *client, bool enable)
         GYRO_ERR("read power ctl register err!\n");
         return MPU6515_ERR_I2C;
     }
+
+    if ((databuf[0] & 0x1f) != 0x1)
+        GYRO_ERR("MPU6515 PWR_MGMT_1 = %x\n", databuf[0]);
 
     databuf[0] &= ~MPU6515_SLEEP;   
     if (enable == FALSE)
@@ -940,6 +990,7 @@ static int MPU6515_SMTReadSensorData(struct i2c_client *client, s16 *buf, int bu
 
     GYRO_FUN();
 
+    MPU6515_SetPWR_MGMT_2(client, true);
     if (sensor_power == false)
     {
         MPU6515_SetPowerMode(client, true);
@@ -1131,7 +1182,7 @@ static ssize_t store_trace_value(struct device_driver *ddri, const char *buf, si
     }
     else
     {
-        GYRO_ERR("invalid content: '%s', length = %d\n", buf, count);
+        GYRO_ERR("invalid content: '%s', length = %d\n", buf, (int)count);
     }
 
     return count;    
@@ -1232,7 +1283,7 @@ static int mpu6515_init_client(struct i2c_client *client, bool enable)
     GYRO_FUN(); 
     mpu6515_gpio_config();
 
-    res = MPU6515_SetPowerMode(client, enable_status);
+    res = MPU6515_SetPowerMode(client, true);
     if (res != MPU6515_SUCCESS)
     {
         return res;
@@ -1251,13 +1302,19 @@ static int mpu6515_init_client(struct i2c_client *client, bool enable)
     }
 
     // Set 125HZ sample rate
-    res = MPU6515_SetSampleRate(client, 125);
+    res = MPU6515_SetSampleRate(client, 200);
     if (res != MPU6515_SUCCESS )
     {
         return res;
     }
 
-    res = MPU6515_SetPowerMode(client, enable);
+    res = MPU6515_SetPWR_MGMT_2(client, enable_status);
+    if (res != MPU6515_SUCCESS)
+    {
+        return res;
+    }
+
+    res = MPU6515_SetPowerMode(client, enable_status);
     if (res != MPU6515_SUCCESS)
     {
         return res;
@@ -1344,7 +1401,7 @@ static long mpu6515_unlocked_ioctl(struct file *file, unsigned int cmd,
         MPU6515_SMTReadSensorData(client, SMTdata, 800);
 
         GYRO_LOG("gyroscope read data from kernel OK: SMTdata[0]:%d, copied packet:%d!\n", SMTdata[0],
-                 ((SMTdata[0]*MPU6515_AXES_NUM+2)*sizeof(s16)+1));
+                 (int)((SMTdata[0]*MPU6515_AXES_NUM+2)*sizeof(s16)+1));
 
         smtRes = MPU6515_PROCESS_SMT_DATA(client,SMTdata);
         GYRO_LOG("ioctl smtRes: %d!\n", smtRes);
@@ -1367,6 +1424,7 @@ static long mpu6515_unlocked_ioctl(struct file *file, unsigned int cmd,
         }
 
         //prevent meta calibration timeout
+        MPU6515_SetPWR_MGMT_2(client, true);
         if (false == sensor_power)
         {
         MPU6515_SetPowerMode(client, true);
@@ -1489,12 +1547,40 @@ static long mpu6515_unlocked_ioctl(struct file *file, unsigned int cmd,
     return err;
 }
 
+#if IS_ENABLED(CONFIG_COMPAT)
+static long compat_mpu6515_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+    long ret;
+
+    GYRO_FUN();
+
+    if (!filp->f_op || !filp->f_op->unlocked_ioctl) {
+        GYRO_ERR("compat_ion_ioctl file has no f_op or no f_op->unlocked_ioctl.\n");
+        return -ENOTTY;
+    }
+
+    switch (cmd) {
+        case GYROSCOPE_IOCTL_SET_CALI:
+        case GYROSCOPE_IOCTL_CLR_CALI:
+        case GYROSCOPE_IOCTL_GET_CALI:
+            return filp->f_op->unlocked_ioctl(filp, cmd,
+                (unsigned long)compat_ptr(arg));
+        default: {
+            GYRO_ERR("compat_ion_ioctl : No such command!! 0x%x\n", cmd);
+            return -ENOIOCTLCMD;
+        }
+    }
+}
+#endif
 
 /*----------------------------------------------------------------------------*/
 static struct file_operations mpu6515_fops = {
     .open = mpu6515_open,
     .release = mpu6515_release,
 	.unlocked_ioctl = mpu6515_unlocked_ioctl,
+#if IS_ENABLED(CONFIG_COMPAT)
+    .compat_ioctl = compat_mpu6515_unlocked_ioctl,
+#endif
 };
 /*----------------------------------------------------------------------------*/
 static struct miscdevice mpu6515_device = {
@@ -1503,11 +1589,12 @@ static struct miscdevice mpu6515_device = {
     .fops = &mpu6515_fops,
 };
 /*----------------------------------------------------------------------------*/
-#ifndef CONFIG_HAS_EARLYSUSPEND
+#if !defined(CONFIG_HAS_EARLYSUSPEND) || !defined(USE_EARLY_SUSPEND)
 /*----------------------------------------------------------------------------*/
 static int mpu6515_suspend(struct i2c_client *client, pm_message_t msg) 
 {
     struct mpu6515_i2c_data *obj = i2c_get_clientdata(client);    
+    int err;
     GYRO_FUN();    
 
     if (msg.event == PM_EVENT_SUSPEND)
@@ -1518,8 +1605,12 @@ static int mpu6515_suspend(struct i2c_client *client, pm_message_t msg)
             return -EINVAL;
         }
         atomic_set(&obj->suspend, 1);       
-
+        MPU6515_SetPWR_MGMT_2(client, false);
+#ifndef CUSTOM_KERNEL_SENSORHUB
         err = MPU6515_SetPowerMode(client, false);
+#else
+        err = MPU6515_SCP_SetPowerMode(false, ID_GYROSCOPE);
+#endif
         if (err <= 0)
         {
             return err;
@@ -1541,7 +1632,12 @@ static int mpu6515_resume(struct i2c_client *client)
     }
 
     MPU6515_power(obj->hw, 1);
+    MPU6515_SetPWR_MGMT_2(client, enable_status);
+#ifndef CUSTOM_KERNEL_SENSORHUB
     err = mpu6515_init_client(client, false);
+#else
+    err = MPU6515_SCP_SetPowerMode(enable_status, ID_GYROSCOPE);
+#endif
     if (err)
     {
         GYRO_ERR("initialize client fail!!\n");
@@ -1567,7 +1663,12 @@ static void mpu6515_early_suspend(struct early_suspend *h)
         return;
     }
     atomic_set(&obj->suspend, 1);
+    MPU6515_SetPWR_MGMT_2(obj->client, false);
+#ifndef CUSTOM_KERNEL_SENSORHUB
     err = MPU6515_SetPowerMode(obj->client, false);
+#else
+    err = MPU6515_SCP_SetPowerMode(false, ID_GYROSCOPE);
+#endif
     if (err)
     {
         GYRO_ERR("write power control fail!!\n");
@@ -1592,7 +1693,12 @@ static void mpu6515_late_resume(struct early_suspend *h)
     }
 
     MPU6515_power(obj->hw, 1);
+    MPU6515_SetPWR_MGMT_2(obj->client, enable_status);
+#ifndef CUSTOM_KERNEL_SENSORHUB
     err = mpu6515_init_client(obj->client, false);
+#else
+    err = MPU6515_SCP_SetPowerMode(enable_status, ID_GYROSCOPE);
+#endif
     if (err)
     {
         GYRO_ERR("initialize client fail! err code %d!\n", err);
@@ -1639,6 +1745,7 @@ static int gyroscope_enable_nodata(int en)
                 sensor_power = enable_status;
             }
 #endif
+                MPU6515_SetPWR_MGMT_2(obj_i2c_data->client, enable_status);
 			GYRO_LOG("Gsensor not in suspend gsensor_SetPowerMode!, enable_status = %d\n",enable_status);
 		}
 		else
@@ -1778,7 +1885,7 @@ static int mpu6515_i2c_probe(struct i2c_client *client, const struct i2c_device_
     }
 
 
-#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_EARLYSUSPEND)
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_EARLYSUSPEND) && defined(USE_EARLY_SUSPEND)
     obj->early_drv.level    = EARLY_SUSPEND_LEVEL_STOP_DRAWING - 2,
     obj->early_drv.suspend  = mpu6515_early_suspend,
     obj->early_drv.resume   = mpu6515_late_resume,    

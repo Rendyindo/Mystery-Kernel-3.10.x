@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2011-2014 MediaTek Inc.
-* 
-* This program is free software: you can redistribute it and/or modify it under the terms of the 
-* GNU General Public License version 2 as published by the Free Software Foundation.
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 /*****************************************************************************
  *
  * Filename:
@@ -32,10 +18,13 @@
  *
  ****************************************************************************/
 
+#define pr_fmt(fmt) "[" KBUILD_MODNAME "][pfp]" fmt
+
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/vmalloc.h>
 #include "ccmni_pfp.h"
+
 /* Compile option for pfp kernel debug */
 #undef __PFP_KERNEL_DEBUG__ 
 
@@ -159,15 +148,15 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
     do
     {
 #ifdef __PFP_KERNEL_DEBUG__
-        printk(KERN_INFO "CCMNI%d: pfp_unframe_state=%d\n",ccmni_inx,ccmni_dev[ccmni_inx].unframe_state);
+        pr_notice("CCMNI%d: pfp_unframe_state=%d\n",ccmni_inx,ccmni_dev[ccmni_inx].unframe_state);
 #endif
         switch(ccmni_dev[ccmni_inx].unframe_state)
         {
             case PARSE_PFP_FRAME_START_FLAG_STATE:
             {
                 // if(((unsigned char)local_raw_data[0]) == PFP_FRAME_START_FLAG)
-#ifdef __PFP_KERNEL_DEBUG__				
-                printk(KERN_INFO "CCMNI%d: check start flag-local_raw_data[0]=0x%02x\n",ccmni_inx,local_raw_data[0]);
+#ifdef __PFP_KERNEL_DEBUG__                
+                pr_notice("CCMNI%d: check start flag-local_raw_data[0]=0x%02x\n",ccmni_inx,local_raw_data[0]);
 #endif
                 if (local_raw_data[0] == PFP_FRAME_START_FLAG)
                 {
@@ -191,8 +180,8 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
             case PARSE_PFP_FRAME_MAGIC_NUM_STATE:
             {
                 // if(((unsigned char)local_raw_data[0]) != PFP_FRAME_MAGIC_NUM)
-#ifdef __PFP_KERNEL_DEBUG__				
-                printk(KERN_INFO "CCMNI%d: check magic num-local_raw_data[0]=0x%02x\n",ccmni_inx,local_raw_data[0]);
+#ifdef __PFP_KERNEL_DEBUG__                
+                pr_notice("CCMNI%d: check magic num-local_raw_data[0]=0x%02x\n",ccmni_inx,local_raw_data[0]);
 #endif
                 
                 if (local_raw_data[0] != PFP_FRAME_MAGIC_NUM)
@@ -215,16 +204,16 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
             case PARSE_PFP_FRAME_LENGTH_FIELD_STATE:
             {
                 /* Check if two bytes Length Field can be obtained from the raw_data[] */
-#ifdef __PFP_KERNEL_DEBUG__				
-                printk(KERN_INFO "CCMNI%d: local_raw_size=%d\n",ccmni_inx,local_raw_size);
+#ifdef __PFP_KERNEL_DEBUG__                
+                pr_notice("CCMNI%d: local_raw_size=%d\n",ccmni_inx,local_raw_size);
 #endif
                 if (local_raw_size >= 2)
                 {
                     ccmni_dev[ccmni_inx].pkt_size = ((local_raw_data[1] << 8) | local_raw_data[0]);
 
 #ifdef __PFP_KERNEL_DEBUG__
-                    printk(KERN_INFO "CCMNI%d: pkt_size=%d,len[0]=0x%02x,len[1]=0x%02x\n",ccmni_inx,ccmni_dev[ccmni_inx].pkt_size,local_raw_data[0],local_raw_data[1]);
-#endif					
+                    pr_notice("CCMNI%d: pkt_size=%d,len[0]=0x%02x,len[1]=0x%02x\n",ccmni_inx,ccmni_dev[ccmni_inx].pkt_size,local_raw_data[0],local_raw_data[1]);
+#endif                    
                     /* Parse the Length Field */
                     local_raw_data  += 2;
                     local_raw_size  -= 2;
@@ -239,7 +228,7 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
                     {
                         /* Change state to PARSE_START_FLAG to find the next frame */
 #ifdef __PFP_KERNEL_DEBUG__
-                        printk(KERN_INFO "CCMNI%d: Reset decode state then continue to parse\n",ccmni_inx);
+                        pr_notice("CCMNI%d: Reset decode state then continue to parse\n",ccmni_inx);
 #endif
                         ccmni_dev[ccmni_inx].unframe_state = PARSE_PFP_FRAME_START_FLAG_STATE;
                         ccmni_dev[ccmni_inx].pkt_size      = 0;
@@ -252,7 +241,7 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
                      * Keep the state as the PARSE_PFP_FRAME_LENGTH_FIELD_STATE
                      */
 #ifdef __PFP_KERNEL_DEBUG__                    
-                    printk(KERN_INFO "CCMNI%d: not enough len bytes\n",ccmni_inx);
+                    pr_notice("CCMNI%d: not enough len bytes\n",ccmni_inx);
 #endif
                     keep_parsing = 0;
                 }
@@ -269,7 +258,7 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
                      * Wait for the data can be retrived as one complete IP Packet
                      */
 #ifdef __PFP_KERNEL_DEBUG__                    
-                    printk(KERN_INFO "CCMNI%d: not enough pkt bytes\n",ccmni_inx);
+                    pr_notice("CCMNI%d: not enough pkt bytes\n",ccmni_inx);
 #endif
                     keep_parsing = 0;
                 }
@@ -293,7 +282,7 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
                         if (current_node == NULL)
                         {
 #ifdef __PFP_KERNEL_DEBUG__
-                            printk(KERN_INFO "CCMNI%d: malloc for first pkt node\n",ccmni_inx);
+                            pr_notice("CCMNI%d: malloc for first pkt node\n",ccmni_inx);
 #endif
 #ifdef __SUPPORT_DYNAMIC_MULTIPLE_FRAME__                             
                             current_node   = (complete_ippkt_t *) vmalloc(sizeof(complete_ippkt_t));
@@ -309,7 +298,7 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
                             {
                                 /* Error Handle */
 #ifdef __PFP_KERNEL_DEBUG__
-                                printk(KERN_INFO "CCMNI%d: Can't find one available complete_ippkt entry case1\n",ccmni_inx);
+                                pr_notice("CCMNI%d: Can't find one available complete_ippkt entry case1\n",ccmni_inx);
 #endif
                                 entry.try_decode_again = 1;
                                 goto error_handle_return;
@@ -341,14 +330,14 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
                             {
                                 /* Error Handle */
 #ifdef __PFP_KERNEL_DEBUG__
-                                printk(KERN_INFO "CCMNI%d: Can't find one available complete_ippkt entry case2\n",ccmni_inx);
-#endif						
+                                pr_notice("CCMNI%d: Can't find one available complete_ippkt entry case2\n",ccmni_inx);
+#endif                        
                                 entry.try_decode_again = 1;
                                 goto error_handle_return;
                             }
                         }
 #ifdef __PFP_KERNEL_DEBUG__                        
-                        printk(KERN_INFO "CCMNI%d: prepare pkt node\n",ccmni_inx);
+                        pr_notice("CCMNI%d: prepare pkt node\n",ccmni_inx);
 #endif
                         current_node->pkt_size = ccmni_dev[ccmni_inx].pkt_size;
                         
@@ -361,7 +350,7 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
                         current_node->pkt_data = local_cooked_data;
                         local_cooked_data     += ccmni_dev[ccmni_inx].pkt_size;
                         current_node->next     = NULL;
-						
+                        
                         /*
                          * Remember the last_node for each CCMNI: It can directly access the tail
                          * one without iterating for inserting a new IP Pkt into this list
@@ -392,7 +381,7 @@ packet_info_t pfp_unframe(unsigned char* cooked_data, int cooked_data_buf_size,
                          * IP Packet : Keep the unframe_state as GET_DATA_STATE
                          */
 #ifdef __PFP_KERNEL_DEBUG__                        
-                        printk(KERN_INFO "CCMNI%d: not enough free space provided by cooked_data\n",ccmni_inx);
+                        pr_notice("CCMNI%d: not enough free space provided by cooked_data\n",ccmni_inx);
 #endif
                         keep_parsing = 0;
                     }
@@ -424,7 +413,7 @@ void traverse_pkt_list(complete_ippkt_t *node)
     while (t_pkt_node != NULL)
     {
 #ifdef __PFP_KERNEL_DEBUG__
-        printk(KERN_INFO "Packet Node: data=0x%08x, size=%d\n", t_pkt_node->pkt_data, t_pkt_node->pkt_size);
+        pr_notice("Packet Node: data=0x%08x, size=%d\n", t_pkt_node->pkt_data, t_pkt_node->pkt_size);
 #endif
         prev_pkt_node = t_pkt_node;
         t_pkt_node    = t_pkt_node->next;

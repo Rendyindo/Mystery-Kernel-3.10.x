@@ -23,15 +23,22 @@
 #include "tuxonice_alloc.h"
 
 static int toi_expected_compression;
+#ifdef CONFIG_TOI_ENHANCE
+static int toi_actual_compression;
+#endif
 
 static struct toi_module_ops toi_compression_ops;
 static struct toi_module_ops *next_driver;
 
+#if defined(CONFIG_MTK_MTD_NAND) && defined(CONFIG_CRYPTO_LZ4K)
+static char toi_compressor_name[32] = "lz4k";
+#else
 static char toi_compressor_name[32] = "lzo";
+#endif
 
 static DEFINE_MUTEX(stats_lock);
 
-struct cpu_context {
+struct toi_cpu_context {
 	u8 *page_buffer;
 	struct crypto_comp *transform;
 	unsigned int len;
@@ -41,7 +48,7 @@ struct cpu_context {
 
 #define OUT_BUF_SIZE (2 * PAGE_SIZE)
 
-static DEFINE_PER_CPU(struct cpu_context, contexts);
+static DEFINE_PER_CPU(struct toi_cpu_context, contexts);
 
 /*
  * toi_crypto_prepare
@@ -58,7 +65,7 @@ static int toi_compress_crypto_prepare(void)
 	}
 
 	for_each_online_cpu(cpu) {
-		struct cpu_context *this = &per_cpu(contexts, cpu);
+		struct toi_cpu_context *this = &per_cpu(contexts, cpu);
 		this->transform = crypto_alloc_comp(toi_compressor_name, 0, 0);
 		if (IS_ERR(this->transform)) {
 			printk(KERN_INFO "TuxOnIce: Failed to initialise the "
@@ -94,7 +101,7 @@ static int toi_compress_rw_cleanup(int writing)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		struct cpu_context *this = &per_cpu(contexts, cpu);
+		struct toi_cpu_context *this = &per_cpu(contexts, cpu);
 		if (this->transform) {
 			crypto_free_comp(this->transform);
 			this->transform = NULL;
@@ -168,7 +175,7 @@ static int toi_compress_write_page(unsigned long index, int buf_type,
 				   void *buffer_page, unsigned int buf_size)
 {
 	int ret = 0, cpu = smp_processor_id();
-	struct cpu_context *ctx = &per_cpu(contexts, cpu);
+	struct toi_cpu_context *ctx = &per_cpu(contexts, cpu);
 	u8 *output_buffer = buffer_page;
 	int output_len = buf_size;
 	int out_buf_type = buf_type;
@@ -223,7 +230,7 @@ static int toi_compress_read_page(unsigned long *index, int buf_type,
 	unsigned int len;
 	unsigned int outlen = PAGE_SIZE;
 	char *buffer_start;
-	struct cpu_context *ctx = &per_cpu(contexts, cpu);
+	struct toi_cpu_context *ctx = &per_cpu(contexts, cpu);
 
 	if (!ctx->transform)
 		return next_driver->read_page(index, TOI_PAGE, buffer_page, buf_size);
@@ -384,6 +391,30 @@ static int toi_compress_expected_ratio(void)
 		return 100 - toi_expected_compression;
 }
 
+#ifdef CONFIG_TOI_ENHANCE
+/*
+ * toi_actual_compression_ratio
+ *
+ * Description:	Returns the actual ratio of the lastest compression result.
+ * Returns:	0 if the module is disabled.
+ */
+static int toi_compress_actual_ratio(void)
+{
+	unsigned long pages_in = toi_compress_bytes_in >> PAGE_SHIFT,
+	    pages_out = toi_compress_bytes_out >> PAGE_SHIFT;
+
+	toi_actual_compression = 0;
+	if (!toi_compression_ops.enabled)
+		toi_actual_compression = 0;
+	else if (pages_in > 0 && (pages_in - pages_out >= 0))
+		toi_actual_compression = (pages_in - pages_out) * 100 / pages_in;
+
+	pr_warn("[%s] actual compressed ratio %d (%lu/%lu)\n", __func__,
+			toi_actual_compression, pages_in, pages_out);
+	return toi_actual_compression;
+}
+#endif
+
 /*
  * data for our sysfs entries.
  */
@@ -393,6 +424,10 @@ static struct toi_sysfs_data sysfs_params[] = {
 	SYSFS_INT("enabled", SYSFS_RW, &toi_compression_ops.enabled, 0, 1, 0,
 		  NULL),
 	SYSFS_STRING("algorithm", SYSFS_RW, toi_compressor_name, 31, 0, NULL),
+#ifdef CONFIG_TOI_ENHANCE
+	SYSFS_INT("actual_compression", SYSFS_READONLY, &toi_actual_compression,
+		  0, 99, 0, NULL),
+#endif
 };
 
 /*
@@ -410,6 +445,9 @@ static struct toi_module_ops toi_compression_ops = {
 	.load_config_info = toi_compress_load_config_info,
 	.storage_needed = toi_compress_storage_needed,
 	.expected_compression = toi_compress_expected_ratio,
+#ifdef CONFIG_TOI_ENHANCE
+	.actual_compression = toi_compress_actual_ratio,
+#endif
 
 	.pre_atomic_restore = toi_compress_pre_atomic_restore,
 	.post_atomic_restore = toi_compress_post_atomic_restore,

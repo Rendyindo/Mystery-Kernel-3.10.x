@@ -427,9 +427,9 @@ int mtk_xhci_scheduler_add_ep(int dev_speed, int is_in, int isTT, int ep_type, i
 
 	best_bw_repeat = 0;
 	printk(KERN_ERR
-	       "add_ep parameters, dev_speed %d, is_in %d, isTT %d, ep_type %d, maxp %d, interval %d, burst %d, mult %d, ep 0x%x, ep_ctx 0x%x, sch_ep 0x%x\n",
-	       dev_speed, is_in, isTT, ep_type, maxp, interval, burst, mult, (unsigned int)ep,
-	       (unsigned int)ep_ctx, (unsigned int)sch_ep);
+	       "add_ep parameters, dev_speed %d, is_in %d, isTT %d, ep_type %d, maxp %d, interval %d, burst %d, mult %d, ep 0x%p, ep_ctx 0x%p, sch_ep 0x%p\n",
+	       dev_speed, is_in, isTT, ep_type, maxp, interval, burst, mult, ep,
+	       ep_ctx, sch_ep);
 	if (isTT && ep_type == USB_EP_INT
 	    && ((dev_speed == USB_SPEED_LOW) || (dev_speed == USB_SPEED_FULL))) {
 		frame_interval = interval >> 3;

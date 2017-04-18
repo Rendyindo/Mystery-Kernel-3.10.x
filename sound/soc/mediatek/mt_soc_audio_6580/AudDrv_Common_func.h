@@ -16,7 +16,7 @@
  *
  * Filename:
  * ---------
- *   AudDrv_Common.h
+ *   AudDrv_Common_func.h
  *
  * Project:
  * --------
@@ -28,48 +28,26 @@
  *
  * Author:
  * -------
- *   Chipeng Chang (MTK02308)
+ *   George
  *
  *---------------------------------------------------------------------------
 ---
  *
+ *
 
 *******************************************************************************/
 
-#ifndef AUDIO_TYPE_DEF_H
-#define AUDIO_TYPE_DEF_H
+#ifndef AUDIO_COMMON_FUNC_H
+#define AUDIO_COMMON_FUNC_H
 
-/* Type re-definition */
-#ifndef int8
-typedef signed char int8;
-#endif
+bool get_voice_bt_status(void);
+bool get_voice_status(void);
+bool get_voice_md2_bt_status(void);
+bool get_voice_md2_status(void);
+void Auddrv_Read_Efuse_HPOffset(void);
 
-#ifndef uint8
-typedef unsigned char uint8;
-#endif
-
-#ifndef int16
-typedef short int16;
-#endif
-
-#ifndef uint16
-typedef unsigned short uint16;
-#endif
-
-#ifndef int32
-typedef int int32;
-#endif
-
-#ifndef uint32
-typedef unsigned int uint32;
-#endif
-
-#ifndef int64
-typedef long long int64;
-#endif
-
-#ifndef uint64
-typedef unsigned long long uint64;
-#endif
+/* for AUDIO_DL2_ISR_COPY_SUPPORT */
+void mtk_dl2_copy_l(void);
+void mtk_dl2_copy2buffer(const void *addr, uint32_t size);
 
 #endif

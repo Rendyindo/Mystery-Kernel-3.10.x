@@ -19,27 +19,27 @@
  *
  * Filename:
  * ---------
- *   AudDrv_Clk.h
+ *   AudDrv_Gpio.h
  *
  * Project:
  * --------
- *   MT6583  Audio Driver clock control
+ *   MT6580  Audio Driver Gpio control
  *
  * Description:
  * ------------
- *   Audio clcok control
+ *   Audio gpio control
  *
  * Author:
  * -------
- *   Chipeng Chang (mtk02308)
+ *   George
  *
  *------------------------------------------------------------------------------
  *
  *
  *******************************************************************************/
 
-#ifndef _AUDDRV_CLK_H_
-#define _AUDDRV_CLK_H_
+#ifndef _AUDDRV_GPIO_H_
+#define _AUDDRV_GPIO_H_
 
 /*****************************************************************************
  *                     C O M P I L E R   F L A G S
@@ -66,54 +66,21 @@
 /*****************************************************************************
  *                 FUNCTION       D E F I N I T I O N
  *****************************************************************************/
+#if !defined(CONFIG_MTK_LEGACY)
+#include <linux/gpio.h>
+#else
+#include <mt-plat/mt_gpio.h>
+#endif
 
+#if !defined(CONFIG_MTK_LEGACY)
+void AudDrv_GPIO_probe(void *dev);
+int AudDrv_GPIO_PMIC_Select(int bEnable);
+int AudDrv_GPIO_I2S_Select(int bEnable);
+int AudDrv_GPIO_EXTAMP_Select(int bEnable);
+int AudDrv_GPIO_EXTAMP2_Select(int bEnable);
+int AudDrv_GPIO_RCVSPK_Select(int bEnable);
 
-void AudDrv_Clk_AllOn(void);
-
-void Auddrv_Bus_Init(void);
-
-void AudDrv_Clk_Power_On(void);
-void AudDrv_Clk_Power_Off(void);
-
-void AudDrv_Clk_On(void);
-void AudDrv_Clk_Off(void);
-
-void AudDrv_ANA_Clk_On(void);
-void AudDrv_ANA_Clk_Off(void);
-
-void AudDrv_I2S_Clk_On(void);
-void AudDrv_I2S_Clk_Off(void);
-
-void AudDrv_Core_Clk_On(void);
-void AudDrv_Core_Clk_Off(void);
-
-void AudDrv_ADC_Clk_On(void);
-void AudDrv_ADC_Clk_Off(void);
-void AudDrv_ADC2_Clk_On(void);
-void AudDrv_ADC2_Clk_Off(void);
-void AudDrv_ADC3_Clk_On(void);
-void AudDrv_ADC3_Clk_Off(void);
-
-void AudDrv_HDMI_Clk_On(void);
-void AudDrv_HDMI_Clk_Off(void);
-
-void AudDrv_Suspend_Clk_On(void);
-void AudDrv_Suspend_Clk_Off(void);
-
-void AudDrv_APLL24M_Clk_On(void);
-void AudDrv_APLL24M_Clk_Off(void);
-void AudDrv_APLL22M_Clk_On(void);
-void AudDrv_APLL22M_Clk_Off(void);
-
-void AudDrv_APLL1Tuner_Clk_On(void);
-void AudDrv_APLL1Tuner_Clk_Off(void);
-void AudDrv_APLL2Tuner_Clk_On(void);
-void AudDrv_APLL2Tuner_Clk_Off(void);
-
-void AudDrv_Emi_Clk_On(void);
-void AudDrv_Emi_Clk_Off(void);
-
-void AudDrv_Clk_Reset(void);
+#endif
 
 
 #endif

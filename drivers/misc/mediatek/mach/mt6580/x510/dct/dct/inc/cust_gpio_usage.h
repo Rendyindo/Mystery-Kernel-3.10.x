@@ -318,6 +318,13 @@
 #define GPIO_GSE_1_EINT_PIN_M_GPIO   GPIO_MODE_00
 #define GPIO_GSE_1_EINT_PIN_M_EINT   GPIO_MODE_06
 
+#ifndef GPIO_LCD_BIAS_ENP_PIN
+#define GPIO_LCD_BIAS_ENP_PIN GPIO122
+#endif
+
+#ifndef GPIO_LCD_BIAS_ENN_PIN
+#define GPIO_LCD_BIAS_ENN_PIN GPIO95
+#endif
 
 /*Output for default variable names*/
 /*@XXX_XX_PIN in gpio.cmp          */

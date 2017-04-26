@@ -17,6 +17,14 @@
 #define FRAME_WIDTH  										(720)
 #define FRAME_HEIGHT 										(1280)
 
+#ifndef GPIO_LCD_BIAS_ENP_PIN
+#define GPIO_LCD_BIAS_ENP_PIN GPIO122
+#endif
+
+#ifndef GPIO_LCD_BIAS_ENN_PIN
+#define GPIO_LCD_BIAS_ENN_PIN GPIO95
+#endif
+
 #define REGFLAG_DELAY             							0xFE
 #define REGFLAG_END_OF_TABLE      							0xFF   // END OF REGISTERS MARKER
 

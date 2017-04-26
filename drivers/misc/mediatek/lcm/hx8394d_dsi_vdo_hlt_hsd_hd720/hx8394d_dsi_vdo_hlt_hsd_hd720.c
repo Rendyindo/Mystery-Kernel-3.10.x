@@ -61,12 +61,12 @@ static void lcm_get_params(LCM_PARAMS *params)
 {
     memset(params, 0, sizeof(LCM_PARAMS));
 
-    params->type   = LCM_TYPE_DSI;
+    params->type   = 2;
     params->width  = FRAME_WIDTH;
     params->height = FRAME_HEIGHT;
 
     // enable tearing-free
-    params->dbi.te_mode 				= LCM_DBI_TE_MODE_VSYNC_ONLY;
+    params->dbi.te_mode 				= 1	;
     params->dbi.te_edge_polarity		= LCM_POLARITY_RISING;
     params->dsi.mode   = SYNC_PULSE_VDO_MODE;
 
@@ -76,7 +76,7 @@ static void lcm_get_params(LCM_PARAMS *params)
     //The following defined the fomat for data coming from LCD engine.
     params->dsi.data_format.color_order = LCM_COLOR_ORDER_RGB;
     params->dsi.data_format.trans_seq   = LCM_DSI_TRANS_SEQ_MSB_FIRST;
-    params->dsi.data_format.padding     = LCM_DSI_PADDING_ON_LSB;
+    params->dsi.data_format.padding     = 1;
     params->dsi.data_format.format      = LCM_DSI_FORMAT_RGB888;
 
     // Highly depends on LCD driver capability.
@@ -84,14 +84,14 @@ static void lcm_get_params(LCM_PARAMS *params)
     params->dsi.packet_size=256;
     params->dsi.PS=LCM_PACKED_PS_24BIT_RGB888;
 
-    params->dsi.vertical_sync_active				= 4;
-    params->dsi.vertical_backporch					= 14;
-    params->dsi.vertical_frontporch					= 20;
+    params->dsi.vertical_sync_active				= 0;
+    params->dsi.vertical_backporch					= 0;
+    params->dsi.vertical_frontporch					= 0;
     params->dsi.vertical_active_line				= FRAME_HEIGHT;
 
     params->dsi.horizontal_sync_active				= 20;
     params->dsi.horizontal_backporch				= 60;
-    params->dsi.horizontal_frontporch				= 60;
+    params->dsi.horizontal_frontporch				= 1280;
     params->dsi.horizontal_active_pixel				= FRAME_WIDTH;
 
 	params->dsi.PLL_CLOCK = 218; //this value must be in MTK suggested table

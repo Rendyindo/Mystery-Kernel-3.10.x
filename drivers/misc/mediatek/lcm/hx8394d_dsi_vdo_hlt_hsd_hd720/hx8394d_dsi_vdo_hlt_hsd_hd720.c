@@ -121,8 +121,8 @@ static void lcm_get_params(LCM_PARAMS *params)
 
 static void lcm_init(void)
 {
-	mt_set_gpio_out(GPIO_LCD_BIAS_ENP_PIN, GPIO_OUT_ONE);
-    mt_set_gpio_out(GPIO_LCD_BIAS_ENN_PIN, GPIO_OUT_ONE);  
+	mt_set_gpio_out(GPIO_LCD_ENP_PIN, GPIO_OUT_ONE);
+    mt_set_gpio_out(GPIO_LCD_ENN_PIN, GPIO_OUT_ONE);  
     SET_RESET_PIN(1);
     SET_RESET_PIN(0);
     MDELAY(10);

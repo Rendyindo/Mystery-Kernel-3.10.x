@@ -281,8 +281,8 @@ static void lcm_suspend(void)
 	
 	SET_RESET_PIN(1);
 	MDELAY(20); 
-	mt_set_gpio_out(GPIO_LCD_BIAS_ENP_PIN, GPIO_OUT_ZERO);
-    mt_set_gpio_out(GPIO_LCD_BIAS_ENN_PIN, GPIO_OUT_ZERO);  
+	mt_set_gpio_out(GPIO_LCD_ENP_PIN, GPIO_OUT_ZERO);
+    mt_set_gpio_out(GPIO_LCD_ENN_PIN, GPIO_OUT_ZERO);  
 }
 
 

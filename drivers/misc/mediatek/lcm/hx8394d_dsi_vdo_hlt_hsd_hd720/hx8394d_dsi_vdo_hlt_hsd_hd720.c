@@ -136,7 +136,7 @@ static void lcm_init(void)
 		MDELAY(10);
 		 
 		data_array[0] = 0x00033902; 						
-		data_array[1] = 0x008373BA;
+		data_array[1] = 0x008372BA;
 		//data_array[2] = 0x0909b265;
 		//data_array[3] = 0x00001040;
 		dsi_set_cmdq(&data_array, 2, 1);

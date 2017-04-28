@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #ifdef CONFIG_MTK_LEGACY
-#include "cust_clk_buf.h"
+#include <cust_clk_buf.h>
 #endif /* CONFIG_MTK_LEGACY */
 #else
 #ifdef MTKDRV_CLKBUF_CTL // for CTP

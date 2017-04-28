@@ -1,16 +1,3 @@
-/*
- * Copyright (C) 2015 MediaTek Inc.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
-
 /******************************************************************************
 *
  *
@@ -32,6 +19,10 @@
  *
  *---------------------------------------------------------------------------
 ---
+ * $Revision: #1 $
+ * $Modtime:$
+ * $Log:$
+ *
  *
 
 *******************************************************************************/
@@ -39,7 +30,7 @@
 #ifndef AUDIO_TYPE_DEF_H
 #define AUDIO_TYPE_DEF_H
 
-/* Type re-definition */
+// Type re-definition
 #ifndef int8
 typedef signed char int8;
 #endif
@@ -73,3 +64,5 @@ typedef unsigned long long uint64;
 #endif
 
 #endif
+
+
